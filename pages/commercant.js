@@ -93,31 +93,50 @@ export default function Commercant() {
     if (!scannerOn) return;
     let cancelled = false;
 
-    import("html5-qrcode").then(({ Html5Qrcode }) => {
-      if (cancelled) return;
-      const instance = new Html5Qrcode("qr-reader");
-      scannerInstance.current = instance;
-      instance
-        .start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: 240 },
-          (decodedText) => {
-            addStamp(decodedText.trim());
-            // Petite pause pour éviter de scanner 10 fois la même carte
-            instance.pause(true);
-            setTimeout(() => {
-              if (scannerInstance.current) scannerInstance.current.resume();
-            }, 2500);
-          },
-          () => {
-            /* erreur de lecture image par image, ignorée */
-          }
-        )
-        .catch((err) => {
-          setMessage({ type: "error", text: "Impossible d'accéder à la caméra : " + err });
+    import("html5-qrcode")
+      .then(({ Html5Qrcode }) => {
+        if (cancelled) return;
+        try {
+          const instance = new Html5Qrcode("qr-reader");
+          scannerInstance.current = instance;
+          instance
+            .start(
+              { facingMode: "environment" },
+              { fps: 10, qrbox: 240 },
+              (decodedText) => {
+                addStamp(decodedText.trim());
+                // Petite pause pour éviter de scanner 10 fois la même carte
+                instance.pause(true);
+                setTimeout(() => {
+                  if (scannerInstance.current) scannerInstance.current.resume();
+                }, 2500);
+              },
+              () => {
+                /* erreur de lecture image par image, ignorée */
+              }
+            )
+            .catch((err) => {
+              setMessage({
+                type: "error",
+                text: "Impossible d'accéder à la caméra : " + (err?.message || err),
+              });
+              setScannerOn(false);
+            });
+        } catch (err) {
+          setMessage({
+            type: "error",
+            text: "Impossible de démarrer le scanner : " + (err?.message || err),
+          });
           setScannerOn(false);
+        }
+      })
+      .catch((err) => {
+        setMessage({
+          type: "error",
+          text: "Le module caméra n'a pas pu se charger : " + (err?.message || err),
         });
-    });
+        setScannerOn(false);
+      });
 
     return () => {
       cancelled = true;
