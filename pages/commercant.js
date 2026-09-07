@@ -1,33 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-
-// Isole les plantages du scanner caméra (bug connu de certains navigateurs
-// mobiles avec html5-qrcode) pour qu'ils n'emportent plus toute la page —
-// le reste du tableau de bord (recherche manuelle, liste des clients) reste
-// utilisable même si la caméra plante.
-class ScannerErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error) {
-    console.error("Erreur scanner caméra :", error);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="banner error">
-          Le scanner caméra a rencontré un problème sur cet appareil. Utilise
-          la recherche manuelle ci-dessous en attendant — elle fait exactement
-          la même chose.
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { useEffect, useRef, useState } from "react";
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
@@ -41,9 +12,8 @@ export default function Commercant() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
-  const [scannerOn, setScannerOn] = useState(false);
-  const scannerRef = useRef(null);
-  const scannerInstance = useRef(null);
+  const [scanning, setScanning] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Au chargement, si un mot de passe est déjà enregistré sur cet
   // appareil, on l'essaie automatiquement.
@@ -117,68 +87,72 @@ export default function Commercant() {
     }
   }
 
-  // --- Scanner QR caméra ---
-  useEffect(() => {
-    if (!scannerOn) return;
-    let cancelled = false;
+  // Scanner QR par photo : on ouvre l'appareil photo natif du téléphone
+  // (au lieu d'un flux vidéo en direct dans la page, source d'instabilité
+  // sur certains navigateurs mobiles), on prend UNE photo, et on décode le
+  // QR dessus. Tout est protégé par try/catch : au pire ça affiche un
+  // message d'erreur, ça ne peut plus jamais faire planter la page.
+  function openCamera() {
+    setMessage(null);
+    if (fileInputRef.current) fileInputRef.current.click();
+  }
 
-    import("html5-qrcode")
-      .then(({ Html5Qrcode }) => {
-        if (cancelled) return;
-        try {
-          const instance = new Html5Qrcode("qr-reader");
-          scannerInstance.current = instance;
-          instance
-            .start(
-              { facingMode: "environment" },
-              { fps: 10, qrbox: 240 },
-              (decodedText) => {
-                addStamp(decodedText.trim());
-                // Petite pause pour éviter de scanner 10 fois la même carte
-                instance.pause(true);
-                setTimeout(() => {
-                  if (scannerInstance.current) scannerInstance.current.resume();
-                }, 2500);
-              },
-              () => {
-                /* erreur de lecture image par image, ignorée */
-              }
-            )
-            .catch((err) => {
-              setMessage({
-                type: "error",
-                text: "Impossible d'accéder à la caméra : " + (err?.message || err),
-              });
-              setScannerOn(false);
-            });
-        } catch (err) {
-          setMessage({
-            type: "error",
-            text: "Impossible de démarrer le scanner : " + (err?.message || err),
-          });
-          setScannerOn(false);
-        }
-      })
-      .catch((err) => {
+  async function handlePhoto(e) {
+    const file = e.target.files && e.target.files[0];
+    // On vide la valeur tout de suite pour pouvoir reprendre une photo
+    // même si on annule ou si ça échoue.
+    if (e.target) e.target.value = "";
+    if (!file) return;
+
+    setScanning(true);
+    setMessage(null);
+    try {
+      const decodedText = await decodeQrFromFile(file);
+      if (!decodedText) {
         setMessage({
           type: "error",
-          text: "Le module caméra n'a pas pu se charger : " + (err?.message || err),
+          text: "Aucun QR détecté sur la photo. Reprends la photo en te rapprochant, ou utilise la recherche ci-dessous.",
         });
-        setScannerOn(false);
+        return;
+      }
+      await addStamp(decodedText.trim());
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: "Impossible de lire cette photo : " + (err?.message || err),
+      });
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function decodeQrFromFile(file) {
+    const jsQR = (await import("jsqr")).default;
+    const imageUrl = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("Image illisible"));
+        el.src = imageUrl;
       });
 
-    return () => {
-      cancelled = true;
-      if (scannerInstance.current) {
-        scannerInstance.current
-          .stop()
-          .then(() => scannerInstance.current.clear())
-          .catch(() => {});
-        scannerInstance.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannerOn]);
+      const canvas = document.createElement("canvas");
+      // On limite la taille pour que le décodage reste rapide sur mobile.
+      const maxSize = 1200;
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+      return result ? result.data : null;
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  }
 
   const filtered = clients.filter((c) =>
     c.prenom.toLowerCase().includes(search.trim().toLowerCase())
@@ -225,24 +199,27 @@ export default function Commercant() {
 
         <div className="card">
           <h2>Scanner un client</h2>
-          <ScannerErrorBoundary>
-            {!scannerOn ? (
-              <button className="primary" onClick={() => setScannerOn(true)}>
-                Activer la caméra
-              </button>
-            ) : (
-              <>
-                <div id="qr-reader" />
-                <button className="secondary" onClick={() => setScannerOn(false)}>
-                  Arrêter la caméra
-                </button>
-              </>
-            )}
-          </ScannerErrorBoundary>
+          <p className="subtitle" style={{ marginBottom: 12 }}>
+            Prends une photo du QR affiché sur la carte du client.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhoto}
+            style={{ display: "none" }}
+          />
+          <button className="primary" onClick={openCamera} disabled={scanning}>
+            {scanning ? "Lecture en cours…" : "📷 Prendre une photo du QR"}
+          </button>
         </div>
 
         <div className="card">
           <h2>Ou recherchez un client</h2>
+          <p className="subtitle" style={{ marginBottom: 12 }}>
+            Tape le prénom du client, puis clique "+1 tampon" sur sa ligne.
+          </p>
           <input
             type="text"
             placeholder="Prénom du client…"
