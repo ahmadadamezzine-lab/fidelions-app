@@ -7,7 +7,7 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 1. Le client scanne le QR code du restaurant (page `/qr`).
 2. Il arrive sur la page d'accueil, entre son prénom, clique "Créer ma carte".
 3. Une carte de fidélité est créée pour lui (avec un QR unique dessus) et Google Wallet propose de l'ajouter au téléphone. Il reçoit aussi son lien de parrainage à partager.
-4. À chaque visite, le commerçant ouvre `/commercant` sur son téléphone : soit il prend une photo du QR affiché sur la carte du client (l'appareil photo natif du téléphone s'ouvre), soit il tape son prénom — puis clique "+1 tampon". Ça met à jour la carte du client en direct, avec une notification push.
+4. À chaque visite, le commerçant ouvre `/commercant` : sur ordinateur, la caméra s'active en direct dans la page ; sur téléphone/tablette, il prend une simple photo du QR (l'appareil photo natif s'ouvre) — l'appli détecte l'appareil toute seule. Il peut aussi taper le prénom du client. Puis clique "+1 tampon" : ça met à jour la carte du client en direct, avec une notification push.
 5. Quand un client atteint 10 tampons, une notification "Récompense débloquée" est envoyée automatiquement.
 6. L'espace commerçant liste aussi tous les clients et leur nombre de visites (traçabilité).
 
@@ -61,7 +61,7 @@ C'est ce qui permet à ce site de créer des cartes en te faisant passer pour "F
 1. Ouvre l'URL donnée par Vercel (ex. `fidelions-app.vercel.app`).
 2. Entre un prénom, clique `Créer ma carte`, puis `Ajouter à Google Wallet`.
 3. Une page Google doit s'ouvrir proposant d'ajouter la carte, avec un QR code dessus.
-4. Va sur `tonsite.vercel.app/commercant`, entre ton mot de passe, clique `📷 Prendre une photo du QR` et prends en photo le QR de la carte que tu viens de créer (ou tape le prénom du client) → clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
+4. Va sur `tonsite.vercel.app/commercant`, entre ton mot de passe. Sur ordinateur : clique `Activer la caméra` et vise le QR. Sur téléphone/tablette : clique `📷 Prendre une photo du QR` et prends en photo le QR de la carte que tu viens de créer. (Tu peux aussi juste taper le prénom du client.) Puis clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
 5. Va sur `tonsite.vercel.app/qr` pour récupérer le QR code d'inscription à imprimer pour le restaurant.
 
 ## Si ça ne marche pas
