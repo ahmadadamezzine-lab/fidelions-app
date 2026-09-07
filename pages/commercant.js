@@ -1,4 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
+// Isole les plantages du scanner caméra (bug connu de certains navigateurs
+// mobiles avec html5-qrcode) pour qu'ils n'emportent plus toute la page —
+// le reste du tableau de bord (recherche manuelle, liste des clients) reste
+// utilisable même si la caméra plante.
+class ScannerErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error) {
+    console.error("Erreur scanner caméra :", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="banner error">
+          Le scanner caméra a rencontré un problème sur cet appareil. Utilise
+          la recherche manuelle ci-dessous en attendant — elle fait exactement
+          la même chose.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
@@ -196,18 +225,20 @@ export default function Commercant() {
 
         <div className="card">
           <h2>Scanner un client</h2>
-          {!scannerOn ? (
-            <button className="primary" onClick={() => setScannerOn(true)}>
-              Activer la caméra
-            </button>
-          ) : (
-            <>
-              <div id="qr-reader" />
-              <button className="secondary" onClick={() => setScannerOn(false)}>
-                Arrêter la caméra
+          <ScannerErrorBoundary>
+            {!scannerOn ? (
+              <button className="primary" onClick={() => setScannerOn(true)}>
+                Activer la caméra
               </button>
-            </>
-          )}
+            ) : (
+              <>
+                <div id="qr-reader" />
+                <button className="secondary" onClick={() => setScannerOn(false)}>
+                  Arrêter la caméra
+                </button>
+              </>
+            )}
+          </ScannerErrorBoundary>
         </div>
 
         <div className="card">
