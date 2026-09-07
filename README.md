@@ -1,12 +1,15 @@
 # Fidélions — prototype
 
-Page d'inscription + génération de carte Google Wallet. Coût : 0 €, hébergé gratuitement sur Vercel.
+Page d'inscription + génération de carte Google Wallet + espace commerçant. Coût : 0 €, hébergé gratuitement sur Vercel.
 
 ## Ce que fait ce projet
 
 1. Le client scanne le QR code du restaurant (page `/qr`).
-2. Il arrive sur la page d'accueil, entre son prénom, clique "Ajouter à Google Wallet".
-3. Une carte de fidélité est créée pour lui et Google Wallet propose de l'ajouter au téléphone.
+2. Il arrive sur la page d'accueil, entre son prénom, clique "Créer ma carte".
+3. Une carte de fidélité est créée pour lui (avec un QR unique dessus) et Google Wallet propose de l'ajouter au téléphone. Il reçoit aussi son lien de parrainage à partager.
+4. À chaque visite, le commerçant ouvre `/commercant` sur son téléphone, scanne le QR de la carte du client (ou tape son prénom), et clique "+1 tampon" — ça met à jour la carte du client en direct, avec une notification push.
+5. Quand un client atteint 10 tampons, une notification "Récompense débloquée" est envoyée automatiquement.
+6. L'espace commerçant liste aussi tous les clients et leur nombre de visites (traçabilité).
 
 ## Étape 1 — Créer le compte de service Google Cloud (obligatoire, une seule fois)
 
@@ -29,30 +32,42 @@ C'est ce qui permet à ce site de créer des cartes en te faisant passer pour "F
 5. Choisis le rôle `Administrateur`.
 6. Valide.
 
-## Étape 3 — Déployer sur GitHub + Vercel
+## Étape 3 — Créer la base de données (Upstash Redis, gratuit)
+
+1. Va sur `vercel.com`, ouvre ton projet `fidelions-app`.
+2. Onglet `Storage` (en haut) → `Create Database`.
+3. Choisis `Upstash` puis `Redis` (offre gratuite).
+4. Donne-lui un nom (ex. `fidelions-db`) → `Create`.
+5. Sur l'écran suivant, coche ton projet `fidelions-app` puis `Connect` — Vercel ajoute automatiquement les variables `KV_REST_API_URL` et `KV_REST_API_TOKEN` à ton projet, tu n'as rien à copier toi-même.
+
+## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
 2. `New repository` → nom `fidelions-app` → `Create repository` (laisse-le vide, sans README).
 3. Sur la page du repo vide, clique le lien `uploading an existing file`.
 4. Dézippe le fichier que je t'ai envoyé, puis glisse **tout le contenu du dossier** (pas le dossier lui-même) dans la zone d'upload.
 5. `Commit changes`.
-6. Va sur vercel.com/new (connecte-toi avec ton compte GitHub).
-7. `Import` sur le repo `fidelions-app`.
-8. Avant de cliquer `Deploy`, ouvre `Environment Variables` et ajoute les 3 variables ci-dessous (valeurs à copier depuis le fichier JSON de l'étape 1) :
+6. Va sur vercel.com/new (connecte-toi avec ton compte GitHub) — ou si le projet existe déjà, va directement dans `Settings` > `Environment Variables`.
+7. Ajoute ces variables (valeurs à copier depuis le fichier JSON de l'étape 1, sauf indication contraire) :
    - `GOOGLE_WALLET_CLIENT_EMAIL` → le champ `client_email` du JSON
-   - `GOOGLE_WALLET_PRIVATE_KEY` → le champ `private_key` du JSON (colle-le tel quel, guillemets compris)
-   - `GOOGLE_WALLET_CLASS_ID` → `BCR2DN6DVKHLZ7JI.fidelions_test`
-9. `Deploy`.
+   - `GOOGLE_WALLET_PRIVATE_KEY` → le champ `private_key` du JSON
+   - `GOOGLE_WALLET_CLASS_ID` → l'ID complet de ta classe de fidélité (ex. `3388000000023199659.fidelions_loyalty`)
+   - `MERCHANT_PASSWORD` → un mot de passe que tu choisis toi-même, pour protéger `/commercant`
+   - `GOOGLE_REVIEW_URL` → optionnel, le lien direct vers "laisser un avis Google" du restaurant (laisse vide pour l'instant)
+8. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
-## Étape 4 — Tester
+## Étape 5 — Tester
 
 1. Ouvre l'URL donnée par Vercel (ex. `fidelions-app.vercel.app`).
-2. Entre un prénom, clique `Ajouter à Google Wallet`.
-3. Une page Google doit s'ouvrir proposant d'ajouter la carte.
-4. Va sur `tonsite.vercel.app/qr` pour récupérer le QR code à imprimer pour le restaurant.
+2. Entre un prénom, clique `Créer ma carte`, puis `Ajouter à Google Wallet`.
+3. Une page Google doit s'ouvrir proposant d'ajouter la carte, avec un QR code dessus.
+4. Va sur `tonsite.vercel.app/commercant`, entre ton mot de passe, active la caméra et scanne le QR de la carte que tu viens de créer (ou tape le prénom) → clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
+5. Va sur `tonsite.vercel.app/qr` pour récupérer le QR code d'inscription à imprimer pour le restaurant.
 
 ## Si ça ne marche pas
 
-- Erreur 500 sur `/api/create-pass` → une des 3 variables d'environnement est mal copiée. Revérifie dans Vercel > Settings > Environment Variables, puis `Deployments` > `⋯` > `Redeploy`.
-- La page Google dit que la classe n'existe pas → vérifie que `GOOGLE_WALLET_CLASS_ID` correspond exactement à l'ID de classe créé dans la Wallet Business Console.
+- Erreur 500 sur `/api/create-pass` → une des variables d'environnement est mal copiée. Revérifie dans Vercel > Settings > Environment Variables, puis `Deployments` > `⋯` > `Redeploy`.
+- Erreur "Base de données non configurée" → l'étape 3 (Upstash Redis) n'a pas été faite ou le projet n'a pas été reconnecté après ; vérifie `Storage` dans Vercel.
+- La page Google dit que la classe n'existe pas / "not approved" → vérifie que `GOOGLE_WALLET_CLASS_ID` correspond exactement à l'ID de classe créé dans la Wallet Business Console, et que son État n'est plus sur "DRAFT".
 - Le compte de service n'a pas accès → revérifie l'étape 2 (l'email doit être invité en tant qu'utilisateur de la Wallet Business Console, sinon Google refuse de signer les cartes).
+- `/commercant` refuse le mot de passe → vérifie que `MERCHANT_PASSWORD` est bien défini dans Vercel et qu'un redeploy a été fait après l'avoir ajouté.
