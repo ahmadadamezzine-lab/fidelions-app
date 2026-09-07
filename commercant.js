@@ -12,17 +12,23 @@ export default function Commercant() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
-  const [scanning, setScanning] = useState(false);
-  const fileInputRef = useRef(null);
 
-  // PC = caméra en direct dans la page (fiable sur ordinateur).
-  // Mobile/tablette = photo unique via l'appareil photo natif (le flux en
-  // direct plante sur certains navigateurs mobiles — voir plus bas).
-  // null tant qu'on n'a pas encore détecté, pour ne rien afficher de faux
-  // le temps du premier rendu.
-  const [deviceType, setDeviceType] = useState(null);
-  const [scannerOn, setScannerOn] = useState(false);
-  const scannerInstance = useRef(null);
+  // --- Scanner caméra maison (getUserMedia + jsQR) ---
+  // Pourquoi pas une librairie toute faite : html5-qrcode plantait sur
+  // certains mobiles, et l'appareil photo natif (via <input capture>)
+  // affichait un écran noir (permission caméra du site jamais demandée).
+  // Ici on demande nous-mêmes l'autorisation caméra du navigateur (le vrai
+  // popup "Autoriser l'accès à la caméra ?"), on affiche le flux dans une
+  // vraie balise <video>, et on décode nous-mêmes image par image avec
+  // jsQR — tout est dans un try/catch, rien ne peut faire planter la page.
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState(""); // message sous la vidéo pendant le scan
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanTimerRef = useRef(null);
+  const jsQRRef = useRef(null);
+  const pausedRef = useRef(false);
 
   // Au chargement, si un mot de passe est déjà enregistré sur cet
   // appareil, on l'essaie automatiquement.
@@ -32,23 +38,14 @@ export default function Commercant() {
       setPassword(saved);
       tryAuth(saved);
     }
-    setDeviceType(detectDeviceType());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function detectDeviceType() {
-    if (typeof navigator === "undefined") return "desktop";
-    const ua = navigator.userAgent || "";
-    const isMobileUA = /Android|iPhone|iPod|Mobile|Windows Phone/i.test(ua);
-    const isIPadUA = /iPad/i.test(ua);
-    // iPadOS 13+ se présente comme "Macintosh" mais expose le tactile.
-    const isIPadOS = /Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1;
-    const coarsePointer =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(pointer: coarse)").matches;
-    return isMobileUA || isIPadUA || isIPadOS || coarsePointer ? "mobile" : "desktop";
-  }
+  // Coupe bien la caméra si on quitte la page pendant qu'elle tourne.
+  useEffect(() => {
+    return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function tryAuth(pw) {
     setChecking(true);
@@ -111,134 +108,105 @@ export default function Commercant() {
     }
   }
 
-  // Scanner QR par photo : on ouvre l'appareil photo natif du téléphone
-  // (au lieu d'un flux vidéo en direct dans la page, source d'instabilité
-  // sur certains navigateurs mobiles), on prend UNE photo, et on décode le
-  // QR dessus. Tout est protégé par try/catch : au pire ça affiche un
-  // message d'erreur, ça ne peut plus jamais faire planter la page.
-  function openCamera() {
+  async function startCamera() {
     setMessage(null);
-    if (fileInputRef.current) fileInputRef.current.click();
-  }
-
-  async function handlePhoto(e) {
-    const file = e.target.files && e.target.files[0];
-    // On vide la valeur tout de suite pour pouvoir reprendre une photo
-    // même si on annule ou si ça échoue.
-    if (e.target) e.target.value = "";
-    if (!file) return;
-
-    setScanning(true);
-    setMessage(null);
+    setCameraStatus("Démarrage…");
     try {
-      const decodedText = await decodeQrFromFile(file);
-      if (!decodedText) {
-        setMessage({
-          type: "error",
-          text: "Aucun QR détecté sur la photo. Reprends la photo en te rapprochant, ou utilise la recherche ci-dessous.",
-        });
-        return;
+      // On charge jsQR une seule fois, avant d'ouvrir la caméra.
+      if (!jsQRRef.current) {
+        jsQRRef.current = (await import("jsqr")).default;
       }
-      await addStamp(decodedText.trim());
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      pausedRef.current = false;
+      setCameraOn(true);
+      setCameraStatus("Vise le QR affiché sur la carte du client…");
+      scanTimerRef.current = setInterval(scanFrame, 300);
     } catch (err) {
-      setMessage({
-        type: "error",
-        text: "Impossible de lire cette photo : " + (err?.message || err),
-      });
-    } finally {
-      setScanning(false);
-    }
-  }
-
-  async function decodeQrFromFile(file) {
-    const jsQR = (await import("jsqr")).default;
-    const imageUrl = URL.createObjectURL(file);
-    try {
-      const img = await new Promise((resolve, reject) => {
-        const el = new Image();
-        el.onload = () => resolve(el);
-        el.onerror = () => reject(new Error("Image illisible"));
-        el.src = imageUrl;
-      });
-
-      const canvas = document.createElement("canvas");
-      // On limite la taille pour que le décodage reste rapide sur mobile.
-      const maxSize = 1200;
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      const result = jsQR(imageData.data, imageData.width, imageData.height);
-      return result ? result.data : null;
-    } finally {
-      URL.revokeObjectURL(imageUrl);
-    }
-  }
-
-  // --- Scanner QR caméra en direct (PC uniquement) ---
-  useEffect(() => {
-    if (!scannerOn) return;
-    let cancelled = false;
-
-    import("html5-qrcode")
-      .then(({ Html5Qrcode }) => {
-        if (cancelled) return;
-        try {
-          const instance = new Html5Qrcode("qr-reader");
-          scannerInstance.current = instance;
-          instance
-            .start(
-              { facingMode: "environment" },
-              { fps: 10, qrbox: 240 },
-              (decodedText) => {
-                addStamp(decodedText.trim());
-                instance.pause(true);
-                setTimeout(() => {
-                  if (scannerInstance.current) scannerInstance.current.resume();
-                }, 2500);
-              },
-              () => {
-                /* erreur de lecture image par image, ignorée */
-              }
-            )
-            .catch((err) => {
-              setMessage({
-                type: "error",
-                text: "Impossible d'accéder à la caméra : " + (err?.message || err),
-              });
-              setScannerOn(false);
-            });
-        } catch (err) {
-          setMessage({
-            type: "error",
-            text: "Impossible de démarrer le scanner : " + (err?.message || err),
-          });
-          setScannerOn(false);
-        }
-      })
-      .catch((err) => {
-        setMessage({
-          type: "error",
-          text: "Le module caméra n'a pas pu se charger : " + (err?.message || err),
-        });
-        setScannerOn(false);
-      });
-
-    return () => {
-      cancelled = true;
-      if (scannerInstance.current) {
-        scannerInstance.current
-          .stop()
-          .then(() => scannerInstance.current.clear())
-          .catch(() => {});
-        scannerInstance.current = null;
+      let text = "Impossible d'accéder à la caméra : " + (err?.message || err);
+      if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
+        text =
+          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
+      } else if (err && err.name === "NotFoundError") {
+        text = "Aucune caméra détectée sur cet appareil.";
       }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannerOn]);
+      setMessage({ type: "error", text });
+      setCameraStatus("");
+      stopCamera();
+    }
+  }
+
+  function stopCamera() {
+    if (scanTimerRef.current) {
+      clearInterval(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {
+        // ignoré
+      }
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      try {
+        videoRef.current.srcObject = null;
+      } catch {
+        // ignoré
+      }
+    }
+    setCameraOn(false);
+    setCameraStatus("");
+  }
+
+  // Appelée toutes les 300ms tant que la caméra tourne. Protégée de bout
+  // en bout : la moindre erreur ici ne fait qu'ignorer cette image, jamais
+  // planter la page.
+  function scanFrame() {
+    if (pausedRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const jsQR = jsQRRef.current;
+      if (!video || !canvas || !jsQR) return;
+      if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const result = jsQR(imageData.data, width, height);
+
+      if (result && result.data) {
+        pausedRef.current = true;
+        setCameraStatus("QR détecté, ajout du tampon…");
+        addStamp(result.data.trim()).finally(() => {
+          setTimeout(() => {
+            pausedRef.current = false;
+            setCameraStatus("Vise le QR affiché sur la carte du client…");
+          }, 2000);
+        });
+      }
+    } catch {
+      // On ignore l'erreur pour cette image et on continue au tick suivant.
+    }
+  }
 
   const filtered = clients.filter((c) =>
     c.prenom.toLowerCase().includes(search.trim().toLowerCase())
@@ -285,44 +253,39 @@ export default function Commercant() {
 
         <div className="card">
           <h2>Scanner un client</h2>
+          <p className="subtitle" style={{ marginBottom: 12 }}>
+            La première fois, ton navigateur va demander l'autorisation
+            d'utiliser la caméra — accepte, c'est nécessaire pour scanner.
+          </p>
 
-          {deviceType === "desktop" && (
-            <>
-              <p className="subtitle" style={{ marginBottom: 12 }}>
-                Caméra en direct — vise le QR affiché sur la carte du client.
-              </p>
-              {!scannerOn ? (
-                <button className="primary" onClick={() => setScannerOn(true)}>
-                  Activer la caméra
-                </button>
-              ) : (
-                <>
-                  <div id="qr-reader" />
-                  <button className="secondary" onClick={() => setScannerOn(false)}>
-                    Arrêter la caméra
-                  </button>
-                </>
-              )}
-            </>
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            style={{
+              width: "100%",
+              borderRadius: 12,
+              background: "#000",
+              display: cameraOn ? "block" : "none",
+            }}
+          />
+          <canvas ref={canvasRef} style={{ display: "none" }} />
+
+          {cameraOn && cameraStatus && (
+            <p className="subtitle" style={{ margin: "8px 0 0" }}>
+              {cameraStatus}
+            </p>
           )}
 
-          {deviceType === "mobile" && (
-            <>
-              <p className="subtitle" style={{ marginBottom: 12 }}>
-                Prends une photo du QR affiché sur la carte du client.
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhoto}
-                style={{ display: "none" }}
-              />
-              <button className="primary" onClick={openCamera} disabled={scanning}>
-                {scanning ? "Lecture en cours…" : "📷 Prendre une photo du QR"}
-              </button>
-            </>
+          {!cameraOn ? (
+            <button className="primary" onClick={startCamera}>
+              Activer la caméra
+            </button>
+          ) : (
+            <button className="secondary" onClick={stopCamera}>
+              Arrêter la caméra
+            </button>
           )}
         </div>
 
