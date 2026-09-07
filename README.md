@@ -10,6 +10,7 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 4. À chaque visite, le commerçant ouvre `/commercant`, clique "Activer la caméra" (le navigateur demande l'autorisation la première fois — il faut accepter), et vise le QR de la carte du client. Il peut aussi taper son prénom. Puis clique "+1 tampon" : ça met à jour la carte du client en direct, avec une notification push.
 5. Quand un client atteint 10 tampons, une notification "Récompense débloquée" est envoyée automatiquement.
 6. L'espace commerçant liste aussi tous les clients et leur nombre de visites (traçabilité).
+7. Le commerçant peut aussi envoyer une "campagne" : un message (promo, nouveau plat, événement…) qui arrive d'un coup dans le Google Wallet de tous ses clients.
 
 ## Étape 1 — Créer le compte de service Google Cloud (obligatoire, une seule fois)
 

@@ -13,6 +13,11 @@ export default function Commercant() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
 
+  // --- Campagne : notification envoyée à tous les clients d'un coup ---
+  const [campaignHeader, setCampaignHeader] = useState("");
+  const [campaignBody, setCampaignBody] = useState("");
+  const [campaignSending, setCampaignSending] = useState(false);
+
   // --- Scanner caméra maison (getUserMedia + jsQR) ---
   // Pourquoi pas une librairie toute faite : html5-qrcode plantait sur
   // certains mobiles, et l'appareil photo natif (via <input capture>)
@@ -105,6 +110,40 @@ export default function Commercant() {
       refreshClients();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
+    }
+  }
+
+  async function sendCampaign() {
+    if (!campaignHeader.trim() || !campaignBody.trim()) {
+      setMessage({ type: "error", text: "Écris un titre et un message avant d'envoyer." });
+      return;
+    }
+    setCampaignSending(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/broadcast", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-merchant-password": password,
+        },
+        body: JSON.stringify({ header: campaignHeader, body: campaignBody }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setMessage({
+        type: "success",
+        text:
+          data.failed > 0
+            ? `Campagne envoyée à ${data.sent} client(s) — ${data.failed} n'ont pas pu être notifiés.`
+            : `Campagne envoyée à ${data.sent} client(s) 🎉`,
+      });
+      setCampaignHeader("");
+      setCampaignBody("");
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setCampaignSending(false);
     }
   }
 
@@ -287,6 +326,36 @@ export default function Commercant() {
               Arrêter la caméra
             </button>
           )}
+        </div>
+
+        <div className="card">
+          <h2>Envoyer une campagne</h2>
+          <p className="subtitle" style={{ marginBottom: 12 }}>
+            Un message envoyé d'un coup à tous tes {clients.length} client
+            {clients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),
+            visible directement dans leur Google Wallet.
+          </p>
+          <input
+            type="text"
+            placeholder="Titre (ex : Menu spécial ce week-end)"
+            value={campaignHeader}
+            onChange={(e) => setCampaignHeader(e.target.value)}
+            maxLength={60}
+          />
+          <input
+            type="text"
+            placeholder="Message (ex : -20% sur toute la carte samedi et dimanche)"
+            value={campaignBody}
+            onChange={(e) => setCampaignBody(e.target.value)}
+            maxLength={300}
+          />
+          <button
+            className="primary"
+            onClick={sendCampaign}
+            disabled={campaignSending || clients.length === 0}
+          >
+            {campaignSending ? "Envoi en cours…" : "Envoyer à tous les clients"}
+          </button>
         </div>
 
         <div className="card">
