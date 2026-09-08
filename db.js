@@ -11,8 +11,10 @@ import { Redis } from "@upstash/redis";
 // as plusieurs restaurants clients, chacun aura son propre restaurantId.
 const RESTAURANT_ID = "demo";
 
-// Combien de tampons avant la récompense (affiché dans les notifications).
-export const REWARD_THRESHOLD = 10;
+// Valeurs de départ tant que le commerçant n'a rien réglé lui-même
+// (voir getSettings/updateSettings plus bas — réglable depuis /commercant).
+export const DEFAULT_REWARD_THRESHOLD = 10;
+export const DEFAULT_REWARD_LABEL = "Récompense fidélité";
 
 let redis = null;
 function getRedis() {
@@ -99,6 +101,35 @@ export async function findClientsByName(query) {
   const q = (query || "").trim().toLowerCase();
   if (!q) return [];
   return all.filter((c) => c.prenom.toLowerCase().includes(q));
+}
+
+/**
+ * Réglages propres au restaurant : combien de tampons avant la
+ * récompense, et ce que le client gagne (ex : "1 café offert"). Modifiable
+ * par le commerçant depuis /commercant, sans toucher au code.
+ */
+export async function getSettings() {
+  const redis = getRedis();
+  const settings = await redis.get(`settings:${RESTAURANT_ID}`);
+  return {
+    rewardThreshold:
+      settings && Number(settings.rewardThreshold) > 0
+        ? Math.round(Number(settings.rewardThreshold))
+        : DEFAULT_REWARD_THRESHOLD,
+    rewardLabel: (settings && settings.rewardLabel) || DEFAULT_REWARD_LABEL,
+  };
+}
+
+export async function updateSettings({ rewardThreshold, rewardLabel }) {
+  const redis = getRedis();
+  const current = await getSettings();
+  const next = {
+    rewardThreshold:
+      Number(rewardThreshold) > 0 ? Math.round(Number(rewardThreshold)) : current.rewardThreshold,
+    rewardLabel: (rewardLabel || "").trim() || current.rewardLabel,
+  };
+  await redis.set(`settings:${RESTAURANT_ID}`, next);
+  return next;
 }
 
 export async function listClients() {

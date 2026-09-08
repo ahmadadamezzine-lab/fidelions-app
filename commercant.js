@@ -3,6 +3,66 @@ import { useEffect, useRef, useState } from "react";
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
+// Analyse automatique du tableau de bord : pas un vrai modèle d'IA (ça
+// coûterait cher en appels API pour un gain flou), mais des règles
+// simples qui lisent les mêmes données que Fidelix met en avant dans sa
+// vidéo — croissance, client le plus fidèle, clients proches de la
+// récompense, clients à relancer. Recalculé à chaque chargement des
+// clients, aucun appel réseau supplémentaire.
+function computeInsights(clients, rewardThreshold) {
+  if (!clients || clients.length === 0) return [];
+  const insights = [];
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+
+  const newThisWeek = clients.filter((c) => now - c.createdAt < 7 * DAY).length;
+  const newLastWeek = clients.filter(
+    (c) => now - c.createdAt >= 7 * DAY && now - c.createdAt < 14 * DAY
+  ).length;
+  if (newThisWeek > 0 && newLastWeek === 0) {
+    insights.push(`📈 ${newThisWeek} nouve${newThisWeek > 1 ? "aux clients" : "au client"} cette semaine.`);
+  } else if (newLastWeek > 0) {
+    const diff = newThisWeek - newLastWeek;
+    const pct = Math.round((Math.abs(diff) / newLastWeek) * 100);
+    insights.push(
+      diff >= 0
+        ? `📈 Inscriptions en hausse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+        : `📉 Inscriptions en baisse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+    );
+  }
+
+  const top = [...clients].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
+  if (top && top.points > 0) {
+    insights.push(`🏆 ${top.prenom} est ton client le plus fidèle avec ${top.points} tampons.`);
+  }
+
+  const threshold = rewardThreshold || 10;
+  const nearReward = clients.filter((c) => {
+    const pts = c.points || 0;
+    if (pts === 0) return false;
+    const remaining = threshold - (pts % threshold || threshold);
+    return remaining > 0 && remaining <= 2;
+  }).length;
+  if (nearReward > 0) {
+    insights.push(
+      `🎯 ${nearReward} client${nearReward > 1 ? "s sont" : " est"} à 1-2 tampons de la récompense — bon moment pour une campagne.`
+    );
+  }
+
+  const inactive = clients.filter((c) => now - (c.lastVisitAt || c.createdAt) > 30 * DAY).length;
+  if (inactive > 0) {
+    insights.push(
+      `⚠️ ${inactive} client${inactive > 1 ? "s n'ont" : " n'a"} pas visité depuis plus de 30 jours — pense à une campagne de relance.`
+    );
+  }
+
+  if (insights.length === 0) {
+    insights.push("Pas encore assez de données pour une analyse utile — reviens avec plus de clients et de visites.");
+  }
+
+  return insights;
+}
+
 export default function Commercant() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -14,6 +74,8 @@ export default function Commercant() {
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
   const [role, setRole] = useState(null); // "owner" | "cashier"
   const [rewardThreshold, setRewardThreshold] = useState(10);
+  const [rewardLabel, setRewardLabel] = useState("Récompense fidélité");
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
   const [campaignHeader, setCampaignHeader] = useState("");
@@ -81,6 +143,7 @@ export default function Commercant() {
       setClients(data.clients || []);
       setRole(data.role || "owner");
       if (data.rewardThreshold) setRewardThreshold(data.rewardThreshold);
+      if (data.rewardLabel) setRewardLabel(data.rewardLabel);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
     } catch (err) {
@@ -125,6 +188,39 @@ export default function Commercant() {
       refreshClients();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
+    }
+  }
+
+  async function saveSettings() {
+    const threshold = Number(rewardThreshold);
+    if (!Number.isFinite(threshold) || threshold < 1 || threshold > 100) {
+      setMessage({ type: "error", text: "Le nombre de tampons doit être entre 1 et 100." });
+      return;
+    }
+    if (!rewardLabel.trim()) {
+      setMessage({ type: "error", text: "Décris la récompense (ex : 1 café offert)." });
+      return;
+    }
+    setSavingSettings(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-merchant-password": password,
+        },
+        body: JSON.stringify({ rewardThreshold: threshold, rewardLabel }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setRewardThreshold(data.rewardThreshold);
+      setRewardLabel(data.rewardLabel);
+      setMessage({ type: "success", text: "Réglages de la récompense enregistrés." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -291,8 +387,9 @@ export default function Commercant() {
   // Stats calculées directement à partir des clients déjà chargés — pas
   // besoin d'un endpoint séparé pour une V1.
   const totalTampons = clients.reduce((sum, c) => sum + (c.points || 0), 0);
+  const safeThreshold = Number(rewardThreshold) > 0 ? Number(rewardThreshold) : 10;
   const totalRecompenses = clients.reduce(
-    (sum, c) => sum + Math.floor((c.points || 0) / rewardThreshold),
+    (sum, c) => sum + Math.floor((c.points || 0) / safeThreshold),
     0
   );
   const todayStr = new Date().toDateString();
@@ -303,6 +400,7 @@ export default function Commercant() {
     .sort((a, b) => (b.points || 0) - (a.points || 0))
     .slice(0, 5);
   const emailEligibleCount = clients.filter((c) => c.email).length;
+  const insights = computeInsights(clients, safeThreshold);
 
   if (!authed) {
     return (
@@ -382,6 +480,48 @@ export default function Commercant() {
                 </div>
               </>
             )}
+            {insights.length > 0 && (
+              <>
+                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
+                  🤖 Analyse automatique
+                </p>
+                <div className="insights">
+                  {insights.map((text, i) => (
+                    <div className="insight-row" key={i}>
+                      {text}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {role === "owner" && (
+          <div className="card">
+            <h2>Réglages de la récompense</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Choisis combien de tampons il faut, et ce que le client gagne —
+              comme chez Fidelix, réglable ici sans toucher au code.
+            </p>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              placeholder="Nombre de tampons (ex : 10)"
+              value={rewardThreshold}
+              onChange={(e) => setRewardThreshold(e.target.value === "" ? "" : Number(e.target.value))}
+            />
+            <input
+              type="text"
+              placeholder="Récompense (ex : 1 café offert)"
+              value={rewardLabel}
+              onChange={(e) => setRewardLabel(e.target.value)}
+              maxLength={80}
+            />
+            <button className="primary" onClick={saveSettings} disabled={savingSettings}>
+              {savingSettings ? "Enregistrement…" : "Enregistrer"}
+            </button>
           </div>
         )}
 
@@ -550,6 +690,19 @@ const styles = `
     font-size: 12.5px;
     color: #8a8a8a;
     font-variant-numeric: tabular-nums;
+  }
+  .insights {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .insight-row {
+    font-size: 12.5px;
+    line-height: 1.5;
+    background: #faf9fd;
+    border-radius: 10px;
+    padding: 8px 10px;
+    color: #333;
   }
   .channels {
     display: flex;
