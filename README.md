@@ -16,6 +16,9 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 10. Les campagnes peuvent partir par notification Wallet et/ou par email — au choix, avec une case à cocher pour chaque canal. L'email étant maintenant obligatoire à l'inscription, tous les clients sont éligibles au canal email.
 11. La notification Wallet EST déjà une vraie notification "façon Snapchat/Insta" : quand tu envoies un message, le téléphone du client reçoit une alerte sur son écran de verrouillage (si les notifications Wallet sont activées sur son téléphone), et le message reste aussi consultable en ouvrant la carte dans l'app Google Wallet (en dessous du QR code). C'est le même mécanisme chez Fidelix : leur vidéo montre bien une carte Google Wallet, donc leur "popup" est très probablement exactement cette même notification. Un canal SMS séparé (comme un vrai texto) est possible mais payant (~0,04 à 0,08 € par SMS via un service comme Twilio, + un abonnement) — pas encore branché, pour ne pas t'engager sur des frais sans te le dire d'abord. Le champ téléphone est déjà collecté pour le jour où tu voudras l'activer.
 12. `/commercant` affiche aussi une "Analyse automatique" : quelques phrases générées à partir de tes propres données (croissance des inscriptions, client le plus fidèle, clients à 1-2 tampons de la récompense, clients qu'il faudrait relancer). Ce n'est pas un vrai modèle d'IA payant (ça coûterait cher pour un gain flou) — ce sont des règles simples qui lisent les mêmes chiffres que la "version IA" de Fidelix met en avant dans leur vidéo, sans le coût.
+13. Chaque client de la liste ("Ou recherchez un client") a un menu "⋮" : ✏️ Renommer (corrige aussi le nom affiché sur sa carte Wallet), 🔒 Bloquer (grisé, exclu des stats/classement/campagnes mais gardé pour trace — utile en cas de doute plutôt que de supprimer tout de suite), 🗑️ Supprimer (définitif, avec un deuxième clic de confirmation). Pratique pour nettoyer les fiches de test avant de présenter l'appli à un vrai restaurant.
+14. Le champ récompense a des présets en un clic ("1 café offert", "10% de réduction"...) et un aperçu en direct de ce que ça donnera.
+15. Carte "Analyse du menu & suggestions (IA)" dans `/commercant` : importe ton menu tel quel — texte collé/écrit, fichier `.txt`, PDF, ou simple photo prise au téléphone — et une vraie IA (Google Gemini, gratuite) le lit et le comprend toute seule (pas de règles écrites à la main), puis propose des idées de promotions concrètes qui citent tes propres plats et prix. Juste en dessous, "Ton offre actuelle" est un texte 100% libre : tu peux reprendre les suggestions de l'IA en un clic ou tout écrire/modifier toi-même, directement depuis le site — c'est ce texte que tu gardes et actualises comme ton offre du moment. Voir l'étape 3ter ci-dessous pour activer la clé IA (gratuite, sans carte bancaire) ; tant qu'elle n'est pas configurée, une analyse basique (règles simples) prend le relais automatiquement pour le texte collé/écrit — mais PDF et photo demandent la vraie clé IA.
 
 ## Étape 1 — Créer le compte de service Google Cloud (obligatoire, une seule fois)
 
@@ -57,6 +60,18 @@ Sans cette étape, les campagnes partent quand même par notification Wallet —
 
 Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en dessous.
 
+## Étape 3ter — Activer la vraie IA pour l'analyse du menu (gratuit, sans carte bancaire)
+
+Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand même pour du texte collé/écrit (avec une analyse basique par règles), mais ne peut pas lire un PDF ou une photo de menu. Cette clé est gratuite chez Google, sans carte bancaire à saisir.
+
+1. Va sur `aistudio.google.com/apikey`
+2. Connecte-toi avec un compte Google (le même que pour Wallet ou un autre, peu importe).
+3. Clique sur `Create API key` (ou `Créer une clé API`).
+4. Choisis `Create API key in new project` si on te le demande.
+5. Une clé s'affiche (elle commence par `AIza...`) — clique sur l'icône de copie à côté.
+
+Tu ajouteras cette clé comme variable `GEMINI_API_KEY` à l'étape 4 juste en dessous.
+
 ## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
@@ -72,6 +87,7 @@ Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en d
    - `MERCHANT_PASSWORD` → un mot de passe que tu choisis toi-même, pour protéger `/commercant`
    - `CASHIER_PASSWORD` → optionnel, un 2e mot de passe pour un employé (accès limité, sans stats ni campagnes)
    - `RESEND_API_KEY` → optionnel, la clé copiée à l'étape 3bis (pour les campagnes par email)
+   - `GEMINI_API_KEY` → optionnel, la clé copiée à l'étape 3ter (pour la vraie analyse IA du menu — PDF/photo compris)
    - `GOOGLE_REVIEW_URL` → optionnel, le lien direct vers "laisser un avis Google" du restaurant (laisse vide pour l'instant)
 8. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
@@ -93,4 +109,6 @@ Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en d
 - "Google Wallet API has not been used in project ... or it is disabled" quand tu ajoutes un tampon → l'API Wallet doit être activée sur le projet Google Cloud du compte de service (pas seulement sur celui de la classe de fidélité). Ouvre le lien exact donné dans le message d'erreur (il contient `?project=<numéro>`) et clique `Activer`, attends 2-3 minutes, puis réessaie.
 - La caméra reste noire ou refuse de s'activer → l'autorisation caméra du site a été refusée. Sur le téléphone : appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le navigateur → Autorisations (ou Paramètres du site) → Caméra → Autoriser, puis recharge la page.
 - La case "Email" de la campagne échoue → vérifie que `RESEND_API_KEY` est bien définie dans Vercel (étape 3bis) et qu'un redeploy a été fait après. Le compteur "(X avec email)" doit être supérieur à 0 — sinon, aucun client inscrit n'a renseigné son email.
+- "Analyser avec l'IA" échoue ou dit "GEMINI_API_KEY manquant" → l'étape 3ter n'a pas été faite, ou un redeploy n'a pas suivi l'ajout de la clé dans Vercel. Pour du texte collé/écrit, une analyse basique prend le relais automatiquement en attendant ; pour un PDF ou une photo, la clé est indispensable.
+- L'analyse IA dit "Limite gratuite Gemini atteinte" → le quota gratuit (par minute/jour) est temporairement dépassé, réessaie dans quelques minutes.
 - Le client ne voit pas la notification (popup écran de verrouillage) → deux causes possibles : (1) sur le téléphone du client, il faut que les notifications soient activées pour l'app Google Wallet (Réglages du téléphone → Applications → Google Wallet → Notifications → Activer) ; (2) Google limite à 3 notifications-popup par carte et par 24h — au-delà, le tampon/l'email partent quand même, mais sans popup ce jour-là pour cette carte précise (le message reste visible en ouvrant la carte dans l'app Wallet, sous le QR code).

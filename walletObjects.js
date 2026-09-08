@@ -63,6 +63,24 @@ export async function setLoyaltyPoints(objectId, points) {
 }
 
 /**
+ * Renomme la carte affichée dans le Google Wallet du client (corrige une
+ * faute de frappe, ou un prénom mal tapé au moment de l'inscription).
+ * Non bloquant si ça échoue : appelé dans un try/catch par l'appelant,
+ * le renommage en base de données reste valable même si Google refuse.
+ */
+export async function renameLoyaltyObject(objectId, accountName) {
+  const client = await getAuthedClient();
+  const url = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(
+    objectId
+  )}`;
+  await client.request({
+    url,
+    method: "PATCH",
+    data: { accountName },
+  });
+}
+
+/**
  * Envoie une notification push sur la carte du client (visible dans
  * Google Wallet, ex: "+1 tampon ! Plus que 3 avant votre récompense").
  *

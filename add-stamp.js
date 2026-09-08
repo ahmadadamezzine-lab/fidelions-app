@@ -30,6 +30,11 @@ export default async function handler(req, res) {
         .status(404)
         .json({ error: "Client introuvable — le QR scanné ne correspond à aucune carte Fidélions." });
     }
+    if (existing.blocked) {
+      return res
+        .status(403)
+        .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un tampon." });
+    }
 
     const { rewardThreshold, rewardLabel } = await getSettings();
 

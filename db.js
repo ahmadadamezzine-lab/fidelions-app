@@ -141,3 +141,76 @@ export async function listClients() {
     .filter(Boolean)
     .sort((a, b) => (b.lastVisitAt || b.createdAt) - (a.lastVisitAt || a.createdAt));
 }
+
+/**
+ * Gestion d'un client depuis l'espace commerçant : renommer (corrige une
+ * faute ou un test), bloquer/débloquer (grisé, exclu des stats/campagnes
+ * mais gardé pour trace), ou supprimer définitivement (ex : les fiches de
+ * test créées pendant le développement).
+ */
+export async function renameClient(objectId, newPrenom) {
+  const redis = getRedis();
+  const record = await redis.get(`client:${objectId}`);
+  if (!record) return null;
+  record.prenom = (newPrenom || "").trim() || record.prenom;
+  await redis.set(`client:${objectId}`, record);
+  return record;
+}
+
+export async function setClientBlocked(objectId, blocked) {
+  const redis = getRedis();
+  const record = await redis.get(`client:${objectId}`);
+  if (!record) return null;
+  record.blocked = !!blocked;
+  await redis.set(`client:${objectId}`, record);
+  return record;
+}
+
+export async function deleteClient(objectId) {
+  const redis = getRedis();
+  const record = await redis.get(`client:${objectId}`);
+  if (!record) return false;
+  await redis.del(`client:${objectId}`);
+  await redis.srem(`clients:${RESTAURANT_ID}`, objectId);
+  if (record.referralCode) {
+    await redis.del(`referral:${record.referralCode}`);
+  }
+  return true;
+}
+
+/**
+ * Menu du restaurant : collé/écrit une fois par le commerçant, réutilisé
+ * pour générer des suggestions de promotions (voir analyzeMenu côté
+ * frontend). Stocké tel quel, en texte brut — pas de parsing ici.
+ */
+export async function getMenuText() {
+  const redis = getRedis();
+  const stored = await redis.get(`menu:${RESTAURANT_ID}`);
+  return (stored && stored.menuText) || "";
+}
+
+export async function saveMenuText(menuText) {
+  const redis = getRedis();
+  const clean = (menuText || "").slice(0, 8000);
+  await redis.set(`menu:${RESTAURANT_ID}`, { menuText: clean, updatedAt: Date.now() });
+  return clean;
+}
+
+/**
+ * "Offre" du commerçant : texte librement modifiable depuis /commercant.
+ * Peut être pré-rempli avec des suggestions générées par l'IA, mais le
+ * commerçant peut tout réécrire à sa façon — c'est ce texte-là qui compte,
+ * pas une sortie figée de l'analyse.
+ */
+export async function getOfferText() {
+  const redis = getRedis();
+  const stored = await redis.get(`offer:${RESTAURANT_ID}`);
+  return (stored && stored.offerText) || "";
+}
+
+export async function saveOfferText(offerText) {
+  const redis = getRedis();
+  const clean = (offerText || "").slice(0, 2000);
+  await redis.set(`offer:${RESTAURANT_ID}`, { offerText: clean, updatedAt: Date.now() });
+  return clean;
+}
