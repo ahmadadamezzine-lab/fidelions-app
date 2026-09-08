@@ -10,7 +10,12 @@
 // installer, ce qui compte vu qu'on ne peut pas ajouter de dépendance
 // npm facilement sur cet environnement.
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+// "gemini-flash-latest" est un alias qui pointe toujours vers le modèle
+// Flash actuel de Google (au lieu d'un numéro de version figé). Les
+// modèles Gemini sont retirés régulièrement (ex : gemini-2.0-flash a été
+// arrêté mi-2026) — l'alias évite que cette fonctionnalité se casse toute
+// seule au prochain retrait de modèle.
+const GEMINI_MODEL = "gemini-flash-latest";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const PROMPT = `Tu es un assistant pour un restaurant qui utilise un programme de fidélité. On te donne le menu du restaurant (texte, PDF, ou photo). Analyse-le et comprends son contenu par toi-même, puis réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant ou après, au format exact :
@@ -65,11 +70,15 @@ export async function analyzeMenuWithAI({ text, file }) {
   }
   parts.push({ text: PROMPT });
 
+  // Auth par en-tête x-goog-api-key (méthode recommandée par Google) plutôt
+  // que par ?key= dans l'URL — plus fiable avec les clés récentes (format
+  // "AQ." que Google délivre depuis 2026, à la place des anciennes clés
+  // "AIza...").
   let res;
   try {
-    res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    res = await fetch(GEMINI_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts }],
         generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
@@ -86,8 +95,11 @@ export async function analyzeMenuWithAI({ text, file }) {
         "Limite gratuite Gemini atteinte pour l'instant (quota par minute/jour) — réessaie dans quelques minutes."
       );
     }
-    if (res.status === 400 && /API key/i.test(body)) {
-      throw new Error("Clé GEMINI_API_KEY invalide — recrée-en une sur aistudio.google.com/apikey.");
+    if (res.status === 401 || res.status === 403 || (res.status === 400 && /API key/i.test(body))) {
+      throw new Error("Clé GEMINI_API_KEY invalide ou refusée — recrée-en une sur aistudio.google.com/apikey.");
+    }
+    if (res.status === 404) {
+      throw new Error("Modèle IA introuvable (probablement retiré par Google) — préviens-moi, il faut mettre à jour le nom du modèle dans le code.");
     }
     throw new Error(`Échec de l'analyse IA (${res.status}) : ${body.slice(0, 300)}`);
   }
