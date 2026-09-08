@@ -41,7 +41,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Choisis au moins un canal d'envoi (notification et/ou email)." });
     }
 
-    const clients = await listClients();
+    // Les clients bloqués ne reçoivent aucune campagne.
+    const clients = (await listClients()).filter((c) => !c.blocked);
     if (clients.length === 0) {
       return res.status(400).json({ error: "Aucun client à qui envoyer la campagne pour le moment." });
     }

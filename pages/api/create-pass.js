@@ -8,7 +8,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { buildSaveToWalletUrl } from "../../lib/wallet";
-import { createClient, addPoints, REWARD_THRESHOLD } from "../../lib/db";
+import { createClient, addPoints, getSettings } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 
 export default async function handler(req, res) {
@@ -66,12 +66,14 @@ export default async function handler(req, res) {
       }
     }
 
+    const { rewardThreshold } = await getSettings();
+
     return res.status(200).json({
       url: finalUrl,
       referralCode: record.referralCode,
       referralUrl: `${getBaseUrl(req)}/?ref=${record.referralCode}`,
       points: record.points,
-      rewardThreshold: REWARD_THRESHOLD,
+      rewardThreshold,
     });
   } catch (err) {
     console.error(err);

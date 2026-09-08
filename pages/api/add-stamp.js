@@ -4,7 +4,7 @@
 // scanne le QR d'un client ou clique "+1 tampon" manuellement. Met à
 // jour la base de données ET la carte Wallet du client (solde + notif).
 
-import { getClient, addPoints, REWARD_THRESHOLD } from "../../lib/db";
+import { getClient, addPoints, getSettings } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRole } from "../../lib/auth";
 
@@ -30,22 +30,40 @@ export default async function handler(req, res) {
         .status(404)
         .json({ error: "Client introuvable — le QR scanné ne correspond à aucune carte Fidélions." });
     }
+    if (existing.blocked) {
+      return res
+        .status(403)
+        .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un tampon." });
+    }
+
+    const { rewardThreshold, rewardLabel } = await getSettings();
 
     const updated = await addPoints(objectId, 1);
     await setLoyaltyPoints(objectId, updated.points);
 
-    const rewardReached = updated.points > 0 && updated.points % REWARD_THRESHOLD === 0;
-    const remaining = REWARD_THRESHOLD - (updated.points % REWARD_THRESHOLD || REWARD_THRESHOLD);
+    const rewardReached = updated.points > 0 && updated.points % rewardThreshold === 0;
+    const remaining = rewardThreshold - (updated.points % rewardThreshold || rewardThreshold);
 
-    await sendWalletMessage(
-      objectId,
-      rewardReached ? "Récompense débloquée !" : "+1 tampon !",
-      rewardReached
-        ? "Bravo, votre récompense est disponible — montrez cette carte en caisse."
-        : `Plus que ${remaining} tampon(s) avant votre récompense.`
-    );
+    // Le tampon lui-même (solde + base de données) est déjà enregistré à ce
+    // stade. La notification est un bonus : si Google refuse (ex : quota de
+    // 3 notifications/24h dépassé pour cette carte), on ne fait pas
+    // échouer tout l'ajout de tampon pour autant — le commerçant voit
+    // quand même la confirmation.
+    let notificationSent = true;
+    try {
+      await sendWalletMessage(
+        objectId,
+        rewardReached ? "Récompense débloquée !" : "+1 tampon !",
+        rewardReached
+          ? `Bravo, ${rewardLabel} est disponible — montrez cette carte en caisse.`
+          : `Plus que ${remaining} tampon(s) avant : ${rewardLabel}.`
+      );
+    } catch (err) {
+      console.error("Notification Wallet non envoyée :", err);
+      notificationSent = false;
+    }
 
-    return res.status(200).json({ client: updated, rewardReached });
+    return res.status(200).json({ client: updated, rewardReached, notificationSent });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });

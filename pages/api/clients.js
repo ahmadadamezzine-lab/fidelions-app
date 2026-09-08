@@ -3,7 +3,7 @@
 // Liste des clients pour l'espace commerçant (recherche manuelle,
 // tableau des visites). Protégé par le même mot de passe commerçant.
 
-import { listClients, REWARD_THRESHOLD } from "../../lib/db";
+import { listClients, getSettings } from "../../lib/db";
 import { getRole } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -17,8 +17,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const clients = await listClients();
-    return res.status(200).json({ clients, role, rewardThreshold: REWARD_THRESHOLD });
+    const [clients, settings] = await Promise.all([listClients(), getSettings()]);
+    return res.status(200).json({
+      clients,
+      role,
+      rewardThreshold: settings.rewardThreshold,
+      rewardLabel: settings.rewardLabel,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });
