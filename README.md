@@ -11,6 +11,9 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 5. Quand un client atteint 10 tampons, une notification "Récompense débloquée" est envoyée automatiquement.
 6. L'espace commerçant liste aussi tous les clients et leur nombre de visites (traçabilité).
 7. Le commerçant peut aussi envoyer une "campagne" : un message (promo, nouveau plat, événement…) qui arrive d'un coup dans le Google Wallet de tous ses clients.
+8. `/commercant` affiche un mini tableau de bord (clients inscrits, tampons distribués, visites du jour, récompenses débloquées) et un classement de fidélité (top 5 clients).
+9. Tu peux donner un accès limité à un employé (juste ajouter des tampons, sans les stats ni les campagnes) avec un 2e mot de passe séparé.
+10. Les campagnes peuvent partir par notification Wallet et/ou par email (si le client a renseigné son email à l'inscription) — au choix, avec une case à cocher pour chaque canal.
 
 ## Étape 1 — Créer le compte de service Google Cloud (obligatoire, une seule fois)
 
@@ -41,6 +44,17 @@ C'est ce qui permet à ce site de créer des cartes en te faisant passer pour "F
 4. Donne-lui un nom (ex. `fidelions-db`) → `Create`.
 5. Sur l'écran suivant, coche ton projet `fidelions-app` puis `Connect` — Vercel ajoute automatiquement les variables `KV_REST_API_URL` et `KV_REST_API_TOKEN` à ton projet, tu n'as rien à copier toi-même.
 
+## Étape 3bis — Activer l'envoi d'emails pour les campagnes (optionnel, gratuit)
+
+Sans cette étape, les campagnes partent quand même par notification Wallet — c'est juste pour ajouter le canal email.
+
+1. Va sur `resend.com` → `Sign up` → crée un compte gratuit.
+2. Une fois connecté, menu de gauche → `API Keys`.
+3. `Create API Key` → donne-lui un nom (ex. `fidelions`) → `Add`.
+4. Copie la clé affichée (elle commence par `re_`) — elle ne sera plus jamais réaffichée en entier.
+
+Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en dessous.
+
 ## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
@@ -54,6 +68,8 @@ C'est ce qui permet à ce site de créer des cartes en te faisant passer pour "F
    - `GOOGLE_WALLET_PRIVATE_KEY` → le champ `private_key` du JSON
    - `GOOGLE_WALLET_CLASS_ID` → l'ID complet de ta classe de fidélité (ex. `3388000000023199659.fidelions_loyalty`)
    - `MERCHANT_PASSWORD` → un mot de passe que tu choisis toi-même, pour protéger `/commercant`
+   - `CASHIER_PASSWORD` → optionnel, un 2e mot de passe pour un employé (accès limité, sans stats ni campagnes)
+   - `RESEND_API_KEY` → optionnel, la clé copiée à l'étape 3bis (pour les campagnes par email)
    - `GOOGLE_REVIEW_URL` → optionnel, le lien direct vers "laisser un avis Google" du restaurant (laisse vide pour l'instant)
 8. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
@@ -74,3 +90,4 @@ C'est ce qui permet à ce site de créer des cartes en te faisant passer pour "F
 - `/commercant` refuse le mot de passe → vérifie que `MERCHANT_PASSWORD` est bien défini dans Vercel et qu'un redeploy a été fait après l'avoir ajouté.
 - "Google Wallet API has not been used in project ... or it is disabled" quand tu ajoutes un tampon → l'API Wallet doit être activée sur le projet Google Cloud du compte de service (pas seulement sur celui de la classe de fidélité). Ouvre le lien exact donné dans le message d'erreur (il contient `?project=<numéro>`) et clique `Activer`, attends 2-3 minutes, puis réessaie.
 - La caméra reste noire ou refuse de s'activer → l'autorisation caméra du site a été refusée. Sur le téléphone : appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le navigateur → Autorisations (ou Paramètres du site) → Caméra → Autoriser, puis recharge la page.
+- La case "Email" de la campagne échoue → vérifie que `RESEND_API_KEY` est bien définie dans Vercel (étape 3bis) et qu'un redeploy a été fait après. Le compteur "(X avec email)" doit être supérieur à 0 — sinon, aucun client inscrit n'a renseigné son email.

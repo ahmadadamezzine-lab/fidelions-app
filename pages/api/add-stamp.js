@@ -6,19 +6,15 @@
 
 import { getClient, addPoints, REWARD_THRESHOLD } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
-
-function checkAuth(req) {
-  const password = (process.env.MERCHANT_PASSWORD || "").trim();
-  const provided = (req.headers["x-merchant-password"] || "").trim();
-  return Boolean(password) && provided === password;
-}
+import { getRole } from "../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  if (!checkAuth(req)) {
+  // Le caissier peut ajouter des tampons comme le patron.
+  if (!getRole(req)) {
     return res.status(401).json({ error: "Mot de passe commerçant incorrect." });
   }
 

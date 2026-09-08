@@ -12,8 +12,32 @@ export default function Commercant() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
-  const [scanning, setScanning] = useState(false);
-  const fileInputRef = useRef(null);
+  const [role, setRole] = useState(null); // "owner" | "cashier"
+  const [rewardThreshold, setRewardThreshold] = useState(10);
+
+  // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
+  const [campaignHeader, setCampaignHeader] = useState("");
+  const [campaignBody, setCampaignBody] = useState("");
+  const [campaignSending, setCampaignSending] = useState(false);
+  const [channelWallet, setChannelWallet] = useState(true);
+  const [channelEmail, setChannelEmail] = useState(false);
+
+  // --- Scanner caméra maison (getUserMedia + jsQR) ---
+  // Pourquoi pas une librairie toute faite : html5-qrcode plantait sur
+  // certains mobiles, et l'appareil photo natif (via <input capture>)
+  // affichait un écran noir (permission caméra du site jamais demandée).
+  // Ici on demande nous-mêmes l'autorisation caméra du navigateur (le vrai
+  // popup "Autoriser l'accès à la caméra ?"), on affiche le flux dans une
+  // vraie balise <video>, et on décode nous-mêmes image par image avec
+  // jsQR — tout est dans un try/catch, rien ne peut faire planter la page.
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState(""); // message sous la vidéo pendant le scan
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanTimerRef = useRef(null);
+  const jsQRRef = useRef(null);
+  const pausedRef = useRef(false);
 
   // Au chargement, si un mot de passe est déjà enregistré sur cet
   // appareil, on l'essaie automatiquement.
@@ -23,6 +47,12 @@ export default function Commercant() {
       setPassword(saved);
       tryAuth(saved);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Coupe bien la caméra si on quitte la page pendant qu'elle tourne.
+  useEffect(() => {
+    return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -41,6 +71,8 @@ export default function Commercant() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setClients(data.clients || []);
+      setRole(data.role || "owner");
+      if (data.rewardThreshold) setRewardThreshold(data.rewardThreshold);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
     } catch (err) {
@@ -87,76 +119,175 @@ export default function Commercant() {
     }
   }
 
-  // Scanner QR par photo : on ouvre l'appareil photo natif du téléphone
-  // (au lieu d'un flux vidéo en direct dans la page, source d'instabilité
-  // sur certains navigateurs mobiles), on prend UNE photo, et on décode le
-  // QR dessus. Tout est protégé par try/catch : au pire ça affiche un
-  // message d'erreur, ça ne peut plus jamais faire planter la page.
-  function openCamera() {
-    setMessage(null);
-    if (fileInputRef.current) fileInputRef.current.click();
-  }
-
-  async function handlePhoto(e) {
-    const file = e.target.files && e.target.files[0];
-    // On vide la valeur tout de suite pour pouvoir reprendre une photo
-    // même si on annule ou si ça échoue.
-    if (e.target) e.target.value = "";
-    if (!file) return;
-
-    setScanning(true);
+  async function sendCampaign() {
+    if (!campaignHeader.trim() || !campaignBody.trim()) {
+      setMessage({ type: "error", text: "Écris un titre et un message avant d'envoyer." });
+      return;
+    }
+    if (!channelWallet && !channelEmail) {
+      setMessage({ type: "error", text: "Coche au moins un canal : notification et/ou email." });
+      return;
+    }
+    setCampaignSending(true);
     setMessage(null);
     try {
-      const decodedText = await decodeQrFromFile(file);
-      if (!decodedText) {
-        setMessage({
-          type: "error",
-          text: "Aucun QR détecté sur la photo. Reprends la photo en te rapprochant, ou utilise la recherche ci-dessous.",
-        });
-        return;
-      }
-      await addStamp(decodedText.trim());
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: "Impossible de lire cette photo : " + (err?.message || err),
+      const res = await fetch("/api/broadcast", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-merchant-password": password,
+        },
+        body: JSON.stringify({
+          header: campaignHeader,
+          body: campaignBody,
+          channels: { wallet: channelWallet, email: channelEmail },
+        }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+
+      const parts = [];
+      if (data.sentWallet) parts.push(`${data.walletSent} notification(s) Wallet`);
+      if (data.sentEmail) parts.push(`${data.emailSent}/${data.emailEligible} email(s)`);
+      const failedParts = [];
+      if (data.walletFailed > 0) failedParts.push(`${data.walletFailed} notification(s)`);
+      if (data.emailFailed > 0) failedParts.push(`${data.emailFailed} email(s)`);
+
+      setMessage({
+        type: "success",
+        text:
+          `Campagne envoyée : ${parts.join(" + ")} 🎉` +
+          (failedParts.length > 0 ? ` (échec : ${failedParts.join(", ")})` : ""),
+      });
+      setCampaignHeader("");
+      setCampaignBody("");
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
     } finally {
-      setScanning(false);
+      setCampaignSending(false);
     }
   }
 
-  async function decodeQrFromFile(file) {
-    const jsQR = (await import("jsqr")).default;
-    const imageUrl = URL.createObjectURL(file);
+  async function startCamera() {
+    setMessage(null);
+    setCameraStatus("Démarrage…");
     try {
-      const img = await new Promise((resolve, reject) => {
-        const el = new Image();
-        el.onload = () => resolve(el);
-        el.onerror = () => reject(new Error("Image illisible"));
-        el.src = imageUrl;
+      // On charge jsQR une seule fois, avant d'ouvrir la caméra.
+      if (!jsQRRef.current) {
+        jsQRRef.current = (await import("jsqr")).default;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
       });
+      streamRef.current = stream;
 
-      const canvas = document.createElement("canvas");
-      // On limite la taille pour que le décodage reste rapide sur mobile.
-      const maxSize = 1200;
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      pausedRef.current = false;
+      setCameraOn(true);
+      setCameraStatus("Vise le QR affiché sur la carte du client…");
+      scanTimerRef.current = setInterval(scanFrame, 300);
+    } catch (err) {
+      let text = "Impossible d'accéder à la caméra : " + (err?.message || err);
+      if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
+        text =
+          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
+      } else if (err && err.name === "NotFoundError") {
+        text = "Aucune caméra détectée sur cet appareil.";
+      }
+      setMessage({ type: "error", text });
+      setCameraStatus("");
+      stopCamera();
+    }
+  }
+
+  function stopCamera() {
+    if (scanTimerRef.current) {
+      clearInterval(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {
+        // ignoré
+      }
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      try {
+        videoRef.current.srcObject = null;
+      } catch {
+        // ignoré
+      }
+    }
+    setCameraOn(false);
+    setCameraStatus("");
+  }
+
+  // Appelée toutes les 300ms tant que la caméra tourne. Protégée de bout
+  // en bout : la moindre erreur ici ne fait qu'ignorer cette image, jamais
+  // planter la page.
+  function scanFrame() {
+    if (pausedRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const jsQR = jsQRRef.current;
+      if (!video || !canvas || !jsQR) return;
+      if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height) return;
+
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const result = jsQR(imageData.data, width, height);
 
-      const result = jsQR(imageData.data, imageData.width, imageData.height);
-      return result ? result.data : null;
-    } finally {
-      URL.revokeObjectURL(imageUrl);
+      if (result && result.data) {
+        pausedRef.current = true;
+        setCameraStatus("QR détecté, ajout du tampon…");
+        addStamp(result.data.trim()).finally(() => {
+          setTimeout(() => {
+            pausedRef.current = false;
+            setCameraStatus("Vise le QR affiché sur la carte du client…");
+          }, 2000);
+        });
+      }
+    } catch {
+      // On ignore l'erreur pour cette image et on continue au tick suivant.
     }
   }
 
   const filtered = clients.filter((c) =>
     c.prenom.toLowerCase().includes(search.trim().toLowerCase())
   );
+
+  // Stats calculées directement à partir des clients déjà chargés — pas
+  // besoin d'un endpoint séparé pour une V1.
+  const totalTampons = clients.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalRecompenses = clients.reduce(
+    (sum, c) => sum + Math.floor((c.points || 0) / rewardThreshold),
+    0
+  );
+  const todayStr = new Date().toDateString();
+  const visitesAujourdhui = clients.filter(
+    (c) => c.lastVisitAt && new Date(c.lastVisitAt).toDateString() === todayStr
+  ).length;
+  const ranking = [...clients]
+    .filter((c) => (c.points || 0) > 0)
+    .sort((a, b) => (b.points || 0) - (a.points || 0))
+    .slice(0, 5);
+  const emailEligibleCount = clients.filter((c) => c.email).length;
 
   if (!authed) {
     return (
@@ -197,23 +328,135 @@ export default function Commercant() {
           <div className={`banner ${message.type}`}>{message.text}</div>
         )}
 
+        {role === "owner" && (
+          <div className="card">
+            <h2>Aperçu</h2>
+            <div className="stats-grid">
+              <div className="stat">
+                <div className="stat-value">{clients.length}</div>
+                <div className="stat-label">Clients inscrits</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{totalTampons}</div>
+                <div className="stat-label">Tampons distribués</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{visitesAujourdhui}</div>
+                <div className="stat-label">Visites aujourd'hui</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{totalRecompenses}</div>
+                <div className="stat-label">Récompenses débloquées</div>
+              </div>
+            </div>
+            {ranking.length > 0 && (
+              <>
+                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
+                  🏆 Classement de fidélité
+                </p>
+                <div className="ranking">
+                  {ranking.map((c, i) => (
+                    <div className="rank-row" key={c.objectId}>
+                      <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
+                      <span className="rank-name">{c.prenom}</span>
+                      <span className="rank-points">
+                        {c.points} tampon{c.points > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="card">
           <h2>Scanner un client</h2>
           <p className="subtitle" style={{ marginBottom: 12 }}>
-            Prends une photo du QR affiché sur la carte du client.
+            La première fois, ton navigateur va demander l'autorisation
+            d'utiliser la caméra — accepte, c'est nécessaire pour scanner.
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhoto}
-            style={{ display: "none" }}
+
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            style={{
+              width: "100%",
+              borderRadius: 12,
+              background: "#000",
+              display: cameraOn ? "block" : "none",
+            }}
           />
-          <button className="primary" onClick={openCamera} disabled={scanning}>
-            {scanning ? "Lecture en cours…" : "📷 Prendre une photo du QR"}
-          </button>
+          <canvas ref={canvasRef} style={{ display: "none" }} />
+
+          {cameraOn && cameraStatus && (
+            <p className="subtitle" style={{ margin: "8px 0 0" }}>
+              {cameraStatus}
+            </p>
+          )}
+
+          {!cameraOn ? (
+            <button className="primary" onClick={startCamera}>
+              Activer la caméra
+            </button>
+          ) : (
+            <button className="secondary" onClick={stopCamera}>
+              Arrêter la caméra
+            </button>
+          )}
         </div>
+
+        {role === "owner" && (
+          <div className="card">
+            <h2>Envoyer une campagne</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Un message envoyé d'un coup à tous tes {clients.length} client
+              {clients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),
+              visible directement dans leur Google Wallet.
+            </p>
+            <input
+              type="text"
+              placeholder="Titre (ex : Menu spécial ce week-end)"
+              value={campaignHeader}
+              onChange={(e) => setCampaignHeader(e.target.value)}
+              maxLength={60}
+            />
+            <input
+              type="text"
+              placeholder="Message (ex : -20% sur toute la carte samedi et dimanche)"
+              value={campaignBody}
+              onChange={(e) => setCampaignBody(e.target.value)}
+              maxLength={300}
+            />
+            <div className="channels">
+              <label className="channel">
+                <input
+                  type="checkbox"
+                  checked={channelWallet}
+                  onChange={(e) => setChannelWallet(e.target.checked)}
+                />
+                Notification Wallet ({clients.length})
+              </label>
+              <label className="channel">
+                <input
+                  type="checkbox"
+                  checked={channelEmail}
+                  onChange={(e) => setChannelEmail(e.target.checked)}
+                />
+                Email ({emailEligibleCount} avec email)
+              </label>
+            </div>
+            <button
+              className="primary"
+              onClick={sendCampaign}
+              disabled={campaignSending || clients.length === 0}
+            >
+              {campaignSending ? "Envoi en cours…" : "Envoyer à tous les clients"}
+            </button>
+          </div>
+        )}
 
         <div className="card">
           <h2>Ou recherchez un client</h2>
@@ -251,6 +494,86 @@ export default function Commercant() {
 }
 
 const styles = `
+  .ranking {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #faf9fd;
+    border-radius: 10px;
+  }
+  .rank-badge {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 50%;
+    background: #e9e4f8;
+    color: ${PURPLE};
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-badge.rank-1 { background: #f7d774; color: #7a5b00; }
+  .rank-badge.rank-2 { background: #d9d9e3; color: #4a4a4a; }
+  .rank-badge.rank-3 { background: #e3b98c; color: #6b3f14; }
+  .rank-name {
+    flex: 1;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .rank-points {
+    font-size: 12.5px;
+    color: #8a8a8a;
+    font-variant-numeric: tabular-nums;
+  }
+  .channels {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: -4px 0 14px;
+  }
+  .channel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #1a1a1a;
+    cursor: pointer;
+  }
+  .channel input {
+    width: auto;
+    margin: 0;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .stat {
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: ${PURPLE};
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: 11.5px;
+    color: #8a8a8a;
+    margin-top: 2px;
+  }
   .page {
     min-height: 100vh;
     background: #f5f4fb;

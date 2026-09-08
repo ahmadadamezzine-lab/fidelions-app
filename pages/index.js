@@ -6,6 +6,7 @@ const PURPLE = "#7414F4";
 export default function Home() {
   const router = useRouter();
   const [prenom, setPrenom] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { url, referralUrl, points }
@@ -26,7 +27,7 @@ export default function Home() {
       const res = await fetch("/api/create-pass", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prenom, ref: refCode }),
+        body: JSON.stringify({ prenom, email, ref: refCode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Une erreur est survenue");
@@ -72,6 +73,17 @@ export default function Home() {
                 placeholder="Ex : Julie"
                 required
               />
+              <label htmlFor="email">Votre email (optionnel)</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ex : julie@exemple.com"
+              />
+              <p className="fieldHint">
+                Pour recevoir aussi nos offres par email, en plus des notifications sur votre carte.
+              </p>
               <button type="submit" disabled={loading}>
                 {loading ? "Un instant…" : "Créer ma carte"}
               </button>
@@ -236,6 +248,11 @@ export default function Home() {
           padding: 10px 14px;
           font-size: 13px;
           white-space: nowrap;
+        }
+        .fieldHint {
+          font-size: 11.5px;
+          color: #8a8a8a;
+          margin: -10px 0 16px;
         }
         .error {
           color: #c0392b;
