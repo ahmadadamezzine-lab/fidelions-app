@@ -268,9 +268,9 @@ export default function Commercant() {
     }
   }
 
-  const filtered = clients.filter((c) =>
-    c.prenom.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const filtered = clients
+    .filter((c) => c.prenom.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => a.prenom.localeCompare(b.prenom, "fr", { sensitivity: "base" }));
 
   // Stats calculées directement à partir des clients déjà chargés — pas
   // besoin d'un endpoint séparé pour une V1.
@@ -284,7 +284,6 @@ export default function Commercant() {
     (c) => c.lastVisitAt && new Date(c.lastVisitAt).toDateString() === todayStr
   ).length;
   const ranking = [...clients]
-    .filter((c) => (c.points || 0) > 0)
     .sort((a, b) => (b.points || 0) - (a.points || 0))
     .slice(0, 5);
   const emailEligibleCount = clients.filter((c) => c.email).length;

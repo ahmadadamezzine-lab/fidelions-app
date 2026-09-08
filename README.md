@@ -5,7 +5,7 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 ## Ce que fait ce projet
 
 1. Le client scanne le QR code du restaurant (page `/qr`).
-2. Il arrive sur la page d'accueil, entre son prénom, clique "Créer ma carte".
+2. Il arrive sur la page d'accueil, entre son prénom et son email (obligatoire, pour recevoir les campagnes), et son téléphone (optionnel, pour plus tard), puis clique "Créer ma carte".
 3. Une carte de fidélité est créée pour lui (avec un QR unique dessus) et Google Wallet propose de l'ajouter au téléphone. Il reçoit aussi son lien de parrainage à partager.
 4. À chaque visite, le commerçant ouvre `/commercant`, clique "Activer la caméra" (le navigateur demande l'autorisation la première fois — il faut accepter), et vise le QR de la carte du client. Il peut aussi taper son prénom. Puis clique "+1 tampon" : ça met à jour la carte du client en direct, avec une notification push.
 5. Quand un client atteint 10 tampons, une notification "Récompense débloquée" est envoyée automatiquement.
@@ -13,7 +13,8 @@ Page d'inscription + génération de carte Google Wallet + espace commerçant. C
 7. Le commerçant peut aussi envoyer une "campagne" : un message (promo, nouveau plat, événement…) qui arrive d'un coup dans le Google Wallet de tous ses clients.
 8. `/commercant` affiche un mini tableau de bord (clients inscrits, tampons distribués, visites du jour, récompenses débloquées) et un classement de fidélité (top 5 clients).
 9. Tu peux donner un accès limité à un employé (juste ajouter des tampons, sans les stats ni les campagnes) avec un 2e mot de passe séparé.
-10. Les campagnes peuvent partir par notification Wallet et/ou par email (si le client a renseigné son email à l'inscription) — au choix, avec une case à cocher pour chaque canal.
+10. Les campagnes peuvent partir par notification Wallet et/ou par email — au choix, avec une case à cocher pour chaque canal. L'email étant maintenant obligatoire à l'inscription, tous les clients sont éligibles au canal email.
+11. La notification Wallet EST déjà une vraie notification "façon Snapchat/Insta" : quand tu envoies un message, le téléphone du client reçoit une alerte sur son écran de verrouillage (si les notifications Wallet sont activées sur son téléphone), et le message reste aussi consultable en ouvrant la carte dans l'app Google Wallet (en dessous du QR code). Un canal SMS séparé (comme un vrai texto) est possible mais payant (~0,04 à 0,08 € par SMS via un service comme Twilio, + un abonnement) — pas encore branché, pour ne pas t'engager sur des frais sans te le dire d'abord. Le champ téléphone est déjà collecté pour le jour où tu voudras l'activer.
 
 ## Étape 1 — Créer le compte de service Google Cloud (obligatoire, une seule fois)
 
@@ -91,3 +92,4 @@ Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en d
 - "Google Wallet API has not been used in project ... or it is disabled" quand tu ajoutes un tampon → l'API Wallet doit être activée sur le projet Google Cloud du compte de service (pas seulement sur celui de la classe de fidélité). Ouvre le lien exact donné dans le message d'erreur (il contient `?project=<numéro>`) et clique `Activer`, attends 2-3 minutes, puis réessaie.
 - La caméra reste noire ou refuse de s'activer → l'autorisation caméra du site a été refusée. Sur le téléphone : appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le navigateur → Autorisations (ou Paramètres du site) → Caméra → Autoriser, puis recharge la page.
 - La case "Email" de la campagne échoue → vérifie que `RESEND_API_KEY` est bien définie dans Vercel (étape 3bis) et qu'un redeploy a été fait après. Le compteur "(X avec email)" doit être supérieur à 0 — sinon, aucun client inscrit n'a renseigné son email.
+- Le client ne voit pas la notification quand tu envoies une campagne → l'email est arrivé mais pas la notification Wallet : sur le téléphone du client, il faut que les notifications soient activées pour l'app Google Wallet (Réglages du téléphone → Applications → Google Wallet → Notifications → Activer). Le message reste quand même visible en ouvrant la carte dans l'app Wallet, sous le QR code.
