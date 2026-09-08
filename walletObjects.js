@@ -65,6 +65,14 @@ export async function setLoyaltyPoints(objectId, points) {
 /**
  * Envoie une notification push sur la carte du client (visible dans
  * Google Wallet, ex: "+1 tampon ! Plus que 3 avant votre récompense").
+ *
+ * Le champ messageType est OBLIGATOIRE pour déclencher un vrai popup sur
+ * le téléphone (écran de verrouillage) : sans lui ("TEXT" par défaut), le
+ * message est bien ajouté à l'historique de la carte mais aucune
+ * notification n'apparaît jamais sur l'appareil du client — c'était le
+ * bug. Attention : Google limite à 3 notifications "TEXT_AND_NOTIFY" par
+ * carte et par 24h (au-delà, l'appel échoue avec une erreur de quota) —
+ * largement suffisant pour un tampon + une campagne occasionnelle.
  */
 export async function sendWalletMessage(objectId, header, body) {
   const client = await getAuthedClient();
@@ -79,6 +87,7 @@ export async function sendWalletMessage(objectId, header, body) {
         header,
         body,
         id: `msg_${Date.now()}`,
+        messageType: "TEXT_AND_NOTIFY",
       },
     },
   });

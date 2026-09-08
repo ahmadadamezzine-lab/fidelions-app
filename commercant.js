@@ -12,11 +12,15 @@ export default function Commercant() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
+  const [role, setRole] = useState(null); // "owner" | "cashier"
+  const [rewardThreshold, setRewardThreshold] = useState(10);
 
-  // --- Campagne : notification envoyée à tous les clients d'un coup ---
+  // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
   const [campaignHeader, setCampaignHeader] = useState("");
   const [campaignBody, setCampaignBody] = useState("");
   const [campaignSending, setCampaignSending] = useState(false);
+  const [channelWallet, setChannelWallet] = useState(true);
+  const [channelEmail, setChannelEmail] = useState(false);
 
   // --- Scanner caméra maison (getUserMedia + jsQR) ---
   // Pourquoi pas une librairie toute faite : html5-qrcode plantait sur
@@ -34,6 +38,14 @@ export default function Commercant() {
   const scanTimerRef = useRef(null);
   const jsQRRef = useRef(null);
   const pausedRef = useRef(false);
+  const clientsRef = useRef([]);
+
+  // Toujours la liste la plus fraîche, même dans le callback de scan qui
+  // tourne dans un setInterval démarré plus tôt (évite une liste de
+  // clients périmée si de nouveaux clients s'inscrivent pendant le scan).
+  useEffect(() => {
+    clientsRef.current = clients;
+  }, [clients]);
 
   // Au chargement, si un mot de passe est déjà enregistré sur cet
   // appareil, on l'essaie automatiquement.
@@ -67,6 +79,8 @@ export default function Commercant() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setClients(data.clients || []);
+      setRole(data.role || "owner");
+      if (data.rewardThreshold) setRewardThreshold(data.rewardThreshold);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
     } catch (err) {
@@ -101,12 +115,13 @@ export default function Commercant() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setMessage({
-        type: "success",
-        text: data.rewardReached
-          ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} tampons)`
-          : `+1 tampon pour ${data.client.prenom} (${data.client.points} tampon${data.client.points > 1 ? "s" : ""})`,
-      });
+      let text = data.rewardReached
+        ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} tampons)`
+        : `+1 tampon pour ${data.client.prenom} (${data.client.points} tampon${data.client.points > 1 ? "s" : ""})`;
+      if (data.notificationSent === false) {
+        text += " — tampon bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
+      }
+      setMessage({ type: "success", text });
       refreshClients();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -118,6 +133,10 @@ export default function Commercant() {
       setMessage({ type: "error", text: "Écris un titre et un message avant d'envoyer." });
       return;
     }
+    if (!channelWallet && !channelEmail) {
+      setMessage({ type: "error", text: "Coche au moins un canal : notification et/ou email." });
+      return;
+    }
     setCampaignSending(true);
     setMessage(null);
     try {
@@ -127,16 +146,27 @@ export default function Commercant() {
           "Content-Type": "application/json",
           "x-merchant-password": password,
         },
-        body: JSON.stringify({ header: campaignHeader, body: campaignBody }),
+        body: JSON.stringify({
+          header: campaignHeader,
+          body: campaignBody,
+          channels: { wallet: channelWallet, email: channelEmail },
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
+
+      const parts = [];
+      if (data.sentWallet) parts.push(`${data.walletSent} notification(s) Wallet`);
+      if (data.sentEmail) parts.push(`${data.emailSent}/${data.emailEligible} email(s)`);
+      const failedParts = [];
+      if (data.walletFailed > 0) failedParts.push(`${data.walletFailed} notification(s)`);
+      if (data.emailFailed > 0) failedParts.push(`${data.emailFailed} email(s)`);
+
       setMessage({
         type: "success",
         text:
-          data.failed > 0
-            ? `Campagne envoyée à ${data.sent} client(s) — ${data.failed} n'ont pas pu être notifiés.`
-            : `Campagne envoyée à ${data.sent} client(s) 🎉`,
+          `Campagne envoyée : ${parts.join(" + ")} 🎉` +
+          (failedParts.length > 0 ? ` (échec : ${failedParts.join(", ")})` : ""),
       });
       setCampaignHeader("");
       setCampaignBody("");
@@ -233,23 +263,46 @@ export default function Commercant() {
       const result = jsQR(imageData.data, width, height);
 
       if (result && result.data) {
+        const scannedId = result.data.trim();
+        const match = clientsRef.current.find((c) => c.objectId === scannedId);
         pausedRef.current = true;
-        setCameraStatus("QR détecté, ajout du tampon…");
-        addStamp(result.data.trim()).finally(() => {
-          setTimeout(() => {
-            pausedRef.current = false;
-            setCameraStatus("Vise le QR affiché sur la carte du client…");
-          }, 2000);
-        });
+
+        if (match) {
+          setSearch(match.prenom);
+          setCameraStatus(`✅ ${match.prenom} trouvé — clique "+1 tampon" ci-dessous pour valider.`);
+        } else {
+          setCameraStatus("QR non reconnu — réessaie, ou cherche le client par prénom ci-dessous.");
+        }
+
+        setTimeout(() => {
+          pausedRef.current = false;
+          setCameraStatus("Vise le QR affiché sur la carte du client…");
+        }, 2500);
       }
     } catch {
       // On ignore l'erreur pour cette image et on continue au tick suivant.
     }
   }
 
-  const filtered = clients.filter((c) =>
-    c.prenom.toLowerCase().includes(search.trim().toLowerCase())
+  const filtered = clients
+    .filter((c) => c.prenom.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => a.prenom.localeCompare(b.prenom, "fr", { sensitivity: "base" }));
+
+  // Stats calculées directement à partir des clients déjà chargés — pas
+  // besoin d'un endpoint séparé pour une V1.
+  const totalTampons = clients.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalRecompenses = clients.reduce(
+    (sum, c) => sum + Math.floor((c.points || 0) / rewardThreshold),
+    0
   );
+  const todayStr = new Date().toDateString();
+  const visitesAujourdhui = clients.filter(
+    (c) => c.lastVisitAt && new Date(c.lastVisitAt).toDateString() === todayStr
+  ).length;
+  const ranking = [...clients]
+    .sort((a, b) => (b.points || 0) - (a.points || 0))
+    .slice(0, 5);
+  const emailEligibleCount = clients.filter((c) => c.email).length;
 
   if (!authed) {
     return (
@@ -290,6 +343,48 @@ export default function Commercant() {
           <div className={`banner ${message.type}`}>{message.text}</div>
         )}
 
+        {role === "owner" && (
+          <div className="card">
+            <h2>Aperçu</h2>
+            <div className="stats-grid">
+              <div className="stat">
+                <div className="stat-value">{clients.length}</div>
+                <div className="stat-label">Clients inscrits</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{totalTampons}</div>
+                <div className="stat-label">Tampons distribués</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{visitesAujourdhui}</div>
+                <div className="stat-label">Visites aujourd'hui</div>
+              </div>
+              <div className="stat">
+                <div className="stat-value">{totalRecompenses}</div>
+                <div className="stat-label">Récompenses débloquées</div>
+              </div>
+            </div>
+            {ranking.length > 0 && (
+              <>
+                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
+                  🏆 Classement de fidélité
+                </p>
+                <div className="ranking">
+                  {ranking.map((c, i) => (
+                    <div className="rank-row" key={c.objectId}>
+                      <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
+                      <span className="rank-name">{c.prenom}</span>
+                      <span className="rank-points">
+                        {c.points} tampon{c.points > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="card">
           <h2>Scanner un client</h2>
           <p className="subtitle" style={{ marginBottom: 12 }}>
@@ -328,40 +423,61 @@ export default function Commercant() {
           )}
         </div>
 
-        <div className="card">
-          <h2>Envoyer une campagne</h2>
-          <p className="subtitle" style={{ marginBottom: 12 }}>
-            Un message envoyé d'un coup à tous tes {clients.length} client
-            {clients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),
-            visible directement dans leur Google Wallet.
-          </p>
-          <input
-            type="text"
-            placeholder="Titre (ex : Menu spécial ce week-end)"
-            value={campaignHeader}
-            onChange={(e) => setCampaignHeader(e.target.value)}
-            maxLength={60}
-          />
-          <input
-            type="text"
-            placeholder="Message (ex : -20% sur toute la carte samedi et dimanche)"
-            value={campaignBody}
-            onChange={(e) => setCampaignBody(e.target.value)}
-            maxLength={300}
-          />
-          <button
-            className="primary"
-            onClick={sendCampaign}
-            disabled={campaignSending || clients.length === 0}
-          >
-            {campaignSending ? "Envoi en cours…" : "Envoyer à tous les clients"}
-          </button>
-        </div>
+        {role === "owner" && (
+          <div className="card">
+            <h2>Envoyer une campagne</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Un message envoyé d'un coup à tous tes {clients.length} client
+              {clients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),
+              visible directement dans leur Google Wallet.
+            </p>
+            <input
+              type="text"
+              placeholder="Titre (ex : Menu spécial ce week-end)"
+              value={campaignHeader}
+              onChange={(e) => setCampaignHeader(e.target.value)}
+              maxLength={60}
+            />
+            <input
+              type="text"
+              placeholder="Message (ex : -20% sur toute la carte samedi et dimanche)"
+              value={campaignBody}
+              onChange={(e) => setCampaignBody(e.target.value)}
+              maxLength={300}
+            />
+            <div className="channels">
+              <label className="channel">
+                <input
+                  type="checkbox"
+                  checked={channelWallet}
+                  onChange={(e) => setChannelWallet(e.target.checked)}
+                />
+                Notification Wallet ({clients.length})
+              </label>
+              <label className="channel">
+                <input
+                  type="checkbox"
+                  checked={channelEmail}
+                  onChange={(e) => setChannelEmail(e.target.checked)}
+                />
+                Email ({emailEligibleCount} avec email)
+              </label>
+            </div>
+            <button
+              className="primary"
+              onClick={sendCampaign}
+              disabled={campaignSending || clients.length === 0}
+            >
+              {campaignSending ? "Envoi en cours…" : "Envoyer à tous les clients"}
+            </button>
+          </div>
+        )}
 
         <div className="card">
           <h2>Ou recherchez un client</h2>
           <p className="subtitle" style={{ marginBottom: 12 }}>
-            Tape le prénom du client, puis clique "+1 tampon" sur sa ligne.
+            Tape le prénom du client (ou scanne son QR ci-dessus), puis clique
+            "+1 tampon" sur sa ligne.
           </p>
           <input
             type="text"
@@ -379,6 +495,7 @@ export default function Commercant() {
                     {c.points} tampon{c.points > 1 ? "s" : ""} · inscrit le{" "}
                     {new Date(c.createdAt).toLocaleDateString("fr-FR")}
                   </div>
+                  {c.email && <div className="email-line">{c.email}</div>}
                 </div>
                 <button className="primary small" onClick={() => addStamp(c.objectId)}>
                   +1 tampon
@@ -394,6 +511,86 @@ export default function Commercant() {
 }
 
 const styles = `
+  .ranking {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #faf9fd;
+    border-radius: 10px;
+  }
+  .rank-badge {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 50%;
+    background: #e9e4f8;
+    color: ${PURPLE};
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-badge.rank-1 { background: #f7d774; color: #7a5b00; }
+  .rank-badge.rank-2 { background: #d9d9e3; color: #4a4a4a; }
+  .rank-badge.rank-3 { background: #e3b98c; color: #6b3f14; }
+  .rank-name {
+    flex: 1;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .rank-points {
+    font-size: 12.5px;
+    color: #8a8a8a;
+    font-variant-numeric: tabular-nums;
+  }
+  .channels {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: -4px 0 14px;
+  }
+  .channel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #1a1a1a;
+    cursor: pointer;
+  }
+  .channel input {
+    width: auto;
+    margin: 0;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .stat {
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: ${PURPLE};
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: 11.5px;
+    color: #8a8a8a;
+    margin-top: 2px;
+  }
   .page {
     min-height: 100vh;
     background: #f5f4fb;
@@ -485,6 +682,11 @@ const styles = `
   .meta {
     font-size: 12px;
     color: #8a8a8a;
+  }
+  .email-line {
+    font-size: 11px;
+    color: #b0b0b0;
+    margin-top: 1px;
   }
   .empty {
     color: #8a8a8a;

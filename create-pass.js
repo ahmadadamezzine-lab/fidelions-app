@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prenom, ref } = req.body || {};
+    const { prenom, email, telephone, ref } = req.body || {};
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;
     const accountName = (prenom || "").trim() || "Client Fidélions";
 
@@ -30,6 +30,8 @@ export default async function handler(req, res) {
     const { record, referredByObjectId } = await createClient({
       objectId,
       prenom: accountName,
+      email,
+      telephone,
       referredByCode: ref,
     });
 

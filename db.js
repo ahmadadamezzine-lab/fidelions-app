@@ -43,7 +43,7 @@ function shortCode(len = 6) {
  * valide est fourni, le nouveau client démarre avec 1 tampon bonus et
  * le parrain est retourné (pour qu'on lui ajoute aussi son tampon).
  */
-export async function createClient({ objectId, prenom, referredByCode }) {
+export async function createClient({ objectId, prenom, email, telephone, referredByCode }) {
   const redis = getRedis();
 
   let referredByObjectId = null;
@@ -55,6 +55,8 @@ export async function createClient({ objectId, prenom, referredByCode }) {
   const record = {
     objectId,
     prenom: prenom || "Client",
+    email: (email || "").trim() || null,
+    telephone: (telephone || "").trim() || null,
     points: referredByObjectId ? 1 : 0,
     restaurantId: RESTAURANT_ID,
     referralCode,
