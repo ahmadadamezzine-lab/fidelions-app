@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import QRCode from "qrcode";
 
 const PURPLE = "#7414F4";
@@ -908,7 +909,7 @@ export default function Commercant() {
         type: "success",
         text: data.walletUpdated
           ? "Personnalisation enregistrée — les cartes déjà distribuées seront mises à jour d'ici quelques minutes."
-          : "Personnalisation enregistrée, mais Google Wallet n'a pas pu être mis à jour tout de suite (réessaie plus tard).",
+          : `Personnalisation enregistrée, mais Google Wallet n'a pas pu être mis à jour tout de suite : ${data.walletError || "raison inconnue"} (réessaie plus tard).`,
       });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -965,11 +966,13 @@ export default function Commercant() {
       setGeoAddress(data.address);
       setGeoMessage(data.message || "");
       setGeoSuggestions([]);
+      const base = data.enabled ? "Notifications de proximité activées." : "Notifications de proximité désactivées.";
       setMessage({
-        type: "success",
-        text: data.enabled
-          ? "Notifications de proximité activées."
-          : "Notifications de proximité désactivées.",
+        type: data.walletUpdated === false ? "error" : "success",
+        text:
+          data.walletUpdated === false
+            ? `${base} Réglage enregistré, mais Google Wallet n'a pas pu être mis à jour tout de suite : ${data.walletError || "raison inconnue"} (réessaie plus tard).`
+            : base,
       });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -1332,6 +1335,11 @@ export default function Commercant() {
             </button>
           </form>
           {authError && <p className="error">{authError}</p>}
+          <p className="legal-links">
+            <Link href="/cgv">CGV</Link>
+            <span> · </span>
+            <Link href="/confidentialite">Confidentialité</Link>
+          </p>
         </div>
         <style jsx>{styles}</style>
       </div>
@@ -2965,6 +2973,15 @@ const styles = `
   .banner.error {
     background: #fdecea;
     color: #c0392b;
+  }
+  .legal-links {
+    margin-top: 20px;
+    font-size: 11.5px;
+    color: #b3b3b3;
+  }
+  .legal-links :global(a) {
+    color: #b3b3b3;
+    text-decoration: underline;
   }
 
   /* Barre latérale + pleine largeur à partir de 900px : placé tout à la

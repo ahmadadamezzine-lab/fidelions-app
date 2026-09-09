@@ -12,7 +12,7 @@
 
 import { getGeoSettings, saveGeoSettings } from "../../lib/db";
 import { geocodeAddress } from "../../lib/geocode";
-import { patchLoyaltyClassLocations, patchLoyaltyClassMessage } from "../../lib/walletObjects";
+import { patchLoyaltyClassLocations, patchLoyaltyClassMessage, describeWalletError } from "../../lib/walletObjects";
 import { getRole } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -54,15 +54,17 @@ export default async function handler(req, res) {
       const geo = await saveGeoSettings({ enabled, address, lat, lng, message });
 
       let walletUpdated = true;
+      let walletError = null;
       try {
         await patchLoyaltyClassLocations(geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []);
         await patchLoyaltyClassMessage(geo.message);
       } catch (err) {
-        console.error("Localisation/message Wallet non appliqués :", err);
+        console.error("Localisation/message Wallet non appliqués :", err?.response?.data || err);
         walletUpdated = false;
+        walletError = describeWalletError(err);
       }
 
-      return res.status(200).json({ ...geo, walletUpdated });
+      return res.status(200).json({ ...geo, walletUpdated, walletError });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message || "Erreur serveur" });

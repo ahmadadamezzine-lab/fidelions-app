@@ -7,7 +7,7 @@
 
 import { getBranding, saveBranding } from "../../lib/db";
 import { uploadBrandingImage } from "../../lib/blob";
-import { patchLoyaltyClassBranding } from "../../lib/walletObjects";
+import { patchLoyaltyClassBranding, describeWalletError } from "../../lib/walletObjects";
 import { getRole } from "../../lib/auth";
 
 // Un logo/bannière encodé en base64 peut peser plusieurs Mo — la limite
@@ -62,14 +62,16 @@ export default async function handler(req, res) {
       // mise à jour visuelle (ex : identifiants Wallet mal configurés) —
       // le commerçant voit l'erreur mais garde son enregistrement.
       let walletUpdated = true;
+      let walletError = null;
       try {
         await patchLoyaltyClassBranding(branding);
       } catch (err) {
-        console.error("Branding Wallet non appliqué :", err);
+        console.error("Branding Wallet non appliqué :", err?.response?.data || err);
         walletUpdated = false;
+        walletError = describeWalletError(err);
       }
 
-      return res.status(200).json({ ...branding, walletUpdated });
+      return res.status(200).json({ ...branding, walletUpdated, walletError });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message || "Erreur serveur" });

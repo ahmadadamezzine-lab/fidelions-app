@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 
 const PURPLE = "#7414F4";
 
@@ -135,6 +136,12 @@ export default function Home() {
         <p className="footnote">
           Vous n'avez pas Google Wallet ? Votre carte reste accessible via ce
           lien — gardez-le précieusement.
+        </p>
+
+        <p className="legalLinks">
+          <Link href="/cgv">CGV</Link>
+          <span> · </span>
+          <Link href="/confidentialite">Confidentialité</Link>
         </p>
       </div>
 
@@ -276,6 +283,15 @@ export default function Home() {
           font-size: 12px;
           color: #8a8a8a;
           margin-top: 24px;
+        }
+        .legalLinks {
+          font-size: 11.5px;
+          color: #b3b3b3;
+          margin-top: 10px;
+        }
+        .legalLinks :global(a) {
+          color: #b3b3b3;
+          text-decoration: underline;
         }
       `}</style>
     </div>
