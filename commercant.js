@@ -3,6 +3,23 @@ import { useEffect, useRef, useState } from "react";
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
+// Onglets de l'espace commerçant (patron uniquement — un caissier garde
+// l'ancien écran simple : scanner + recherche, rien d'autre). Organisé en
+// rubriques comme Sydely, mais gardé en onglets défilables plutôt qu'une
+// barre latérale, pour rester cohérent avec la mise en page mobile-first
+// (une colonne, 480px max) déjà utilisée partout ailleurs sur le site.
+const TABS = [
+  { id: "apercu", label: "Aperçu" },
+  { id: "fidelite", label: "Fidélité" },
+  { id: "stats", label: "Statistiques" },
+  { id: "carte", label: "Ma carte" },
+  { id: "proximite", label: "Proximité" },
+  { id: "equipe", label: "Équipe" },
+  { id: "campagnes", label: "Campagnes" },
+  { id: "clients", label: "Clients" },
+  { id: "aide", label: "Aide" },
+];
+
 // Analyse automatique du tableau de bord : pas un vrai modèle d'IA (ça
 // coûterait cher en appels API pour un gain flou), mais des règles
 // simples qui lisent les mêmes données que Fidelix met en avant dans sa
@@ -140,6 +157,83 @@ function analyzeMenu(menuText, rewardLabel, rewardThreshold) {
   };
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const base64 = dataUrl.split(",")[1] || "";
+      resolve({ base64, mimeType: file.type, filename: file.name });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Petit graphe en barres, une seule teinte (violet Fidélions) — inutile
+// d'avoir une légende ou un dégradé de couleurs pour une seule série.
+// Survol = tooltip avec la valeur exacte, comme sur les vrais tableaux de
+// bord (voir compétence dataviz : marques fines, coins arrondis, axe discret).
+function BarChart({ data }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  if (!data || data.length === 0) return null;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const barWidth = 100 / data.length;
+  const step = Math.max(1, Math.ceil(data.length / 8));
+
+  return (
+    <div className="chart">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="chart-svg">
+        {data.map((d, i) => {
+          const barH = max > 0 ? (d.value / max) * 84 : 0;
+          const x = i * barWidth;
+          const y = 100 - barH;
+          return (
+            <rect
+              key={i}
+              x={x + barWidth * 0.18}
+              y={y}
+              width={barWidth * 0.64}
+              height={Math.max(barH, 1)}
+              rx="1.4"
+              fill={PURPLE}
+              opacity={hoverIdx === null || hoverIdx === i ? 1 : 0.35}
+              onMouseEnter={() => setHoverIdx(i)}
+              onMouseLeave={() => setHoverIdx(null)}
+            />
+          );
+        })}
+      </svg>
+      <div className="chart-labels">
+        {data.map((d, i) => (
+          <span key={i} className={hoverIdx === i ? "active" : ""}>
+            {i % step === 0 || hoverIdx === i ? d.label : ""}
+          </span>
+        ))}
+      </div>
+      <div className="chart-tooltip" style={{ visibility: hoverIdx === null ? "hidden" : "visible" }}>
+        {hoverIdx !== null ? (
+          <>
+            {data[hoverIdx].label} : <strong>{data[hoverIdx].value}</strong>
+          </>
+        ) : (
+          "—"
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Delta({ pct }) {
+  if (!Number.isFinite(pct) || pct === 0) return <span className="delta neutral">± 0%</span>;
+  const up = pct > 0;
+  return (
+    <span className={`delta ${up ? "up" : "down"}`}>
+      {up ? "▲" : "▼"} {Math.abs(pct)}%
+    </span>
+  );
+}
+
 export default function Commercant() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -152,7 +246,7 @@ export default function Commercant() {
   const [role, setRole] = useState(null); // "owner" | "cashier"
   const [rewardThreshold, setRewardThreshold] = useState(10);
   const [rewardLabel, setRewardLabel] = useState("Récompense fidélité");
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState("apercu");
 
   // --- Gestion des fiches client : renommer / bloquer / supprimer ---
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -161,14 +255,45 @@ export default function Commercant() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   // --- Menu du restaurant (texte/PDF/photo) + analyse IA + offre éditable ---
+  // (Rangé dans l'onglet Statistiques, comme demandé : les conseils de l'IA
+  // sont une donnée d'analyse au même titre que les graphes.)
   const [menuText, setMenuText] = useState("");
   const [menuFile, setMenuFile] = useState(null); // { base64, mimeType, name } ou null
+  const [menuDragOver, setMenuDragOver] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState(null); // { items, suggestions, fallback? }
   const menuFileInputRef = useRef(null);
   const [offerText, setOfferText] = useState("");
   const [savingOffer, setSavingOffer] = useState(false);
+
+  // --- Fidélité : mode "tampons" (classique) ou "points" (paliers multiples) ---
+  const [loyaltyType, setLoyaltyType] = useState("tampons");
+  const [tiers, setTiers] = useState([{ threshold: 10, label: "Récompense fidélité" }]);
+  const [savingLoyalty, setSavingLoyalty] = useState(false);
+
+  // --- Statistiques (tuiles + graphes), chargées seulement à l'ouverture
+  // de l'onglet pour ne pas ralentir la connexion.
+  const [statsData, setStatsData] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // --- Personnalisation de la carte : couleur + logo + bannière ---
+  const [brandHexColor, setBrandHexColor] = useState(PURPLE);
+  const [brandingInfo, setBrandingInfo] = useState(null); // dernier état enregistré (logoUrl/bannerUrl)
+  const [logoFile, setLogoFile] = useState(null); // { base64, mimeType, filename } en attente d'envoi
+  const [bannerFile, setBannerFile] = useState(null);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const logoInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
+
+  // --- Notifications de proximité ---
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [geoAddress, setGeoAddress] = useState("");
+  const [savingGeo, setSavingGeo] = useState(false);
+
+  // --- Lien employé (scan seul, sans mot de passe à retenir) ---
+  const [employeeToken, setEmployeeToken] = useState(null);
+  const [regeneratingToken, setRegeneratingToken] = useState(false);
 
   // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
   const [campaignHeader, setCampaignHeader] = useState("");
@@ -252,9 +377,9 @@ export default function Commercant() {
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
 
-      // Le menu et l'offre ne sont utiles qu'au patron (owner) — pas la
-      // peine d'appeler ces endpoints pour un caissier, il n'y a de toute
-      // façon pas accès.
+      // Les rubriques suivantes ne sont utiles qu'au patron (owner) — pas
+      // la peine d'appeler ces endpoints pour un caissier, il n'y a de
+      // toute façon pas accès.
       if ((data.role || "owner") === "owner") {
         try {
           const menuRes = await fetch("/api/menu", { headers: { "x-merchant-password": pw } });
@@ -269,6 +394,43 @@ export default function Commercant() {
           if (offerRes.ok) setOfferText(offerData.offerText || "");
         } catch {
           // silencieux — l'offre se rechargera à la prochaine visite
+        }
+        try {
+          const res2 = await fetch("/api/loyalty-settings", { headers: { "x-merchant-password": pw } });
+          const data2 = await res2.json();
+          if (res2.ok) {
+            setLoyaltyType(data2.type);
+            setTiers(data2.tiers);
+          }
+        } catch {
+          // silencieux
+        }
+        try {
+          const res3 = await fetch("/api/branding", { headers: { "x-merchant-password": pw } });
+          const data3 = await res3.json();
+          if (res3.ok) {
+            setBrandHexColor(data3.hexColor);
+            setBrandingInfo(data3);
+          }
+        } catch {
+          // silencieux
+        }
+        try {
+          const res4 = await fetch("/api/geolocation", { headers: { "x-merchant-password": pw } });
+          const data4 = await res4.json();
+          if (res4.ok) {
+            setGeoEnabled(data4.enabled);
+            setGeoAddress(data4.address);
+          }
+        } catch {
+          // silencieux
+        }
+        try {
+          const res5 = await fetch("/api/employee-link", { headers: { "x-merchant-password": pw } });
+          const data5 = await res5.json();
+          if (res5.ok) setEmployeeToken(data5.token);
+        } catch {
+          // silencieux
         }
       }
     } catch (err) {
@@ -304,10 +466,10 @@ export default function Commercant() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       let text = data.rewardReached
-        ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} tampons)`
-        : `+1 tampon pour ${data.client.prenom} (${data.client.points} tampon${data.client.points > 1 ? "s" : ""})`;
+        ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} ${loyaltyType === "points" ? "points" : "tampons"})`
+        : `+1 pour ${data.client.prenom} (${data.client.points} ${loyaltyType === "points" ? "point" : "tampon"}${data.client.points > 1 ? "s" : ""})`;
       if (data.notificationSent === false) {
-        text += " — tampon bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
+        text += " — bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
       }
       setMessage({ type: "success", text });
       refreshClients();
@@ -316,36 +478,54 @@ export default function Commercant() {
     }
   }
 
-  async function saveSettings() {
-    const threshold = Number(rewardThreshold);
-    if (!Number.isFinite(threshold) || threshold < 1 || threshold > 100) {
-      setMessage({ type: "error", text: "Le nombre de tampons doit être entre 1 et 100." });
-      return;
+  // --- Fidélité : type (tampons/points) + paliers ---
+  function addTier() {
+    if (tiers.length >= 10) return;
+    const last = tiers[tiers.length - 1];
+    const nextThreshold = last ? Number(last.threshold || 0) + 10 : 10;
+    setTiers([...tiers, { threshold: nextThreshold, label: "" }]);
+  }
+
+  function updateTier(i, field, value) {
+    setTiers(tiers.map((t, idx) => (idx === i ? { ...t, [field]: value } : t)));
+  }
+
+  function removeTier(i) {
+    if (tiers.length <= 1) return;
+    setTiers(tiers.filter((_, idx) => idx !== i));
+  }
+
+  async function saveLoyalty() {
+    for (const t of tiers) {
+      const threshold = Number(t.threshold);
+      if (!Number.isFinite(threshold) || threshold < 1 || threshold > 1000) {
+        setMessage({ type: "error", text: "Chaque palier doit être entre 1 et 1000." });
+        return;
+      }
+      if (!(t.label || "").trim()) {
+        setMessage({ type: "error", text: "Décris la récompense de chaque palier." });
+        return;
+      }
     }
-    if (!rewardLabel.trim()) {
-      setMessage({ type: "error", text: "Décris la récompense (ex : 1 café offert)." });
-      return;
-    }
-    setSavingSettings(true);
+    setSavingLoyalty(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await fetch("/api/loyalty-settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-merchant-password": password,
-        },
-        body: JSON.stringify({ rewardThreshold: threshold, rewardLabel }),
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ type: loyaltyType, tiers }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setRewardThreshold(data.rewardThreshold);
-      setRewardLabel(data.rewardLabel);
-      setMessage({ type: "success", text: "Réglages de la récompense enregistrés." });
+      setLoyaltyType(data.type);
+      setTiers(data.tiers);
+      setRewardThreshold(data.tiers[0].threshold);
+      setRewardLabel(data.tiers[0].label);
+      setMessage({ type: "success", text: "Réglages de fidélité enregistrés." });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     } finally {
-      setSavingSettings(false);
+      setSavingLoyalty(false);
     }
   }
 
@@ -442,10 +622,10 @@ export default function Commercant() {
 
   // Accepte .txt (lu tel quel comme texte) ou PDF/photo (envoyé à l'IA en
   // pièce jointe — c'est elle qui le lit, pas besoin d'OCR séparé ici).
-  function handleMenuFile(e) {
-    const file = e.target.files?.[0];
+  // Fonction commune : appelée par le sélecteur de fichier ET par le
+  // glisser-déposer, pour ne pas dupliquer la logique de lecture.
+  function processMenuFile(file) {
     if (!file) return;
-    e.target.value = "";
     setMessage(null);
     setAiResult(null);
 
@@ -480,6 +660,29 @@ export default function Commercant() {
     }
 
     setMessage({ type: "error", text: "Format non reconnu — utilise un .txt, un PDF ou une photo (JPG/PNG)." });
+  }
+
+  function handleMenuFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    processMenuFile(file);
+  }
+
+  function handleMenuDrop(e) {
+    e.preventDefault();
+    setMenuDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    processMenuFile(file);
+  }
+
+  function handleMenuDragOver(e) {
+    e.preventDefault();
+    setMenuDragOver(true);
+  }
+
+  function handleMenuDragLeave(e) {
+    e.preventDefault();
+    setMenuDragOver(false);
   }
 
   function clearMenuFile() {
@@ -559,6 +762,147 @@ export default function Commercant() {
       setMessage({ type: "error", text: err.message });
     } finally {
       setSavingOffer(false);
+    }
+  }
+
+  async function loadStats() {
+    setLoadingStats(true);
+    try {
+      const res = await fetch("/api/stats", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) setStatsData(data);
+    } catch {
+      // silencieux — l'onglet affichera "pas encore de données"
+    } finally {
+      setLoadingStats(false);
+    }
+  }
+
+  function switchTab(tab) {
+    setActiveTab(tab);
+    if (tab === "stats" && !statsData && !loadingStats) {
+      loadStats();
+    }
+  }
+
+  // --- Personnalisation de la carte ---
+  async function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo trop lourd (4 Mo max)." });
+      return;
+    }
+    const encoded = await readFileAsBase64(file);
+    setLogoFile(encoded);
+  }
+
+  async function handleBannerChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Image trop lourde (4 Mo max)." });
+      return;
+    }
+    const encoded = await readFileAsBase64(file);
+    setBannerFile(encoded);
+  }
+
+  async function saveBranding() {
+    if (brandHexColor && !/^#[0-9a-fA-F]{6}$/.test(brandHexColor)) {
+      setMessage({ type: "error", text: "Couleur invalide (format attendu : #7414F4)." });
+      return;
+    }
+    setSavingBranding(true);
+    setMessage(null);
+    try {
+      const payload = { hexColor: brandHexColor };
+      if (logoFile) payload.logo = logoFile;
+      if (bannerFile) payload.banner = bannerFile;
+      const res = await fetch("/api/branding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setBrandingInfo(data);
+      setLogoFile(null);
+      setBannerFile(null);
+      setMessage({
+        type: "success",
+        text: data.walletUpdated
+          ? "Personnalisation enregistrée — les cartes déjà distribuées seront mises à jour d'ici quelques minutes."
+          : "Personnalisation enregistrée, mais Google Wallet n'a pas pu être mis à jour tout de suite (réessaie plus tard).",
+      });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingBranding(false);
+    }
+  }
+
+  // --- Notifications de proximité ---
+  async function saveGeo() {
+    if (geoEnabled && !geoAddress.trim()) {
+      setMessage({ type: "error", text: "Indique l'adresse du restaurant." });
+      return;
+    }
+    setSavingGeo(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/geolocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ enabled: geoEnabled, address: geoAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setGeoEnabled(data.enabled);
+      setGeoAddress(data.address);
+      setMessage({
+        type: "success",
+        text: data.enabled
+          ? "Notifications de proximité activées."
+          : "Notifications de proximité désactivées.",
+      });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingGeo(false);
+    }
+  }
+
+  // --- Lien employé ---
+  async function regenerateEmployeeLink() {
+    setRegeneratingToken(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employee-link", {
+        method: "POST",
+        headers: { "x-merchant-password": password },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployeeToken(data.token);
+      setMessage({ type: "success", text: "Nouveau lien généré — l'ancien ne fonctionne plus." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setRegeneratingToken(false);
+    }
+  }
+
+  function copyEmployeeLink() {
+    if (typeof window === "undefined" || !employeeToken) return;
+    const url = `${window.location.origin}/scan/${employeeToken}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => setMessage({ type: "success", text: "Lien copié !" }),
+        () => setMessage({ type: "error", text: "Impossible de copier — sélectionne et copie le lien manuellement." })
+      );
     }
   }
 
@@ -703,7 +1047,7 @@ export default function Commercant() {
 
         if (match) {
           setSearch(match.prenom);
-          setCameraStatus(`✅ ${match.prenom} trouvé — clique "+1 tampon" ci-dessous pour valider.`);
+          setCameraStatus(`✅ ${match.prenom} trouvé — clique "+1" ci-dessous pour valider.`);
         } else {
           setCameraStatus("QR non reconnu — réessaie, ou cherche le client par prénom ci-dessous.");
         }
@@ -774,6 +1118,8 @@ export default function Commercant() {
     );
   }
 
+  const pointLabel = loyaltyType === "points" ? "point" : "tampon";
+
   return (
     <div className="page">
       <div className="wrap">
@@ -784,6 +1130,21 @@ export default function Commercant() {
         )}
 
         {role === "owner" && (
+          <div className="tabs">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`tab-btn${activeTab === t.id ? " active" : ""}`}
+                onClick={() => switchTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "apercu" && (
           <div className="card">
             <h2>Aperçu</h2>
             <div className="stats-grid">
@@ -793,7 +1154,7 @@ export default function Commercant() {
               </div>
               <div className="stat">
                 <div className="stat-value">{totalTampons}</div>
-                <div className="stat-label">Tampons distribués</div>
+                <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} distribués</div>
               </div>
               <div className="stat">
                 <div className="stat-value">{visitesAujourdhui}</div>
@@ -815,7 +1176,8 @@ export default function Commercant() {
                       <span className={`rank-badge rank-${i + 1}`}>{i + 1}</span>
                       <span className="rank-name">{c.prenom}</span>
                       <span className="rank-points">
-                        {c.points} tampon{c.points > 1 ? "s" : ""}
+                        {c.points} {pointLabel}
+                        {c.points > 1 ? "s" : ""}
                       </span>
                     </div>
                   ))}
@@ -836,62 +1198,148 @@ export default function Commercant() {
                 </div>
               </>
             )}
+            <a className="share-banner" href="/qr" target="_blank" rel="noreferrer">
+              📣 Partager ma carte — voir mon QR code d'inscription
+            </a>
           </div>
         )}
 
-        {role === "owner" && (
+        {role === "owner" && activeTab === "fidelite" && (
           <div className="card">
-            <h2>Réglages de la récompense</h2>
+            <h2>Programme de fidélité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Choisis combien de tampons il faut, et ce que le client gagne —
-              comme chez Fidelix, réglable ici sans toucher au code.
+              Choisis comment tes clients gagnent leur récompense : une carte à
+              tampons classique (un seul seuil), ou des points cumulés avec
+              plusieurs paliers de récompense — comme chez Sydely.
             </p>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              placeholder="Nombre de tampons (ex : 10)"
-              value={rewardThreshold}
-              onChange={(e) => setRewardThreshold(e.target.value === "" ? "" : Number(e.target.value))}
-            />
-            <input
-              type="text"
-              placeholder="Récompense (ex : 1 café offert)"
-              value={rewardLabel}
-              onChange={(e) => setRewardLabel(e.target.value)}
-              maxLength={80}
-            />
-            <div className="presets">
-              {REWARD_PRESETS.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => setRewardLabel(p)}
-                >
-                  {p}
+            <div className="type-toggle">
+              <button
+                type="button"
+                className={loyaltyType === "tampons" ? "active" : ""}
+                onClick={() => setLoyaltyType("tampons")}
+              >
+                🎫 Carte à tampons
+              </button>
+              <button
+                type="button"
+                className={loyaltyType === "points" ? "active" : ""}
+                onClick={() => setLoyaltyType("points")}
+              >
+                🏅 Points à paliers
+              </button>
+            </div>
+
+            {loyaltyType === "tampons" ? (
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  placeholder="Nombre de tampons (ex : 10)"
+                  value={tiers[0]?.threshold ?? ""}
+                  onChange={(e) => updateTier(0, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
+                />
+                <input
+                  type="text"
+                  placeholder="Récompense (ex : 1 café offert)"
+                  value={tiers[0]?.label ?? ""}
+                  onChange={(e) => updateTier(0, "label", e.target.value)}
+                  maxLength={80}
+                />
+                <div className="presets">
+                  {REWARD_PRESETS.map((p) => (
+                    <button key={p} type="button" className="preset-chip" onClick={() => updateTier(0, "label", p)}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="reward-preview">
+                  🎁 Après <strong>{tiers[0]?.threshold || "?"}</strong> tampon
+                  {Number(tiers[0]?.threshold) > 1 ? "s" : ""} : <strong>{tiers[0]?.label || "…"}</strong>
+                </div>
+              </>
+            ) : (
+              <>
+                {tiers.map((t, i) => (
+                  <div className="tier-row" key={i}>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={t.threshold}
+                      onChange={(e) => updateTier(i, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                    <input
+                      type="text"
+                      placeholder={`Récompense au palier ${i + 1} (ex : 1 café offert)`}
+                      value={t.label}
+                      onChange={(e) => updateTier(i, "label", e.target.value)}
+                      maxLength={80}
+                    />
+                    <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
+                      ✖
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="secondary" onClick={addTier} disabled={tiers.length >= 10}>
+                  + Ajouter un palier
                 </button>
-              ))}
-            </div>
-            <div className="reward-preview">
-              🎁 Après <strong>{rewardThreshold || "?"}</strong> tampon
-              {Number(rewardThreshold) > 1 ? "s" : ""} : <strong>{rewardLabel || "…"}</strong>
-            </div>
-            <button className="primary" onClick={saveSettings} disabled={savingSettings}>
-              {savingSettings ? "Enregistrement…" : "Enregistrer"}
+              </>
+            )}
+
+            <button className="primary" style={{ marginTop: 14 }} onClick={saveLoyalty} disabled={savingLoyalty}>
+              {savingLoyalty ? "Enregistrement…" : "Enregistrer"}
             </button>
           </div>
         )}
 
-        {role === "owner" && (
+        {role === "owner" && activeTab === "stats" && (
           <div className="card">
-            <h2>Analyse du menu & suggestions (IA)</h2>
+            <h2>Statistiques</h2>
+            {loadingStats && <p className="subtitle">Chargement…</p>}
+            {!loadingStats && statsData && (
+              <>
+                <div className="tiles-row">
+                  <div className="stat">
+                    <div className="stat-value">{statsData.tiles.pointsThisWeek}</div>
+                    <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} cette semaine</div>
+                    <Delta pct={statsData.tiles.pointsChangePct} />
+                  </div>
+                  <div className="stat">
+                    <div className="stat-value">{statsData.tiles.newClientsThisWeek}</div>
+                    <div className="stat-label">Nouveaux clients</div>
+                    <Delta pct={statsData.tiles.newClientsChangePct} />
+                  </div>
+                  <div className="stat">
+                    <div className="stat-value">{statsData.tiles.rewardsThisMonth}</div>
+                    <div className="stat-label">Récompenses ce mois-ci</div>
+                  </div>
+                </div>
+
+                <p className="chart-title">{loyaltyType === "points" ? "Points" : "Tampons"} distribués par jour (14 derniers jours)</p>
+                <BarChart data={statsData.pointsParJour} />
+
+                <p className="chart-title">Heures de pointe</p>
+                <BarChart data={statsData.heuresDePointe} />
+
+                <p className="chart-title">Jours de la semaine</p>
+                <BarChart data={statsData.joursDeLaSemaine} />
+
+                <p className="chart-title">Nouveaux clients par semaine</p>
+                <BarChart data={statsData.nouveauxClientsParSemaine} />
+              </>
+            )}
+            {!loadingStats && !statsData && (
+              <p className="subtitle">Pas encore de données — reviens après quelques tampons/points ajoutés.</p>
+            )}
+
+            <h2 style={{ marginTop: 28 }}>Analyse du menu & suggestions (IA)</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Écris ton menu, ou importe-le directement — texte (.txt), PDF, ou
               simple photo prise au téléphone. Une IA (gratuite) le lit et le
               comprend toute seule, puis propose des idées de promotions basées
-              sur tes propres plats — comme le tableau de bord "boosté à l'IA"
-              de Fidelix.
+              sur tes propres plats — c'est notre plus par rapport à la
+              concurrence, gardé ici avec le reste de l'analyse.
             </p>
             <textarea
               className="menu-textarea"
@@ -910,22 +1358,37 @@ export default function Commercant() {
               style={{ display: "none" }}
               onChange={handleMenuFile}
             />
-            {menuFile && (
-              <p className="subtitle" style={{ marginTop: 8, marginBottom: 0 }}>
-                📎 {menuFile.name} prêt à analyser —{" "}
-                <button type="button" className="link-btn" onClick={clearMenuFile}>
-                  retirer
-                </button>
-              </p>
-            )}
+            <div
+              className={"dropzone" + (menuDragOver ? " drag-over" : "")}
+              onClick={() => menuFileInputRef.current?.click()}
+              onDrop={handleMenuDrop}
+              onDragOver={handleMenuDragOver}
+              onDragEnter={handleMenuDragOver}
+              onDragLeave={handleMenuDragLeave}
+              role="button"
+              tabIndex={0}
+            >
+              {menuFile ? (
+                <p className="subtitle" style={{ margin: 0 }}>
+                  📎 {menuFile.name} prêt à analyser —{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearMenuFile();
+                    }}
+                  >
+                    retirer
+                  </button>
+                </p>
+              ) : (
+                <p className="subtitle" style={{ margin: 0 }}>
+                  📄 Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
+                </p>
+              )}
+            </div>
             <div className="menu-actions">
-              <button
-                className="secondary"
-                type="button"
-                onClick={() => menuFileInputRef.current?.click()}
-              >
-                📄 Importer (txt / PDF / photo)
-              </button>
               <button className="secondary" type="button" onClick={saveMenu} disabled={savingMenu}>
                 {savingMenu ? "Enregistrement…" : "💾 Enregistrer le menu"}
               </button>
@@ -979,45 +1442,117 @@ export default function Commercant() {
           </div>
         )}
 
-        <div className="card">
-          <h2>Scanner un client</h2>
-          <p className="subtitle" style={{ marginBottom: 12 }}>
-            La première fois, ton navigateur va demander l'autorisation
-            d'utiliser la caméra — accepte, c'est nécessaire pour scanner.
-          </p>
-
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            autoPlay
-            style={{
-              width: "100%",
-              borderRadius: 12,
-              background: "#000",
-              display: cameraOn ? "block" : "none",
-            }}
-          />
-          <canvas ref={canvasRef} style={{ display: "none" }} />
-
-          {cameraOn && cameraStatus && (
-            <p className="subtitle" style={{ margin: "8px 0 0" }}>
-              {cameraStatus}
+        {role === "owner" && activeTab === "carte" && (
+          <div className="card">
+            <h2>Personnaliser ma carte</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Couleur, logo et bannière affichés sur la carte Google Wallet de
+              tes clients. Les cartes déjà distribuées sont mises à jour
+              automatiquement, sans rien demander aux clients.
             </p>
-          )}
 
-          {!cameraOn ? (
-            <button className="primary" onClick={startCamera}>
-              Activer la caméra
-            </button>
-          ) : (
-            <button className="secondary" onClick={stopCamera}>
-              Arrêter la caméra
-            </button>
-          )}
-        </div>
+            <div className="color-row">
+              <input type="color" value={brandHexColor} onChange={(e) => setBrandHexColor(e.target.value)} />
+              <input
+                type="text"
+                value={brandHexColor}
+                onChange={(e) => setBrandHexColor(e.target.value)}
+                maxLength={7}
+                placeholder="#7414F4"
+              />
+            </div>
 
-        {role === "owner" && (
+            <div className="upload-row">
+              <p className="subtitle" style={{ marginBottom: 6 }}>Logo (carré, affiché en haut de la carte)</p>
+              {(logoFile || brandingInfo?.logoUrl) && (
+                <img
+                  className="upload-preview"
+                  src={logoFile ? `data:${logoFile.mimeType};base64,${logoFile.base64}` : brandingInfo.logoUrl}
+                  alt="Logo actuel"
+                />
+              )}
+              <input type="file" accept="image/*" ref={logoInputRef} style={{ display: "none" }} onChange={handleLogoChange} />
+              <button type="button" className="secondary" onClick={() => logoInputRef.current?.click()}>
+                📎 Choisir un logo
+              </button>
+            </div>
+
+            <div className="upload-row">
+              <p className="subtitle" style={{ marginBottom: 6 }}>Bannière (image large, en haut de la carte)</p>
+              {(bannerFile || brandingInfo?.bannerUrl) && (
+                <img
+                  className="upload-preview"
+                  src={bannerFile ? `data:${bannerFile.mimeType};base64,${bannerFile.base64}` : brandingInfo.bannerUrl}
+                  alt="Bannière actuelle"
+                />
+              )}
+              <input type="file" accept="image/*" ref={bannerInputRef} style={{ display: "none" }} onChange={handleBannerChange} />
+              <button type="button" className="secondary" onClick={() => bannerInputRef.current?.click()}>
+                📎 Choisir une bannière
+              </button>
+            </div>
+
+            <button className="primary" onClick={saveBranding} disabled={savingBranding}>
+              {savingBranding ? "Enregistrement…" : "Enregistrer"}
+            </button>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "proximite" && (
+          <div className="card">
+            <h2>Notifications de proximité</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Indique l'adresse de ton restaurant : Google Wallet avertit alors
+              automatiquement, avec une vraie notification sur le téléphone,
+              tout client équipé qui passe à proximité — aucune app ni réglage
+              supplémentaire de ton côté.
+            </p>
+            <label className="channel" style={{ marginBottom: 12 }}>
+              <input type="checkbox" checked={geoEnabled} onChange={(e) => setGeoEnabled(e.target.checked)} />
+              Activer les notifications de proximité
+            </label>
+            <input
+              type="text"
+              placeholder="Adresse du restaurant (ex : 12 rue de Metz, 31000 Toulouse)"
+              value={geoAddress}
+              onChange={(e) => setGeoAddress(e.target.value)}
+              disabled={!geoEnabled}
+            />
+            <button className="primary" onClick={saveGeo} disabled={savingGeo}>
+              {savingGeo ? "Enregistrement…" : "Enregistrer"}
+            </button>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "equipe" && (
+          <div className="card">
+            <h2>Lien employé</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Envoie ce lien à un employé (SMS, WhatsApp…) : il peut scanner la
+              carte d'un client pour ajouter un {pointLabel}, sans mot de
+              passe et sans jamais voir la liste de tes clients ni tes
+              statistiques. Régénère le lien à tout moment pour couper l'accès
+              d'un ancien employé.
+            </p>
+            {employeeToken ? (
+              <div className="link-box">
+                {typeof window !== "undefined" ? `${window.location.origin}/scan/${employeeToken}` : `/scan/${employeeToken}`}
+              </div>
+            ) : (
+              <p className="subtitle">Chargement du lien…</p>
+            )}
+            <div className="menu-actions">
+              <button className="secondary" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
+                📋 Copier le lien
+              </button>
+              <button className="primary" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
+                {regeneratingToken ? "…" : "🔄 Régénérer le lien"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "campagnes" && (
           <div className="card">
             <h2>Envoyer une campagne</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
@@ -1067,103 +1602,207 @@ export default function Commercant() {
           </div>
         )}
 
-        <div className="card">
-          <h2>Ou recherchez un client</h2>
-          <p className="subtitle" style={{ marginBottom: 12 }}>
-            Tape le prénom du client (ou scanne son QR ci-dessus), puis clique
-            "+1 tampon" sur sa ligne. Le menu "⋮" permet de renommer, bloquer
-            ou supprimer une fiche.
-          </p>
-          <input
-            type="text"
-            placeholder="Prénom du client…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <div className="list">
-            {filtered.length === 0 && <p className="empty">Aucun client trouvé.</p>}
-            {filtered.map((c) => (
-              <div className={`row${c.blocked ? " blocked" : ""}`} key={c.objectId}>
-                <div className="row-info">
-                  {renamingId === c.objectId ? (
-                    <div className="rename-row">
-                      <input
-                        type="text"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        maxLength={40}
-                        autoFocus
-                      />
-                      <button className="primary small" type="button" onClick={() => confirmRename(c)}>
-                        ✔
-                      </button>
-                      <button
-                        className="secondary small"
-                        type="button"
-                        onClick={() => setRenamingId(null)}
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ) : (
-                    <strong>
-                      {c.prenom}
-                      {c.blocked ? " (bloqué)" : ""}
-                    </strong>
-                  )}
-                  <div className="meta">
-                    {c.points} tampon{c.points > 1 ? "s" : ""} · inscrit le{" "}
-                    {new Date(c.createdAt).toLocaleDateString("fr-FR")}
-                  </div>
-                  {c.email && <div className="email-line">{c.email}</div>}
-                </div>
-                <div className="row-actions">
-                  {!c.blocked ? (
-                    <button className="primary small" onClick={() => addStamp(c.objectId)}>
-                      +1 tampon
-                    </button>
-                  ) : (
-                    <span className="blocked-label">Bloqué</span>
-                  )}
-                  <div className="menu-wrap">
-                    <button
-                      className="icon-btn"
-                      type="button"
-                      onClick={() =>
-                        setOpenMenuId(openMenuId === c.objectId ? null : c.objectId)
-                      }
-                    >
-                      ⋮
-                    </button>
-                    {openMenuId === c.objectId && (
-                      <div className="row-menu">
-                        <button type="button" onClick={() => startRename(c)}>
-                          ✏️ Renommer
-                        </button>
-                        <button type="button" onClick={() => toggleBlock(c)}>
-                          {c.blocked ? "🔓 Débloquer" : "🔒 Bloquer"}
-                        </button>
-                        {confirmDeleteId === c.objectId ? (
-                          <button type="button" className="danger" onClick={() => doDelete(c)}>
-                            ⚠️ Confirmer la suppression
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="danger"
-                            onClick={() => setConfirmDeleteId(c.objectId)}
-                          >
-                            🗑️ Supprimer
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+        {(role !== "owner" || activeTab === "clients") && (
+          <div className="card">
+            <h2>Scanner un client</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              La première fois, ton navigateur va demander l'autorisation
+              d'utiliser la caméra — accepte, c'est nécessaire pour scanner.
+            </p>
+
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              style={{
+                width: "100%",
+                borderRadius: 12,
+                background: "#000",
+                display: cameraOn ? "block" : "none",
+              }}
+            />
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+
+            {cameraOn && cameraStatus && (
+              <p className="subtitle" style={{ margin: "8px 0 0" }}>
+                {cameraStatus}
+              </p>
+            )}
+
+            {!cameraOn ? (
+              <button className="primary" onClick={startCamera}>
+                Activer la caméra
+              </button>
+            ) : (
+              <button className="secondary" onClick={stopCamera}>
+                Arrêter la caméra
+              </button>
+            )}
           </div>
-        </div>
+        )}
+
+        {(role !== "owner" || activeTab === "clients") && (
+          <div className="card">
+            <h2>Ou recherchez un client</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Tape le prénom du client (ou scanne son QR ci-dessus), puis clique
+              "+1" sur sa ligne. Le menu "⋮" permet de renommer, bloquer
+              ou supprimer une fiche.
+            </p>
+            <input
+              type="text"
+              placeholder="Prénom du client…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="list">
+              {filtered.length === 0 && <p className="empty">Aucun client trouvé.</p>}
+              {filtered.map((c) => (
+                <div className={`row${c.blocked ? " blocked" : ""}`} key={c.objectId}>
+                  <div className="row-info">
+                    {renamingId === c.objectId ? (
+                      <div className="rename-row">
+                        <input
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          maxLength={40}
+                          autoFocus
+                        />
+                        <button className="primary small" type="button" onClick={() => confirmRename(c)}>
+                          ✔
+                        </button>
+                        <button
+                          className="secondary small"
+                          type="button"
+                          onClick={() => setRenamingId(null)}
+                        >
+                          ✖
+                        </button>
+                      </div>
+                    ) : (
+                      <strong>
+                        {c.prenom}
+                        {c.blocked ? " (bloqué)" : ""}
+                      </strong>
+                    )}
+                    <div className="meta">
+                      {c.points} {pointLabel}
+                      {c.points > 1 ? "s" : ""} · inscrit le{" "}
+                      {new Date(c.createdAt).toLocaleDateString("fr-FR")}
+                    </div>
+                    {c.email && <div className="email-line">{c.email}</div>}
+                  </div>
+                  <div className="row-actions">
+                    {!c.blocked ? (
+                      <button className="primary small" onClick={() => addStamp(c.objectId)}>
+                        +1
+                      </button>
+                    ) : (
+                      <span className="blocked-label">Bloqué</span>
+                    )}
+                    <div className="menu-wrap">
+                      <button
+                        className="icon-btn"
+                        type="button"
+                        onClick={() =>
+                          setOpenMenuId(openMenuId === c.objectId ? null : c.objectId)
+                        }
+                      >
+                        ⋮
+                      </button>
+                      {openMenuId === c.objectId && (
+                        <div className="row-menu">
+                          <button type="button" onClick={() => startRename(c)}>
+                            ✏️ Renommer
+                          </button>
+                          <button type="button" onClick={() => toggleBlock(c)}>
+                            {c.blocked ? "🔓 Débloquer" : "🔒 Bloquer"}
+                          </button>
+                          {confirmDeleteId === c.objectId ? (
+                            <button type="button" className="danger" onClick={() => doDelete(c)}>
+                              ⚠️ Confirmer la suppression
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={() => setConfirmDeleteId(c.objectId)}
+                            >
+                              🗑️ Supprimer
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "aide" && (
+          <div className="card">
+            <h2>Aide</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Les réponses aux blocages les plus fréquents. Pas de chat en
+              ligne ici : personne ne serait derrière pour répondre à temps —
+              cette page répond tout de suite, à toute heure.
+            </p>
+            <details className="faq-item">
+              <summary>Un client ne voit pas la notification quand j'ajoute un {pointLabel}</summary>
+              <p>
+                Deux causes possibles : (1) sur son téléphone, les notifications
+                doivent être activées pour l'app Google Wallet (Réglages →
+                Applications → Google Wallet → Notifications → Activer) ; (2)
+                Google limite à 3 notifications-popup par carte et par 24h — au-delà,
+                le {pointLabel} part quand même, seul le popup n'apparaît pas ce
+                jour-là (le message reste visible en ouvrant la carte dans l'app Wallet).
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>La caméra reste noire ou refuse de s'activer</summary>
+              <p>
+                L'autorisation caméra du site a été refusée. Sur le téléphone :
+                appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le
+                navigateur → Autorisations (ou Paramètres du site) → Caméra →
+                Autoriser, puis recharge la page.
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>L'envoi d'email de campagne échoue</summary>
+              <p>
+                Vérifie que la clé d'envoi d'email est bien configurée sur
+                Vercel et qu'un redéploiement a suivi son ajout. Le compteur
+                "(X avec email)" doit être supérieur à 0 — sinon, aucun client
+                inscrit n'a renseigné son email.
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>"Analyser avec l'IA" échoue</summary>
+              <p>
+                Pour du texte collé/écrit, une analyse basique prend le relais
+                automatiquement en attendant ; pour un PDF ou une photo, la clé
+                IA est indispensable. Si le message parle d'un service
+                "temporairement surchargé", c'est un pic de charge chez Google
+                (pas un bug du site) — le site réessaie déjà une fois tout
+                seul ; si ça persiste, réessaie manuellement dans une minute.
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>Comment donner accès à un employé sans lui donner le mot de passe ?</summary>
+              <p>
+                Utilise l'onglet "Équipe" : il génère un lien à envoyer par
+                SMS/WhatsApp, qui ne permet que de scanner une carte pour
+                ajouter un {pointLabel} — jamais d'accès à la liste de tes
+                clients ni à tes statistiques. Régénère-le à tout moment pour
+                couper l'accès d'un ancien employé.
+              </p>
+            </details>
+          </div>
+        )}
       </div>
       <style jsx>{styles}</style>
     </div>
@@ -1265,6 +1904,23 @@ const styles = `
     outline: none;
     border-color: ${PURPLE};
   }
+  .dropzone {
+    border: 1.5px dashed #c9c2dd;
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+    cursor: pointer;
+    background: #faf9fd;
+    margin-bottom: 12px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone:hover {
+    border-color: ${PURPLE};
+  }
+  .dropzone.drag-over {
+    border-color: ${PURPLE};
+    background: #f3ecff;
+  }
   .link-btn {
     background: none;
     border: none;
@@ -1315,6 +1971,12 @@ const styles = `
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
+  .tiles-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 8px;
+  }
   .stat {
     background: #faf9fd;
     border-radius: 12px;
@@ -1331,6 +1993,184 @@ const styles = `
     font-size: 11.5px;
     color: #8a8a8a;
     margin-top: 2px;
+  }
+  .delta {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .delta.up { color: #1a7a3f; }
+  .delta.down { color: #c0392b; }
+  .delta.neutral { color: #8a8a8a; }
+  .chart-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 18px 0 6px;
+  }
+  .chart {
+    margin-bottom: 6px;
+  }
+  .chart-svg {
+    width: 100%;
+    height: 100px;
+    display: block;
+  }
+  .chart-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .chart-labels span {
+    font-size: 9.5px;
+    color: #a3a3a3;
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .chart-labels span.active {
+    color: ${PURPLE};
+    font-weight: 700;
+  }
+  .chart-tooltip {
+    text-align: center;
+    font-size: 11.5px;
+    color: #333;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    padding-bottom: 4px;
+  }
+  .tab-btn {
+    flex: none;
+    background: #fff;
+    color: #595959;
+    border: 1.5px solid #e6e2f2;
+    border-radius: 99px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tab-btn.active {
+    background: ${PURPLE};
+    border-color: ${PURPLE};
+    color: #fff;
+  }
+  .type-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .type-toggle button {
+    flex: 1;
+    width: auto;
+    background: #f3f0fa;
+    color: ${PURPLE};
+    padding: 10px;
+    font-size: 13px;
+  }
+  .type-toggle button.active {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .tier-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .tier-row input[type="number"] {
+    width: 70px;
+    margin: 0;
+    flex: none;
+  }
+  .tier-row input[type="text"] {
+    flex: 1;
+    margin: 0;
+  }
+  .tier-row button {
+    width: auto;
+    flex: none;
+    background: #fde8e8;
+    color: #a12b2b;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .color-row input[type="color"] {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin: 0;
+  }
+  .color-row input[type="text"] {
+    flex: 1;
+    margin: 0;
+  }
+  .upload-row {
+    margin-bottom: 14px;
+  }
+  .upload-preview {
+    display: block;
+    width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #faf9fd;
+    margin-bottom: 8px;
+  }
+  .link-box {
+    background: #faf9fd;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 12.5px;
+    color: #333;
+    word-break: break-all;
+  }
+  .faq-item {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+  }
+  .faq-item summary {
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #1a1a1a;
+  }
+  .faq-item p {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: #595959;
+    line-height: 1.5;
+  }
+  .share-banner {
+    display: block;
+    text-align: center;
+    background: #f3f0fa;
+    color: ${PURPLE};
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    margin-top: 16px;
   }
   .page {
     min-height: 100vh;

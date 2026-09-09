@@ -8,6 +8,8 @@
 
 import { GoogleAuth } from "google-auth-library";
 
+const CLASS_ID = (process.env.GOOGLE_WALLET_CLASS_ID || "").trim();
+
 function normalizePrivateKey(raw) {
   let key = (raw || "").trim();
   if (
@@ -43,9 +45,12 @@ async function getAuthedClient() {
 }
 
 /**
- * Met à jour le solde de tampons affiché sur la carte du client.
+ * Met à jour le solde affiché sur la carte du client. `label` s'adapte au
+ * mode de fidélité choisi par le commerçant : "Tampons" en mode classique,
+ * "Points" en mode paliers (voir lib/loyalty.js) — par défaut "Tampons"
+ * pour ne rien changer aux cartes existantes.
  */
-export async function setLoyaltyPoints(objectId, points) {
+export async function setLoyaltyPoints(objectId, points, label = "Tampons") {
   const client = await getAuthedClient();
   const url = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(
     objectId
@@ -55,7 +60,7 @@ export async function setLoyaltyPoints(objectId, points) {
     method: "PATCH",
     data: {
       loyaltyPoints: {
-        label: "Tampons",
+        label,
         balance: { int: String(points) },
       },
     },
@@ -108,5 +113,83 @@ export async function sendWalletMessage(objectId, header, body) {
         messageType: "TEXT_AND_NOTIFY",
       },
     },
+  });
+}
+
+/**
+ * Applique la personnalisation (couleur, logo, bannière) à la CLASSE de
+ * fidélité — donc à toutes les cartes déjà distribuées d'un coup, sans
+ * avoir à repasser sur chaque carte individuellement. Remplace l'étape
+ * manuelle "modifie ta classe dans la Wallet Console" du README.
+ *
+ * hexColor : ex "#7414F4". logoUrl/bannerUrl : URLs publiques HTTPS
+ * (voir lib/blob.js) — Google Wallet exige une vraie adresse, pas un
+ * fichier envoyé en base64.
+ */
+export async function patchLoyaltyClassBranding({ hexColor, logoUrl, bannerUrl }) {
+  if (!CLASS_ID) {
+    throw new Error("Variable d'environnement manquante : GOOGLE_WALLET_CLASS_ID");
+  }
+  const client = await getAuthedClient();
+  const url = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(
+    CLASS_ID
+  )}`;
+
+  const data = {};
+  if (hexColor) data.hexBackgroundColor = hexColor;
+  if (logoUrl) {
+    data.programLogo = { sourceUri: { uri: logoUrl } };
+  }
+  if (bannerUrl) {
+    data.heroImage = { sourceUri: { uri: bannerUrl } };
+  }
+
+  await client.request({ url, method: "PATCH", data });
+}
+
+/**
+ * Renomme le libellé du solde sur la classe entière ("Tampons" ↔ "Points"),
+ * pour rester cohérent quand le commerçant change de mode de fidélité.
+ */
+export async function patchLoyaltyClassPointsLabel(label) {
+  if (!CLASS_ID) {
+    throw new Error("Variable d'environnement manquante : GOOGLE_WALLET_CLASS_ID");
+  }
+  const client = await getAuthedClient();
+  const url = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(
+    CLASS_ID
+  )}`;
+  await client.request({
+    url,
+    method: "PATCH",
+    data: { loyaltyPoints: { label } },
+  });
+}
+
+/**
+ * Notifications de proximité ("Nearby Notifications") : donne à Google
+ * Wallet jusqu'à 10 emplacements (lat/lng). Google se charge lui-même
+ * d'envoyer une vraie notification native au téléphone du client quand il
+ * s'approche (et de la faire disparaître quand il s'éloigne) — aucun code
+ * de géolocalisation côté client à écrire. `locations` : tableau vide pour
+ * désactiver la fonctionnalité.
+ */
+export async function patchLoyaltyClassLocations(locations) {
+  if (!CLASS_ID) {
+    throw new Error("Variable d'environnement manquante : GOOGLE_WALLET_CLASS_ID");
+  }
+  const client = await getAuthedClient();
+  const url = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(
+    CLASS_ID
+  )}`;
+  const cleanLocations = (locations || [])
+    .filter((l) => Number.isFinite(l.lat) && Number.isFinite(l.lng))
+    .slice(0, 10)
+    .map((l) => ({ latitude: l.lat, longitude: l.lng }));
+
+  await client.request({
+    url,
+    method: "PATCH",
+    data: { locations: cleanLocations },
   });
 }
