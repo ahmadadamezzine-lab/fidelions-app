@@ -2543,56 +2543,6 @@ const styles = `
   .dashboard-content {
     min-width: 0;
   }
-  @media (min-width: 900px) {
-    .page {
-      display: block;
-      padding: 0;
-    }
-    .wrap {
-      max-width: none;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 32px 40px 60px 272px;
-    }
-    .dashboard {
-      display: block;
-    }
-    .tabs {
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 232px;
-      flex-direction: column;
-      overflow-x: visible;
-      overflow-y: auto;
-      margin-bottom: 0;
-      padding: 28px 14px 24px;
-      background: #fff;
-      border-right: 1px solid #ece9f5;
-      gap: 3px;
-      box-sizing: border-box;
-      z-index: 5;
-    }
-    .tab-btn {
-      width: 100%;
-      text-align: left;
-      padding: 11px 14px;
-      border-radius: 10px;
-    }
-    .tab-group-label {
-      display: block;
-      margin: 20px 10px 8px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      color: #a79fc4;
-      text-transform: uppercase;
-    }
-    .dashboard-content {
-      max-width: 1040px;
-    }
-  }
   .tab-btn.active {
     background: ${PURPLE};
     border-color: ${PURPLE};
@@ -3015,5 +2965,71 @@ const styles = `
   .banner.error {
     background: #fdecea;
     color: #c0392b;
+  }
+
+  /* Barre latérale + pleine largeur à partir de 900px : placé tout à la
+     fin du fichier de styles exprès — ".page"/".wrap" ont aussi des
+     règles de base plus haut avec la même spécificité (juste ".page"/
+     ".wrap"), et en CSS c'est la règle la plus BASSE dans le fichier qui
+     gagne à spécificité égale, peu importe qu'elle soit dans un @media ou
+     non. Avant ce déplacement, les règles de base plus bas dans le
+     fichier écrasaient silencieusement cette media query : la barre
+     latérale semblait correcte (fixe, aucune règle de base ne la
+     contredit) mais le contenu retombait sur la mise en page mobile
+     (colonne centrée à 480px) même en grand écran. */
+  @media (min-width: 900px) {
+    .page {
+      display: block;
+      padding: 0;
+    }
+    .wrap {
+      max-width: none;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 32px 40px 60px 272px;
+    }
+    .dashboard {
+      display: block;
+    }
+    .tabs {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 232px;
+      flex-direction: column;
+      overflow-x: visible;
+      overflow-y: auto;
+      margin-bottom: 0;
+      padding: 28px 14px 24px;
+      background: #fff;
+      border-right: 1px solid #ece9f5;
+      gap: 3px;
+      box-sizing: border-box;
+      z-index: 5;
+    }
+    .tab-btn {
+      width: 100%;
+      text-align: left;
+      padding: 11px 14px;
+      border-radius: 10px;
+    }
+    .tab-group-label {
+      display: block;
+      margin: 20px 10px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #a79fc4;
+      text-transform: uppercase;
+    }
+    .dashboard-content {
+      width: 100%;
+      max-width: 1200px;
+    }
+    .card {
+      width: 100%;
+      box-sizing: border-box;
+    }
   }
 `;
