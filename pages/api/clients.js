@@ -1,26 +1,29 @@
 // pages/api/clients.js
 //
 // Liste des clients pour l'espace commerçant (recherche manuelle,
-// tableau des visites). Protégé par le même mot de passe commerçant.
+// tableau des visites). Accessible au patron, au caissier, et à tout
+// employé (lien + code) dont la permission "clients" a été activée par
+// le patron dans l'onglet Équipe.
 
 import { listClients, getSettings } from "../../lib/db";
-import { getRole } from "../../lib/auth";
+import { getRoleAsync, hasPermission } from "../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  const role = getRole(req);
-  if (!role) {
-    return res.status(401).json({ error: "Mot de passe commerçant incorrect." });
+  const auth = await getRoleAsync(req);
+  const allowed = auth && (auth.role === "owner" || auth.role === "cashier" || hasPermission(auth, "clients"));
+  if (!allowed) {
+    return res.status(401).json({ error: "Accès refusé." });
   }
 
   try {
     const [clients, settings] = await Promise.all([listClients(), getSettings()]);
     return res.status(200).json({
       clients,
-      role,
+      role: auth.role,
       rewardThreshold: settings.rewardThreshold,
       rewardLabel: settings.rewardLabel,
     });

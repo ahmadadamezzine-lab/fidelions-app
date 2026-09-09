@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       if (!Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({ error: "Ajoute au moins un palier." });
       }
-      if (type === "points" && tiers.length > 10) {
+      if (tiers.length > 10) {
         return res.status(400).json({ error: "10 paliers maximum." });
       }
       for (const t of tiers) {

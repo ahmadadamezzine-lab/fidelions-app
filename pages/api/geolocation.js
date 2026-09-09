@@ -1,15 +1,18 @@
 // pages/api/geolocation.js
 //
-// Notifications de proximité : le commerçant tape juste son adresse, on la
-// géocode (lib/geocode.js, Nominatim/OpenStreetMap — gratuit) puis on
+// Notifications de proximité : le commerçant tape juste son adresse (avec
+// autocomplétion via l'API Adresse du gouvernement français), on la géocode
+// (lib/geocode.js, api-adresse.data.gouv.fr — gratuit, sans clé) puis on
 // l'envoie à Google Wallet (lib/walletObjects.js, patchLoyaltyClassLocations)
 // qui se charge lui-même d'avertir le téléphone d'un client équipé quand il
-// passe à proximité — aucun code de géolocalisation côté client. Réservé
-// au patron.
+// passe à proximité — aucun code de géolocalisation côté client. Le message
+// personnalisé (patchLoyaltyClassMessage) est affiché en permanence sur la
+// carte, car Google ne permet pas de personnaliser le texte du popup natif
+// de proximité via l'API publique. Réservé au patron.
 
 import { getGeoSettings, saveGeoSettings } from "../../lib/db";
 import { geocodeAddress } from "../../lib/geocode";
-import { patchLoyaltyClassLocations } from "../../lib/walletObjects";
+import { patchLoyaltyClassLocations, patchLoyaltyClassMessage } from "../../lib/walletObjects";
 import { getRole } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -53,8 +56,9 @@ export default async function handler(req, res) {
       let walletUpdated = true;
       try {
         await patchLoyaltyClassLocations(geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []);
+        await patchLoyaltyClassMessage(geo.message);
       } catch (err) {
-        console.error("Localisation Wallet non appliquée :", err);
+        console.error("Localisation/message Wallet non appliqués :", err);
         walletUpdated = false;
       }
 

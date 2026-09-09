@@ -8,17 +8,19 @@
 import { listClients } from "../../lib/db";
 import { sendWalletMessage } from "../../lib/walletObjects";
 import { sendEmail } from "../../lib/email";
-import { getRole } from "../../lib/auth";
+import { getRoleAsync, hasPermission } from "../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  // Les campagnes restent réservées au patron (accès "owner"), pas au caissier.
-  const role = getRole(req);
-  if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+  // Réservé au patron, ou à un employé (lien + code) avec la permission
+  // "campagnes" activée dans l'onglet Équipe — pas au caissier classique.
+  const auth = await getRoleAsync(req);
+  const allowed = auth && (auth.role === "owner" || hasPermission(auth, "campagnes"));
+  if (!allowed) {
+    return res.status(401).json({ error: "Accès refusé." });
   }
 
   try {

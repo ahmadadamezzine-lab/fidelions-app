@@ -20,6 +20,17 @@ const TABS = [
   { id: "aide", label: "Aide" },
 ];
 
+const DAY_OPTIONS = [
+  { id: "lun", label: "Lun" },
+  { id: "mar", label: "Mar" },
+  { id: "mer", label: "Mer" },
+  { id: "jeu", label: "Jeu" },
+  { id: "ven", label: "Ven" },
+  { id: "sam", label: "Sam" },
+  { id: "dim", label: "Dim" },
+];
+const ALL_DAY_IDS = DAY_OPTIONS.map((d) => d.id);
+
 // Analyse automatique du tableau de bord : pas un vrai modèle d'IA (ça
 // coûterait cher en appels API pour un gain flou), mais des règles
 // simples qui lisent les mêmes données que Fidelix met en avant dans sa
@@ -289,11 +300,27 @@ export default function Commercant() {
   // --- Notifications de proximité ---
   const [geoEnabled, setGeoEnabled] = useState(false);
   const [geoAddress, setGeoAddress] = useState("");
+  const [geoMessage, setGeoMessage] = useState("");
+  const [geoSuggestions, setGeoSuggestions] = useState([]);
   const [savingGeo, setSavingGeo] = useState(false);
+  const geoDebounceRef = useRef(null);
 
   // --- Lien employé (scan seul, sans mot de passe à retenir) ---
   const [employeeToken, setEmployeeToken] = useState(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
+
+  // --- Équipe : chaque employé a un prénom + un code à 4 chiffres, des
+  // jours/horaires d'accès, et des permissions par rubrique.
+  const [employees, setEmployees] = useState([]);
+  const [editingEmpId, setEditingEmpId] = useState(null);
+  const [empName, setEmpName] = useState("");
+  const [empPin, setEmpPin] = useState("");
+  const [empDays, setEmpDays] = useState(ALL_DAY_IDS);
+  const [empStart, setEmpStart] = useState("");
+  const [empEnd, setEmpEnd] = useState("");
+  const [empPerms, setEmpPerms] = useState({ clients: false, stats: false, campagnes: false });
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [revealedPinId, setRevealedPinId] = useState(null);
 
   // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
   const [campaignHeader, setCampaignHeader] = useState("");
@@ -421,6 +448,7 @@ export default function Commercant() {
           if (res4.ok) {
             setGeoEnabled(data4.enabled);
             setGeoAddress(data4.address);
+            setGeoMessage(data4.message || "");
           }
         } catch {
           // silencieux
@@ -429,6 +457,13 @@ export default function Commercant() {
           const res5 = await fetch("/api/employee-link", { headers: { "x-merchant-password": pw } });
           const data5 = await res5.json();
           if (res5.ok) setEmployeeToken(data5.token);
+        } catch {
+          // silencieux
+        }
+        try {
+          const res6 = await fetch("/api/employees", { headers: { "x-merchant-password": pw } });
+          const data6 = await res6.json();
+          if (res6.ok) setEmployees(data6.employees || []);
         } catch {
           // silencieux
         }
@@ -845,6 +880,34 @@ export default function Commercant() {
   }
 
   // --- Notifications de proximité ---
+  // Autocomplete d'adresse française : l'API Adresse du gouvernement
+  // (gratuite, sans clé) renvoie des suggestions au fil de la saisie —
+  // debounce de 300ms pour ne pas la spammer à chaque frappe.
+  function handleGeoAddressChange(value) {
+    setGeoAddress(value);
+    if (geoDebounceRef.current) clearTimeout(geoDebounceRef.current);
+    if (!value || value.trim().length < 3) {
+      setGeoSuggestions([]);
+      return;
+    }
+    geoDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(value)}&limit=5`
+        );
+        const data = await res.json();
+        setGeoSuggestions((data.features || []).map((f) => f.properties.label));
+      } catch {
+        setGeoSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function pickGeoSuggestion(label) {
+    setGeoAddress(label);
+    setGeoSuggestions([]);
+  }
+
   async function saveGeo() {
     if (geoEnabled && !geoAddress.trim()) {
       setMessage({ type: "error", text: "Indique l'adresse du restaurant." });
@@ -856,12 +919,14 @@ export default function Commercant() {
       const res = await fetch("/api/geolocation", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ enabled: geoEnabled, address: geoAddress }),
+        body: JSON.stringify({ enabled: geoEnabled, address: geoAddress, message: geoMessage }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setGeoEnabled(data.enabled);
       setGeoAddress(data.address);
+      setGeoMessage(data.message || "");
+      setGeoSuggestions([]);
       setMessage({
         type: "success",
         text: data.enabled
@@ -903,6 +968,123 @@ export default function Commercant() {
         () => setMessage({ type: "success", text: "Lien copié !" }),
         () => setMessage({ type: "error", text: "Impossible de copier — sélectionne et copie le lien manuellement." })
       );
+    }
+  }
+
+  // --- Équipe : chaque employé a son propre code, ses jours/horaires
+  // d'accès, et ses permissions par rubrique — le lien ci-dessus reste
+  // commun, c'est le code qui identifie qui l'utilise.
+  function toggleEmpDay(day) {
+    setEmpDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  }
+
+  function startEditEmployee(emp) {
+    setEditingEmpId(emp.id);
+    setEmpName(emp.name);
+    setEmpPin("");
+    setEmpDays(emp.days && emp.days.length > 0 ? emp.days : ALL_DAY_IDS);
+    setEmpStart(emp.startTime || "");
+    setEmpEnd(emp.endTime || "");
+    setEmpPerms({
+      clients: !!emp.permissions?.clients,
+      stats: !!emp.permissions?.stats,
+      campagnes: !!emp.permissions?.campagnes,
+    });
+  }
+
+  function resetEmployeeForm() {
+    setEditingEmpId(null);
+    setEmpName("");
+    setEmpPin("");
+    setEmpDays(ALL_DAY_IDS);
+    setEmpStart("");
+    setEmpEnd("");
+    setEmpPerms({ clients: false, stats: false, campagnes: false });
+  }
+
+  async function saveEmployee() {
+    if (!empName.trim()) {
+      setMessage({ type: "error", text: "Le prénom de l'employé est obligatoire." });
+      return;
+    }
+    if (!editingEmpId && !/^[0-9]{4}$/.test(empPin)) {
+      setMessage({ type: "error", text: "Le code doit faire exactement 4 chiffres." });
+      return;
+    }
+    if (empPin && !/^[0-9]{4}$/.test(empPin)) {
+      setMessage({ type: "error", text: "Le code doit faire exactement 4 chiffres." });
+      return;
+    }
+    if (empStart && empEnd && empStart >= empEnd) {
+      setMessage({ type: "error", text: "L'heure de fin doit être après l'heure de début." });
+      return;
+    }
+    setSavingEmployee(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          id: editingEmpId,
+          name: empName,
+          pin: empPin || undefined,
+          days: empDays,
+          startTime: empStart || null,
+          endTime: empEnd || null,
+          permissions: empPerms,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+      resetEmployeeForm();
+      setMessage({ type: "success", text: "Employé enregistré." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEmployee(false);
+    }
+  }
+
+  async function toggleEmployeeActive(emp) {
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          id: emp.id,
+          name: emp.name,
+          active: !emp.active,
+          days: emp.days,
+          startTime: emp.startTime,
+          endTime: emp.endTime,
+          permissions: emp.permissions,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    }
+  }
+
+  async function deleteEmployeeRow(emp) {
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ action: "delete", id: emp.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+      setMessage({ type: "success", text: `${emp.name} supprimé de l'équipe.` });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
     }
   }
 
@@ -1129,6 +1311,7 @@ export default function Commercant() {
           <div className={`banner ${message.type}`}>{message.text}</div>
         )}
 
+      <div className="dashboard">
         {role === "owner" && (
           <div className="tabs">
             {TABS.map((t) => (
@@ -1144,6 +1327,7 @@ export default function Commercant() {
           </div>
         )}
 
+        <div className="dashboard-content">
         {role === "owner" && activeTab === "apercu" && (
           <div className="card">
             <h2>Aperçu</h2>
@@ -1208,9 +1392,12 @@ export default function Commercant() {
           <div className="card">
             <h2>Programme de fidélité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Choisis comment tes clients gagnent leur récompense : une carte à
-              tampons classique (un seul seuil), ou des points cumulés avec
-              plusieurs paliers de récompense — comme chez Sydely.
+              Choisis le mot utilisé sur la carte ("tampons" ou "points"), puis
+              écris librement autant de récompenses que tu veux, chacune avec
+              son propre seuil — ex : 20 {loyaltyType === "points" ? "points" : "tampons"} = une pizza offerte,
+              30 = une pizza + une boisson offertes. Une seule récompense, ça
+              fait cheap : ajoutes-en plusieurs pour donner plusieurs objectifs
+              à tes clients.
             </p>
             <div className="type-toggle">
               <button
@@ -1218,74 +1405,62 @@ export default function Commercant() {
                 className={loyaltyType === "tampons" ? "active" : ""}
                 onClick={() => setLoyaltyType("tampons")}
               >
-                🎫 Carte à tampons
+                🎫 Tampons
               </button>
               <button
                 type="button"
                 className={loyaltyType === "points" ? "active" : ""}
                 onClick={() => setLoyaltyType("points")}
               >
-                🏅 Points à paliers
+                🏅 Points
               </button>
             </div>
 
-            {loyaltyType === "tampons" ? (
-              <>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  placeholder="Nombre de tampons (ex : 10)"
-                  value={tiers[0]?.threshold ?? ""}
-                  onChange={(e) => updateTier(0, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
-                />
-                <input
-                  type="text"
-                  placeholder="Récompense (ex : 1 café offert)"
-                  value={tiers[0]?.label ?? ""}
-                  onChange={(e) => updateTier(0, "label", e.target.value)}
-                  maxLength={80}
-                />
+            {tiers.map((t, i) => (
+              <div key={i} className="tier-block">
+                <div className="tier-row">
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={t.threshold}
+                    onChange={(e) => updateTier(i, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                  <input
+                    type="text"
+                    placeholder={`Récompense (ex : 1 pizza offerte)`}
+                    value={t.label}
+                    onChange={(e) => updateTier(i, "label", e.target.value)}
+                    maxLength={80}
+                  />
+                  <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
+                    ✖
+                  </button>
+                </div>
                 <div className="presets">
                   {REWARD_PRESETS.map((p) => (
-                    <button key={p} type="button" className="preset-chip" onClick={() => updateTier(0, "label", p)}>
+                    <button key={p} type="button" className="preset-chip" onClick={() => updateTier(i, "label", p)}>
                       {p}
                     </button>
                   ))}
                 </div>
-                <div className="reward-preview">
-                  🎁 Après <strong>{tiers[0]?.threshold || "?"}</strong> tampon
-                  {Number(tiers[0]?.threshold) > 1 ? "s" : ""} : <strong>{tiers[0]?.label || "…"}</strong>
-                </div>
-              </>
-            ) : (
-              <>
-                {tiers.map((t, i) => (
-                  <div className="tier-row" key={i}>
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={t.threshold}
-                      onChange={(e) => updateTier(i, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                    <input
-                      type="text"
-                      placeholder={`Récompense au palier ${i + 1} (ex : 1 café offert)`}
-                      value={t.label}
-                      onChange={(e) => updateTier(i, "label", e.target.value)}
-                      maxLength={80}
-                    />
-                    <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
-                      ✖
-                    </button>
+              </div>
+            ))}
+            <button type="button" className="secondary" onClick={addTier} disabled={tiers.length >= 10}>
+              + Ajouter une récompense
+            </button>
+
+            <div className="reward-preview" style={{ marginTop: 12 }}>
+              {tiers
+                .filter((t) => t.threshold && t.label)
+                .sort((a, b) => a.threshold - b.threshold)
+                .map((t, i) => (
+                  <div key={i}>
+                    🎁 À <strong>{t.threshold}</strong> {loyaltyType === "points" ? "point" : "tampon"}
+                    {t.threshold > 1 ? "s" : ""} : <strong>{t.label}</strong>
                   </div>
                 ))}
-                <button type="button" className="secondary" onClick={addTier} disabled={tiers.length >= 10}>
-                  + Ajouter un palier
-                </button>
-              </>
-            )}
+            </div>
 
             <button className="primary" style={{ marginTop: 14 }} onClick={saveLoyalty} disabled={savingLoyalty}>
               {savingLoyalty ? "Enregistrement…" : "Enregistrer"}
@@ -1511,13 +1686,41 @@ export default function Commercant() {
               <input type="checkbox" checked={geoEnabled} onChange={(e) => setGeoEnabled(e.target.checked)} />
               Activer les notifications de proximité
             </label>
-            <input
-              type="text"
-              placeholder="Adresse du restaurant (ex : 12 rue de Metz, 31000 Toulouse)"
-              value={geoAddress}
-              onChange={(e) => setGeoAddress(e.target.value)}
-              disabled={!geoEnabled}
+            <div className="suggest-wrap">
+              <input
+                type="text"
+                placeholder="Commence à taper ton adresse (ex : 12 rue de Metz, Toulouse)"
+                value={geoAddress}
+                onChange={(e) => handleGeoAddressChange(e.target.value)}
+                disabled={!geoEnabled}
+                autoComplete="off"
+              />
+              {geoSuggestions.length > 0 && (
+                <div className="suggest-list">
+                  {geoSuggestions.map((label, i) => (
+                    <button key={i} type="button" onClick={() => pickGeoSuggestion(label)}>
+                      📍 {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <p className="subtitle" style={{ marginTop: 4, marginBottom: 6 }}>
+              Message affiché en permanence sur la carte de tes clients (pas
+              seulement quand ils sont à proximité — le popup natif de
+              proximité, lui, est généré par Google et n'a pas de texte
+              personnalisable, c'est une limite de leur API, pas de Fidélions).
+            </p>
+            <textarea
+              className="menu-textarea"
+              placeholder="Ex : On a hâte de vous voir ! Passez nous dire bonjour 👋"
+              value={geoMessage}
+              onChange={(e) => setGeoMessage(e.target.value)}
+              maxLength={200}
+              rows={3}
             />
+
             <button className="primary" onClick={saveGeo} disabled={savingGeo}>
               {savingGeo ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -1528,11 +1731,11 @@ export default function Commercant() {
           <div className="card">
             <h2>Lien employé</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Envoie ce lien à un employé (SMS, WhatsApp…) : il peut scanner la
-              carte d'un client pour ajouter un {pointLabel}, sans mot de
-              passe et sans jamais voir la liste de tes clients ni tes
-              statistiques. Régénère le lien à tout moment pour couper l'accès
-              d'un ancien employé.
+              Envoie ce lien à toute ton équipe (SMS, WhatsApp…) : chaque
+              employé s'identifie ensuite avec son propre code à 4 chiffres
+              (onglet "Équipe" juste après) et peut ajouter un {pointLabel},
+              plus les rubriques que tu lui as ouvertes. Régénère le lien à
+              tout moment pour couper l'accès à toute l'équipe d'un coup.
             </p>
             {employeeToken ? (
               <div className="link-box">
@@ -1549,6 +1752,138 @@ export default function Commercant() {
                 {regeneratingToken ? "…" : "🔄 Régénérer le lien"}
               </button>
             </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "equipe" && (
+          <div className="card">
+            <h2>{editingEmpId ? "Modifier l'employé" : "Ajouter un employé"}</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Chaque employé a son propre code à 4 chiffres pour s'identifier
+              sur le lien ci-dessus, des jours/horaires d'accès, et des
+              permissions par rubrique — certains employés peuvent n'avoir
+              que le scan, d'autres plus de responsabilités.
+            </p>
+            <input
+              type="text"
+              placeholder="Son prénom"
+              value={empName}
+              onChange={(e) => setEmpName(e.target.value)}
+              maxLength={40}
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder={editingEmpId ? "Nouveau code à 4 chiffres (laisser vide pour garder l'ancien)" : "Son code à 4 chiffres"}
+              value={empPin}
+              onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              maxLength={4}
+            />
+            <p className="subtitle" style={{ marginBottom: 6 }}>Jours d'accès</p>
+            <div className="day-chips">
+              {DAY_OPTIONS.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={empDays.includes(d.id) ? "active" : ""}
+                  onClick={() => toggleEmpDay(d.id)}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <p className="subtitle" style={{ marginBottom: 6 }}>
+              Plage horaire (optionnel — laisse vide pour un accès à toute heure les jours cochés)
+            </p>
+            <div className="time-row">
+              <input type="time" value={empStart} onChange={(e) => setEmpStart(e.target.value)} />
+              <span>à</span>
+              <input type="time" value={empEnd} onChange={(e) => setEmpEnd(e.target.value)} />
+            </div>
+            <p className="subtitle" style={{ marginBottom: 6 }}>Accès en plus du scan</p>
+            <label className="channel">
+              <input
+                type="checkbox"
+                checked={empPerms.clients}
+                onChange={(e) => setEmpPerms({ ...empPerms, clients: e.target.checked })}
+              />
+              Voir la liste des clients
+            </label>
+            <label className="channel">
+              <input
+                type="checkbox"
+                checked={empPerms.stats}
+                onChange={(e) => setEmpPerms({ ...empPerms, stats: e.target.checked })}
+              />
+              Voir les statistiques
+            </label>
+            <label className="channel" style={{ marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                checked={empPerms.campagnes}
+                onChange={(e) => setEmpPerms({ ...empPerms, campagnes: e.target.checked })}
+              />
+              Envoyer des campagnes
+            </label>
+            <div className="menu-actions">
+              <button className="primary" type="button" onClick={saveEmployee} disabled={savingEmployee}>
+                {savingEmployee ? "Enregistrement…" : editingEmpId ? "Enregistrer les modifications" : "Ajouter cet employé"}
+              </button>
+              {editingEmpId && (
+                <button className="secondary" type="button" onClick={resetEmployeeForm}>
+                  Annuler
+                </button>
+              )}
+            </div>
+
+            {employees.length > 0 && (
+              <>
+                <h2 style={{ marginTop: 28 }}>Ton équipe</h2>
+                <div className="list">
+                  {employees.map((emp) => (
+                    <div className={`emp-row${emp.active ? "" : " blocked"}`} key={emp.id}>
+                      <div className="row-info">
+                        <strong>
+                          {emp.name}
+                          {!emp.active ? " (désactivé)" : ""}
+                        </strong>
+                        <div className="meta">
+                          Code : {revealedPinId === emp.id ? emp.pin : "••••"}{" "}
+                          <button
+                            type="button"
+                            className="link-btn"
+                            onClick={() => setRevealedPinId(revealedPinId === emp.id ? null : emp.id)}
+                          >
+                            {revealedPinId === emp.id ? "masquer" : "afficher"}
+                          </button>
+                        </div>
+                        <div className="meta">
+                          {emp.days && emp.days.length === 7 ? "Tous les jours" : (emp.days || []).join(", ")}
+                          {emp.startTime && emp.endTime ? ` · ${emp.startTime}-${emp.endTime}` : ""}
+                        </div>
+                        <div className="perm-badges">
+                          <span className="perm-badge">Scan</span>
+                          {emp.permissions?.clients && <span className="perm-badge">Clients</span>}
+                          {emp.permissions?.stats && <span className="perm-badge">Stats</span>}
+                          {emp.permissions?.campagnes && <span className="perm-badge">Campagnes</span>}
+                        </div>
+                      </div>
+                      <div className="row-actions" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                        <button className="secondary small" type="button" onClick={() => toggleEmployeeActive(emp)}>
+                          {emp.active ? "Désactiver" : "Activer"}
+                        </button>
+                        <button className="secondary small" type="button" onClick={() => startEditEmployee(emp)}>
+                          Modifier
+                        </button>
+                        <button className="secondary small danger-btn" type="button" onClick={() => deleteEmployeeRow(emp)}>
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1794,15 +2129,19 @@ export default function Commercant() {
             <details className="faq-item">
               <summary>Comment donner accès à un employé sans lui donner le mot de passe ?</summary>
               <p>
-                Utilise l'onglet "Équipe" : il génère un lien à envoyer par
-                SMS/WhatsApp, qui ne permet que de scanner une carte pour
-                ajouter un {pointLabel} — jamais d'accès à la liste de tes
-                clients ni à tes statistiques. Régénère-le à tout moment pour
-                couper l'accès d'un ancien employé.
+                Utilise l'onglet "Équipe" : un lien commun (SMS/WhatsApp) plus
+                un code personnel à 4 chiffres par employé. Chacun peut au
+                minimum scanner une carte pour ajouter un {pointLabel} ; tu
+                choisis en plus, pour chaque employé, s'il voit la liste des
+                clients, les statistiques, et/ou peut envoyer des campagnes.
+                Désactive ou supprime un employé à tout moment pour couper son
+                accès, sans toucher à celui des autres.
               </p>
             </details>
           </div>
         )}
+        </div>
+      </div>
       </div>
       <style jsx>{styles}</style>
     </div>
@@ -2059,6 +2398,42 @@ const styles = `
     white-space: nowrap;
     cursor: pointer;
   }
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+  }
+  .dashboard-content {
+    min-width: 0;
+  }
+  @media (min-width: 900px) {
+    .wrap {
+      max-width: 920px;
+    }
+    .dashboard {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 28px;
+    }
+    .tabs {
+      flex-direction: column;
+      width: 210px;
+      flex: none;
+      overflow-x: visible;
+      padding-bottom: 0;
+      position: sticky;
+      top: 24px;
+      gap: 4px;
+    }
+    .tab-btn {
+      width: 100%;
+      text-align: left;
+      padding: 12px 16px;
+      border-radius: 10px;
+    }
+    .dashboard-content {
+      flex: 1;
+    }
+  }
   .tab-btn.active {
     background: ${PURPLE};
     border-color: ${PURPLE};
@@ -2103,6 +2478,105 @@ const styles = `
     color: #a12b2b;
     padding: 8px 10px;
     font-size: 12px;
+  }
+  .tier-block {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0eef7;
+  }
+  .suggest-wrap {
+    position: relative;
+  }
+  .suggest-list {
+    position: absolute;
+    top: calc(100% - 8px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+    z-index: 6;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .suggest-list button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1a1a;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .suggest-list button:hover {
+    background: #f5f4fb;
+  }
+  .day-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .day-chips button {
+    width: auto;
+    background: #f3f0fa;
+    color: ${PURPLE};
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+  .day-chips button.active {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .time-row input {
+    margin: 0;
+    flex: 1;
+  }
+  .time-row span {
+    color: #8a8a8a;
+    font-size: 13px;
+  }
+  .emp-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px;
+    background: #faf9fd;
+    border-radius: 10px;
+    gap: 10px;
+  }
+  .emp-row.blocked {
+    opacity: 0.55;
+  }
+  .perm-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .perm-badge {
+    background: #e9e4f8;
+    color: ${PURPLE};
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 99px;
+  }
+  .danger-btn {
+    background: #fde8e8 !important;
+    color: #a12b2b !important;
   }
   .color-row {
     display: flex;

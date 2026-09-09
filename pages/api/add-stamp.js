@@ -43,34 +43,39 @@ export default async function handler(req, res) {
 
     const { type, tiers } = await getLoyaltySettings();
     const updated = await addPoints(objectId, 1);
+    const unit = type === "points" ? "point" : "tampon";
+    const walletLabel = type === "points" ? "Points" : "Tampons";
 
+    // Un seul palier défini → carte classique, la récompense se
+    // redéclenche à chaque multiple du seuil (comportement historique,
+    // ex : "10 tampons = café offert", encore et encore). Plusieurs
+    // paliers → chacun ne se débloque qu'UNE fois, comme des étapes
+    // (ex : 20 = pizza, 30 = pizza + boisson) — quel que soit le libellé
+    // "tampons"/"points" choisi, qui ne sert plus qu'au vocabulaire affiché.
     let rewardReached;
     let notifHeader;
     let notifBody;
-    let walletLabel;
 
-    if (type === "points") {
+    if (tiers.length > 1) {
       const result = computePointsRewards(updated.points, tiers, existing.unlockedTiers);
       rewardReached = result.rewardReached;
-      walletLabel = "Points";
       if (rewardReached) {
         await markTiersUnlocked(objectId, result.newlyUnlockedIndexes);
         notifHeader = "Récompense débloquée !";
         notifBody = `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`;
       } else {
-        notifHeader = "+1 point !";
+        notifHeader = `+1 ${unit} !`;
         notifBody = result.nextTierLabel
-          ? `Plus que ${result.remaining} point(s) avant : ${result.nextTierLabel}.`
+          ? `Plus que ${result.remaining} ${unit}(s) avant : ${result.nextTierLabel}.`
           : "Continuez, une récompense arrive bientôt !";
       }
     } else {
       const result = computeTamponsReward(updated.points, tiers);
       rewardReached = result.rewardReached;
-      walletLabel = "Tampons";
-      notifHeader = rewardReached ? "Récompense débloquée !" : "+1 tampon !";
+      notifHeader = rewardReached ? "Récompense débloquée !" : `+1 ${unit} !`;
       notifBody = rewardReached
         ? `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`
-        : `Plus que ${result.remaining} tampon(s) avant : ${result.label}.`;
+        : `Plus que ${result.remaining} ${unit}(s) avant : ${result.label}.`;
     }
 
     await setLoyaltyPoints(objectId, updated.points, walletLabel);
