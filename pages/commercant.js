@@ -1,23 +1,45 @@
 import { useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
 // Onglets de l'espace commerçant (patron uniquement — un caissier garde
-// l'ancien écran simple : scanner + recherche, rien d'autre). Organisé en
-// rubriques comme Sydely, mais gardé en onglets défilables plutôt qu'une
-// barre latérale, pour rester cohérent avec la mise en page mobile-first
-// (une colonne, 480px max) déjà utilisée partout ailleurs sur le site.
+// l'ancien écran simple : scanner + recherche, rien d'autre). Rubriques et
+// ordre calqués exactement sur la barre latérale de Sydely (captures
+// envoyées par Adam) : liste principale, puis un groupe "Compte" séparé.
+// "Aperçu" n'est pas dans ces captures mais reste en premier — c'est le
+// tableau de bord (chiffres clés + classement clients), trop utile pour le
+// supprimer, et cohérent avec le fait qu'une appli pro a presque toujours
+// un accueil avant les rubriques métier. Sur mobile, reste en rangée de
+// pastilles défilable (pas de place pour une vraie barre latérale) ; à
+// partir de 900px de large, devient la barre latérale fixée à gauche que
+// Adam a demandée.
 const TABS = [
-  { id: "apercu", label: "Aperçu" },
-  { id: "fidelite", label: "Fidélité" },
-  { id: "stats", label: "Statistiques" },
-  { id: "carte", label: "Ma carte" },
-  { id: "proximite", label: "Proximité" },
-  { id: "equipe", label: "Équipe" },
-  { id: "campagnes", label: "Campagnes" },
-  { id: "clients", label: "Clients" },
-  { id: "aide", label: "Aide" },
+  { id: "apercu", icon: "🏠", label: "Aperçu" },
+  { id: "partager", icon: "🔗", label: "Partager" },
+  { id: "clients", icon: "👥", label: "Clients" },
+  { id: "campagnes", icon: "🔔", label: "Notifications" },
+  { id: "carte", icon: "💳", label: "Ma carte" },
+  { id: "fidelite", icon: "🎁", label: "Récompenses" },
+  { id: "equipe", icon: "🧑‍💼", label: "Employés" },
+  { id: "proximite", icon: "📍", label: "Géolocalisation" },
+  { id: "stats", icon: "📈", label: "Statistiques" },
+  { id: "api-dev", icon: "</>", label: "API & développeurs" },
+];
+
+// Groupe "Compte" séparé, comme sur les captures. "Support" réutilise la
+// vraie rubrique Aide (FAQ) déjà construite — pas de doublon. Établissement,
+// Abonnement et Paramètres n'ont pas encore de vrai contenu derrière (pas
+// de gestion multi-établissement, pas de facturation, pas de compte à
+// personnaliser au-delà du mot de passe défini dans Vercel) : plutôt que
+// de faire semblant, ces 3 rubriques affichent honnêtement "bientôt
+// disponible" jusqu'à ce que ça existe pour de vrai.
+const ACCOUNT_TABS = [
+  { id: "etablissement", icon: "🏢", label: "Établissement" },
+  { id: "abonnement", icon: "🧾", label: "Abonnement" },
+  { id: "aide", icon: "🎧", label: "Support" },
+  { id: "parametres", icon: "⚙️", label: "Paramètres" },
 ];
 
 const DAY_OPTIONS = [
@@ -304,6 +326,22 @@ export default function Commercant() {
   const [geoSuggestions, setGeoSuggestions] = useState([]);
   const [savingGeo, setSavingGeo] = useState(false);
   const geoDebounceRef = useRef(null);
+
+  // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
+  const [signupQrUrl, setSignupQrUrl] = useState("");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    QRCode.toDataURL(window.location.origin, { width: 500, margin: 2, color: { dark: "#1a1a1a" } })
+      .then(setSignupQrUrl)
+      .catch(() => setSignupQrUrl(""));
+  }, []);
+  function copySignupLink() {
+    if (typeof window === "undefined") return;
+    navigator.clipboard
+      .writeText(window.location.origin)
+      .then(() => setMessage({ type: "success", text: "Lien copié !" }))
+      .catch(() => setMessage({ type: "error", text: "Impossible de copier — copie-le à la main." }));
+  }
 
   // --- Lien employé (scan seul, sans mot de passe à retenir) ---
   const [employeeToken, setEmployeeToken] = useState(null);
@@ -1321,7 +1359,18 @@ export default function Commercant() {
                 className={`tab-btn${activeTab === t.id ? " active" : ""}`}
                 onClick={() => switchTab(t.id)}
               >
-                {t.label}
+                <span className="tab-icon">{t.icon}</span> {t.label}
+              </button>
+            ))}
+            <div className="tab-group-label">Compte</div>
+            {ACCOUNT_TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`tab-btn${activeTab === t.id ? " active" : ""}`}
+                onClick={() => switchTab(t.id)}
+              >
+                <span className="tab-icon">{t.icon}</span> {t.label}
               </button>
             ))}
           </div>
@@ -1382,9 +1431,42 @@ export default function Commercant() {
                 </div>
               </>
             )}
-            <a className="share-banner" href="/qr" target="_blank" rel="noreferrer">
-              📣 Partager ma carte — voir mon QR code d'inscription
-            </a>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "partager" && (
+          <div className="card">
+            <h2>Partager Fidélions</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Affiche ce QR code en caisse ou sur tes tables : tes clients le
+              scannent avec leur téléphone pour créer leur carte de fidélité
+              en quelques secondes, sans rien installer.
+            </p>
+            {signupQrUrl ? (
+              <div style={{ textAlign: "center" }}>
+                <img
+                  src={signupQrUrl}
+                  alt="QR code d'inscription Fidélions"
+                  style={{ width: 220, height: 220, borderRadius: 12, border: "1.5px solid #e6e2f2" }}
+                />
+                <p style={{ marginTop: 12 }}>
+                  <a href={signupQrUrl} download="qr-fidelions.png" className="link-btn">
+                    ⬇️ Télécharger l'image à imprimer
+                  </a>
+                </p>
+              </div>
+            ) : (
+              <p className="subtitle">Génération du QR code…</p>
+            )}
+            <p className="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
+              Ou partage directement le lien :
+            </p>
+            <div className="link-box">
+              {typeof window !== "undefined" ? window.location.origin : ""}
+            </div>
+            <button className="secondary" type="button" onClick={copySignupLink}>
+              📋 Copier le lien
+            </button>
           </div>
         )}
 
@@ -1614,6 +1696,19 @@ export default function Commercant() {
                 {savingOffer ? "Enregistrement…" : "💾 Enregistrer mon offre"}
               </button>
             </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "api-dev" && (
+          <div className="card">
+            <h2>API & développeurs</h2>
+            <p className="subtitle">
+              🚧 Bientôt disponible. L'idée : un accès pour connecter
+              Fidélions à ta caisse ou à d'autres outils que tu utilises déjà
+              (clés API, webhooks). Rien à faire pour l'instant — cette page
+              existe pour que tu la retrouves facilement le jour où ce sera
+              prêt.
+            </p>
           </div>
         )}
 
@@ -2078,9 +2173,45 @@ export default function Commercant() {
           </div>
         )}
 
+        {role === "owner" && activeTab === "etablissement" && (
+          <div className="card">
+            <h2>Établissement</h2>
+            <p className="subtitle">
+              🚧 Bientôt disponible. L'idée : les infos de ton établissement
+              (nom, horaires d'ouverture…) réunies ici. En attendant,
+              l'adresse utilisée pour la géolocalisation se règle dans
+              l'onglet "Géolocalisation".
+            </p>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "abonnement" && (
+          <div className="card">
+            <h2>Abonnement</h2>
+            <p className="subtitle">
+              🚧 Bientôt disponible. Pas de facturation ni d'abonnement payant
+              pour l'instant — Fidélions tourne pour toi tel quel, sans frais
+              caché.
+            </p>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "parametres" && (
+          <div className="card">
+            <h2>Paramètres</h2>
+            <p className="subtitle">
+              🚧 Bientôt disponible. Le mot de passe de cet espace commerçant
+              se change pour l'instant dans les variables d'environnement de
+              ton hébergement (Vercel → Settings → Environment Variables →
+              `MERCHANT_PASSWORD`) ; d'autres réglages de compte viendront
+              ici.
+            </p>
+          </div>
+        )}
+
         {role === "owner" && activeTab === "aide" && (
           <div className="card">
-            <h2>Aide</h2>
+            <h2>Support</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Les réponses aux blocages les plus fréquents. Pas de chat en
               ligne ici : personne ne serait derrière pour répondre à temps —
@@ -2398,6 +2529,13 @@ const styles = `
     white-space: nowrap;
     cursor: pointer;
   }
+  .tab-icon {
+    display: inline-block;
+    width: 1.1em;
+  }
+  .tab-group-label {
+    display: none;
+  }
   .dashboard {
     display: flex;
     flex-direction: column;
@@ -2406,32 +2544,53 @@ const styles = `
     min-width: 0;
   }
   @media (min-width: 900px) {
+    .page {
+      display: block;
+      padding: 0;
+    }
     .wrap {
-      max-width: 920px;
+      max-width: none;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 32px 40px 60px 272px;
     }
     .dashboard {
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 28px;
+      display: block;
     }
     .tabs {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 232px;
       flex-direction: column;
-      width: 210px;
-      flex: none;
       overflow-x: visible;
-      padding-bottom: 0;
-      position: sticky;
-      top: 24px;
-      gap: 4px;
+      overflow-y: auto;
+      margin-bottom: 0;
+      padding: 28px 14px 24px;
+      background: #fff;
+      border-right: 1px solid #ece9f5;
+      gap: 3px;
+      box-sizing: border-box;
+      z-index: 5;
     }
     .tab-btn {
       width: 100%;
       text-align: left;
-      padding: 12px 16px;
+      padding: 11px 14px;
       border-radius: 10px;
     }
+    .tab-group-label {
+      display: block;
+      margin: 20px 10px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #a79fc4;
+      text-transform: uppercase;
+    }
     .dashboard-content {
-      flex: 1;
+      max-width: 1040px;
     }
   }
   .tab-btn.active {
