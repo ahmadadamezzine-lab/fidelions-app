@@ -1,0 +1,69 @@
+// pages/api/loyalty-settings.js
+//
+// Choix du mode de fidélité (tampons classiques vs points à paliers
+// multiples, façon Sydely) et des paliers eux-mêmes. Réservé au patron —
+// changer ce réglage change l'expérience de tous les clients.
+
+import { getLoyaltySettings, updateLoyaltySettings } from "../../lib/db";
+import { patchLoyaltyClassPointsLabel } from "../../lib/walletObjects";
+import { getRole } from "../../lib/auth";
+
+export default async function handler(req, res) {
+  const role = getRole(req);
+  if (role !== "owner") {
+    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+  }
+
+  if (req.method === "GET") {
+    try {
+      const settings = await getLoyaltySettings();
+      return res.status(200).json(settings);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: err.message || "Erreur serveur" });
+    }
+  }
+
+  if (req.method === "POST") {
+    try {
+      const { type, tiers } = req.body || {};
+      if (type !== "tampons" && type !== "points") {
+        return res.status(400).json({ error: "Mode de fidélité invalide." });
+      }
+      if (!Array.isArray(tiers) || tiers.length === 0) {
+        return res.status(400).json({ error: "Ajoute au moins un palier." });
+      }
+      if (type === "points" && tiers.length > 10) {
+        return res.status(400).json({ error: "10 paliers maximum." });
+      }
+      for (const t of tiers) {
+        const threshold = Number(t.threshold);
+        if (!Number.isFinite(threshold) || threshold < 1 || threshold > 1000) {
+          return res.status(400).json({ error: "Chaque palier doit être entre 1 et 1000." });
+        }
+        if (!(t.label || "").trim()) {
+          return res.status(400).json({ error: "Décris la récompense de chaque palier." });
+        }
+      }
+
+      const settings = await updateLoyaltySettings({ type, tiers });
+
+      // Non bloquant : si Google refuse (ex : quota), le réglage reste
+      // valable côté Fidélions, seul le libellé affiché sur Wallet ne
+      // change pas tout de suite.
+      try {
+        await patchLoyaltyClassPointsLabel(type === "points" ? "Points" : "Tampons");
+      } catch (err) {
+        console.error("Libellé Wallet non mis à jour :", err);
+      }
+
+      return res.status(200).json(settings);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: err.message || "Erreur serveur" });
+    }
+  }
+
+  res.setHeader("Allow", ["GET", "POST"]);
+  return res.status(405).json({ error: "Méthode non autorisée" });
+}

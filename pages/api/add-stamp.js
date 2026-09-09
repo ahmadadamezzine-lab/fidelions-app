@@ -1,21 +1,26 @@
 // pages/api/add-stamp.js
 //
-// Appelé depuis l'espace commerçant (/commercant) quand le commerçant
-// scanne le QR d'un client ou clique "+1 tampon" manuellement. Met à
-// jour la base de données ET la carte Wallet du client (solde + notif).
+// Appelé depuis l'espace commerçant (/commercant) ou depuis le lien
+// employé (/scan/[token]) quand on scanne le QR d'un client ou qu'on
+// clique "+1" manuellement. Met à jour la base de données ET la carte
+// Wallet du client (solde + notif), en tenant compte du mode de fidélité
+// choisi par le commerçant ("tampons" classique ou "points" à paliers).
 
-import { getClient, addPoints, getSettings } from "../../lib/db";
+import { getClient, addPoints, getLoyaltySettings, markTiersUnlocked, logStampEvent } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRoleAsync } from "../../lib/auth";
+import { computeTamponsReward, computePointsRewards } from "../../lib/loyalty";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  // Le caissier peut ajouter des tampons comme le patron.
-  if (!getRole(req)) {
-    return res.status(401).json({ error: "Mot de passe commerçant incorrect." });
+  // Le patron, le caissier, ET le lien employé (scan seul) peuvent ajouter
+  // un tampon/point — c'est la seule action que ce dernier autorise.
+  const role = await getRoleAsync(req);
+  if (!role) {
+    return res.status(401).json({ error: "Accès refusé." });
   }
 
   try {
@@ -36,13 +41,40 @@ export default async function handler(req, res) {
         .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un tampon." });
     }
 
-    const { rewardThreshold, rewardLabel } = await getSettings();
-
+    const { type, tiers } = await getLoyaltySettings();
     const updated = await addPoints(objectId, 1);
-    await setLoyaltyPoints(objectId, updated.points);
 
-    const rewardReached = updated.points > 0 && updated.points % rewardThreshold === 0;
-    const remaining = rewardThreshold - (updated.points % rewardThreshold || rewardThreshold);
+    let rewardReached;
+    let notifHeader;
+    let notifBody;
+    let walletLabel;
+
+    if (type === "points") {
+      const result = computePointsRewards(updated.points, tiers, existing.unlockedTiers);
+      rewardReached = result.rewardReached;
+      walletLabel = "Points";
+      if (rewardReached) {
+        await markTiersUnlocked(objectId, result.newlyUnlockedIndexes);
+        notifHeader = "Récompense débloquée !";
+        notifBody = `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`;
+      } else {
+        notifHeader = "+1 point !";
+        notifBody = result.nextTierLabel
+          ? `Plus que ${result.remaining} point(s) avant : ${result.nextTierLabel}.`
+          : "Continuez, une récompense arrive bientôt !";
+      }
+    } else {
+      const result = computeTamponsReward(updated.points, tiers);
+      rewardReached = result.rewardReached;
+      walletLabel = "Tampons";
+      notifHeader = rewardReached ? "Récompense débloquée !" : "+1 tampon !";
+      notifBody = rewardReached
+        ? `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`
+        : `Plus que ${result.remaining} tampon(s) avant : ${result.label}.`;
+    }
+
+    await setLoyaltyPoints(objectId, updated.points, walletLabel);
+    await logStampEvent({ objectId, delta: 1, rewardReached });
 
     // Le tampon lui-même (solde + base de données) est déjà enregistré à ce
     // stade. La notification est un bonus : si Google refuse (ex : quota de
@@ -51,13 +83,7 @@ export default async function handler(req, res) {
     // quand même la confirmation.
     let notificationSent = true;
     try {
-      await sendWalletMessage(
-        objectId,
-        rewardReached ? "Récompense débloquée !" : "+1 tampon !",
-        rewardReached
-          ? `Bravo, ${rewardLabel} est disponible — montrez cette carte en caisse.`
-          : `Plus que ${remaining} tampon(s) avant : ${rewardLabel}.`
-      );
+      await sendWalletMessage(objectId, notifHeader, notifBody);
     } catch (err) {
       console.error("Notification Wallet non envoyée :", err);
       notificationSent = false;
