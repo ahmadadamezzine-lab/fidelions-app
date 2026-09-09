@@ -7,8 +7,17 @@
 // code) dont la permission "stats" a été activée dans l'onglet Équipe.
 
 import { getRecentEvents, listClients } from "../../lib/db";
-import { pointsParJour, heuresDePointe, joursDeLaSemaine, nouveauxClientsParSemaine, statTiles } from "../../lib/stats";
+import {
+  pointsParJour,
+  heuresDePointe,
+  joursDeLaSemaine,
+  nouveauxClientsParSemaine,
+  statTiles,
+  evolutionClientsFidelises,
+} from "../../lib/stats";
 import { getRoleAsync, hasPermission } from "../../lib/auth";
+
+const EVOLUTION_RANGES = ["jour", "semaine", "mois", "annee", "debut"];
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -21,6 +30,10 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Accès refusé." });
   }
 
+  // Période choisie pour la courbe "évolution des clients fidélisés" (voir
+  // onglet Statistiques) — repli sur "mois" si absent ou invalide.
+  const range = EVOLUTION_RANGES.includes(req.query.range) ? req.query.range : "mois";
+
   try {
     const [events, clients] = await Promise.all([getRecentEvents(), listClients()]);
 
@@ -30,6 +43,8 @@ export default async function handler(req, res) {
       heuresDePointe: heuresDePointe(events),
       joursDeLaSemaine: joursDeLaSemaine(events),
       nouveauxClientsParSemaine: nouveauxClientsParSemaine(clients),
+      evolutionClients: evolutionClientsFidelises(clients, range),
+      evolutionRange: range,
     });
   } catch (err) {
     console.error(err);

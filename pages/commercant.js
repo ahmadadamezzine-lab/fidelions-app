@@ -43,6 +43,16 @@ const ACCOUNT_TABS = [
   { id: "parametres", icon: "⚙️", label: "Paramètres" },
 ];
 
+// Sélecteur de période pour la courbe "évolution des clients fidélisés"
+// (onglet Statistiques) — mêmes valeurs que EVOLUTION_RANGES côté API.
+const EVOLUTION_RANGES = [
+  { id: "jour", label: "Jour" },
+  { id: "semaine", label: "Semaine" },
+  { id: "mois", label: "Mois" },
+  { id: "annee", label: "Année" },
+  { id: "debut", label: "Depuis le début" },
+];
+
 const DAY_OPTIONS = [
   { id: "lun", label: "Lun" },
   { id: "mar", label: "Mar" },
@@ -258,6 +268,81 @@ function BarChart({ data }) {
   );
 }
 
+// Courbe cumulative (nombre total de clients fidélisés au fil du temps) —
+// même logique de survol que BarChart (cible plus large que le point visible,
+// tooltip sous le graphe), mais en ligne + aire remplie à faible opacité :
+// c'est une grandeur qui grandit dans le temps, pas des totaux indépendants.
+function LineChart({ data }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  if (!data || data.length === 0) return null;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const stepX = data.length > 1 ? 100 / (data.length - 1) : 0;
+  const step = Math.max(1, Math.ceil(data.length / 8));
+
+  const points = data.map((d, i) => ({
+    x: data.length > 1 ? i * stepX : 50,
+    y: 100 - (d.value / max) * 84,
+  }));
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
+
+  return (
+    <div className="chart">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="chart-svg">
+        <path d={areaPath} fill={PURPLE} opacity={0.12} stroke="none" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke={PURPLE}
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+        />
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={hoverIdx === i ? 2.6 : 1.6}
+            fill="#fff"
+            stroke={PURPLE}
+            strokeWidth={1.4}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {points.map((p, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={p.x - (data.length > 1 ? stepX / 2 : 50)}
+            y={0}
+            width={data.length > 1 ? stepX : 100}
+            height={100}
+            fill="transparent"
+            onMouseEnter={() => setHoverIdx(i)}
+            onMouseLeave={() => setHoverIdx(null)}
+          />
+        ))}
+      </svg>
+      <div className="chart-labels">
+        {data.map((d, i) => (
+          <span key={i} className={hoverIdx === i ? "active" : ""}>
+            {i % step === 0 || hoverIdx === i ? d.label : ""}
+          </span>
+        ))}
+      </div>
+      <div className="chart-tooltip" style={{ visibility: hoverIdx === null ? "hidden" : "visible" }}>
+        {hoverIdx !== null ? (
+          <>
+            {data[hoverIdx].label} : <strong>{data[hoverIdx].value} client{data[hoverIdx].value > 1 ? "s" : ""} fidélisé{data[hoverIdx].value > 1 ? "s" : ""}</strong>
+          </>
+        ) : (
+          "—"
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Delta({ pct }) {
   if (!Number.isFinite(pct) || pct === 0) return <span className="delta neutral">± 0%</span>;
   const up = pct > 0;
@@ -310,6 +395,8 @@ export default function Commercant() {
   // de l'onglet pour ne pas ralentir la connexion.
   const [statsData, setStatsData] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [evolutionRange, setEvolutionRange] = useState("mois");
+  const [loadingEvolution, setLoadingEvolution] = useState(false);
 
   // --- Personnalisation de la carte : couleur + logo + bannière ---
   const [brandHexColor, setBrandHexColor] = useState(PURPLE);
@@ -842,13 +929,35 @@ export default function Commercant() {
   async function loadStats() {
     setLoadingStats(true);
     try {
-      const res = await fetch("/api/stats", { headers: { "x-merchant-password": password } });
+      const res = await fetch(`/api/stats?range=${evolutionRange}`, {
+        headers: { "x-merchant-password": password },
+      });
       const data = await res.json();
       if (res.ok) setStatsData(data);
     } catch {
       // silencieux — l'onglet affichera "pas encore de données"
     } finally {
       setLoadingStats(false);
+    }
+  }
+
+  // Change uniquement la période de la courbe "évolution des clients
+  // fidélisés" — pas besoin de recharger les tuiles/autres graphes.
+  async function changeEvolutionRange(range) {
+    setEvolutionRange(range);
+    setLoadingEvolution(true);
+    try {
+      const res = await fetch(`/api/stats?range=${range}`, {
+        headers: { "x-merchant-password": password },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatsData((prev) => (prev ? { ...prev, evolutionClients: data.evolutionClients } : data));
+      }
+    } catch {
+      // silencieux
+    } finally {
+      setLoadingEvolution(false);
     }
   }
 
@@ -1359,6 +1468,11 @@ export default function Commercant() {
 
       <div className="dashboard">
         {role === "owner" && (
+          <>
+          <div className="sidebar-brand">
+            <img src="/logo.png" alt="Fidélions" className="sidebar-logo" />
+            <span className="sidebar-wordmark">Fidélions</span>
+          </div>
           <div className="tabs">
             {TABS.map((t) => (
               <button
@@ -1382,6 +1496,7 @@ export default function Commercant() {
               </button>
             ))}
           </div>
+          </>
         )}
 
         <div className="dashboard-content">
@@ -1580,6 +1695,28 @@ export default function Commercant() {
                     <div className="stat-label">Récompenses ce mois-ci</div>
                   </div>
                 </div>
+
+                <p className="chart-title" style={{ marginTop: 6 }}>Évolution du nombre de clients fidélisés</p>
+                <div className="range-selector">
+                  {EVOLUTION_RANGES.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={evolutionRange === r.id ? "active" : ""}
+                      onClick={() => changeEvolutionRange(r.id)}
+                      disabled={loadingEvolution}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {loadingEvolution && <p className="subtitle" style={{ marginBottom: 8 }}>Chargement…</p>}
+                {!loadingEvolution && statsData.evolutionClients && statsData.evolutionClients.length > 0 && (
+                  <LineChart data={statsData.evolutionClients} />
+                )}
+                {!loadingEvolution && (!statsData.evolutionClients || statsData.evolutionClients.length === 0) && (
+                  <p className="subtitle">Pas encore de client fidélisé sur cette période.</p>
+                )}
 
                 <p className="chart-title">{loyaltyType === "points" ? "Points" : "Tampons"} distribués par jour (14 derniers jours)</p>
                 <BarChart data={statsData.pointsParJour} />
@@ -1882,19 +2019,33 @@ export default function Commercant() {
               onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               maxLength={4}
             />
-            <p className="subtitle" style={{ marginBottom: 6 }}>Jours d'accès</p>
+            <p className="subtitle" style={{ marginBottom: 6 }}>
+              Jours d'accès — clique pour activer/désactiver un jour
+            </p>
             <div className="day-chips">
-              {DAY_OPTIONS.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  className={empDays.includes(d.id) ? "active" : ""}
-                  onClick={() => toggleEmpDay(d.id)}
-                >
-                  {d.label}
-                </button>
-              ))}
+              {DAY_OPTIONS.map((d) => {
+                const on = empDays.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={on ? "active" : ""}
+                    onClick={() => toggleEmpDay(d.id)}
+                    aria-pressed={on}
+                    title={on ? `${d.label} : accès activé` : `${d.label} : accès désactivé`}
+                  >
+                    <span className="day-chip-mark">{on ? "✓" : "✕"}</span> {d.label}
+                  </button>
+                );
+              })}
             </div>
+            <p className="day-chips-summary">
+              {empDays.length === 0
+                ? "⚠️ Aucun jour activé — l'employé ne pourra jamais se connecter."
+                : empDays.length === 7
+                ? "Accès activé tous les jours."
+                : `Accès activé ${empDays.length} jour${empDays.length > 1 ? "s" : ""} sur 7 : ${DAY_OPTIONS.filter((d) => empDays.includes(d.id)).map((d) => d.label).join(", ")}.`}
+            </p>
             <p className="subtitle" style={{ marginBottom: 6 }}>
               Plage horaire (optionnel — laisse vide pour un accès à toute heure les jours cochés)
             </p>
@@ -2518,6 +2669,49 @@ const styles = `
     margin-top: 4px;
     min-height: 16px;
   }
+  .range-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .range-selector button {
+    width: auto;
+    background: #fff;
+    color: #595959;
+    border: 1.5px solid #e0e0e0;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 20px;
+  }
+  .range-selector button.active {
+    background: ${PURPLE};
+    color: #fff;
+    border-color: ${PURPLE};
+  }
+  .range-selector button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .sidebar-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    flex: none;
+  }
+  .sidebar-wordmark {
+    font-size: 17px;
+    font-weight: 800;
+    color: ${PURPLE};
+    letter-spacing: -0.01em;
+  }
   .tabs {
     display: flex;
     gap: 6px;
@@ -2636,20 +2830,34 @@ const styles = `
   .day-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .day-chips button {
     width: auto;
-    background: #f3f0fa;
-    color: ${PURPLE};
-    padding: 8px 10px;
-    font-size: 12px;
+    background: #fff;
+    color: #a3a3a3;
+    border: 1.5px solid #e0e0e0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-weight: 700;
     border-radius: 8px;
+    opacity: 0.75;
   }
   .day-chips button.active {
     background: ${PURPLE};
     color: #fff;
+    border-color: ${PURPLE};
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(116, 20, 244, 0.35);
+  }
+  .day-chip-mark {
+    display: inline-block;
+  }
+  .day-chips-summary {
+    font-size: 12.5px;
+    color: #595959;
+    margin-bottom: 14px;
   }
   .time-row {
     display: flex;
@@ -3008,9 +3216,30 @@ const styles = `
     .dashboard {
       display: block;
     }
-    .tabs {
+    .sidebar-brand {
       position: fixed;
       top: 0;
+      left: 0;
+      width: 232px;
+      height: 68px;
+      margin-bottom: 0;
+      padding: 0 18px;
+      box-sizing: border-box;
+      background: #fff;
+      border-right: 1px solid #ece9f5;
+      border-bottom: 1px solid #ece9f5;
+      z-index: 6;
+    }
+    .sidebar-logo {
+      width: 38px;
+      height: 38px;
+    }
+    .sidebar-wordmark {
+      font-size: 19px;
+    }
+    .tabs {
+      position: fixed;
+      top: 68px;
       left: 0;
       bottom: 0;
       width: 232px;
@@ -3018,7 +3247,7 @@ const styles = `
       overflow-x: visible;
       overflow-y: auto;
       margin-bottom: 0;
-      padding: 28px 14px 24px;
+      padding: 14px 14px 24px;
       background: #fff;
       border-right: 1px solid #ece9f5;
       gap: 3px;
