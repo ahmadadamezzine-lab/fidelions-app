@@ -163,6 +163,7 @@ export default function Commercant() {
   // --- Menu du restaurant (texte/PDF/photo) + analyse IA + offre éditable ---
   const [menuText, setMenuText] = useState("");
   const [menuFile, setMenuFile] = useState(null); // { base64, mimeType, name } ou null
+  const [menuDragOver, setMenuDragOver] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState(null); // { items, suggestions, fallback? }
@@ -442,10 +443,10 @@ export default function Commercant() {
 
   // Accepte .txt (lu tel quel comme texte) ou PDF/photo (envoyé à l'IA en
   // pièce jointe — c'est elle qui le lit, pas besoin d'OCR séparé ici).
-  function handleMenuFile(e) {
-    const file = e.target.files?.[0];
+  // Fonction commune : appelée par le sélecteur de fichier ET par le
+  // glisser-déposer, pour ne pas dupliquer la logique de lecture.
+  function processMenuFile(file) {
     if (!file) return;
-    e.target.value = "";
     setMessage(null);
     setAiResult(null);
 
@@ -480,6 +481,29 @@ export default function Commercant() {
     }
 
     setMessage({ type: "error", text: "Format non reconnu — utilise un .txt, un PDF ou une photo (JPG/PNG)." });
+  }
+
+  function handleMenuFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    processMenuFile(file);
+  }
+
+  function handleMenuDrop(e) {
+    e.preventDefault();
+    setMenuDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    processMenuFile(file);
+  }
+
+  function handleMenuDragOver(e) {
+    e.preventDefault();
+    setMenuDragOver(true);
+  }
+
+  function handleMenuDragLeave(e) {
+    e.preventDefault();
+    setMenuDragOver(false);
   }
 
   function clearMenuFile() {
@@ -910,22 +934,37 @@ export default function Commercant() {
               style={{ display: "none" }}
               onChange={handleMenuFile}
             />
-            {menuFile && (
-              <p className="subtitle" style={{ marginTop: 8, marginBottom: 0 }}>
-                📎 {menuFile.name} prêt à analyser —{" "}
-                <button type="button" className="link-btn" onClick={clearMenuFile}>
-                  retirer
-                </button>
-              </p>
-            )}
+            <div
+              className={"dropzone" + (menuDragOver ? " drag-over" : "")}
+              onClick={() => menuFileInputRef.current?.click()}
+              onDrop={handleMenuDrop}
+              onDragOver={handleMenuDragOver}
+              onDragEnter={handleMenuDragOver}
+              onDragLeave={handleMenuDragLeave}
+              role="button"
+              tabIndex={0}
+            >
+              {menuFile ? (
+                <p className="subtitle" style={{ margin: 0 }}>
+                  📎 {menuFile.name} prêt à analyser —{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearMenuFile();
+                    }}
+                  >
+                    retirer
+                  </button>
+                </p>
+              ) : (
+                <p className="subtitle" style={{ margin: 0 }}>
+                  📄 Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
+                </p>
+              )}
+            </div>
             <div className="menu-actions">
-              <button
-                className="secondary"
-                type="button"
-                onClick={() => menuFileInputRef.current?.click()}
-              >
-                📄 Importer (txt / PDF / photo)
-              </button>
               <button className="secondary" type="button" onClick={saveMenu} disabled={savingMenu}>
                 {savingMenu ? "Enregistrement…" : "💾 Enregistrer le menu"}
               </button>
@@ -1264,6 +1303,23 @@ const styles = `
   .menu-textarea:focus {
     outline: none;
     border-color: ${PURPLE};
+  }
+  .dropzone {
+    border: 1.5px dashed #c9c2dd;
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+    cursor: pointer;
+    background: #faf9fd;
+    margin-bottom: 12px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone:hover {
+    border-color: ${PURPLE};
+  }
+  .dropzone.drag-over {
+    border-color: ${PURPLE};
+    background: #f3ecff;
   }
   .link-btn {
     background: none;
