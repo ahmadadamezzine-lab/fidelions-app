@@ -1,25 +1,27 @@
 import Link from "next/link";
+import LegalFooter from "../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 
-// Page publique de la politique de confidentialité — même contenu que le
-// modèle envoyé à Adam (docx), mêmes zones [À COMPLÉTER] laissées visibles
-// plutôt que remplies par des informations inventées.
+// Page publique de la politique de confidentialité. À la demande d'Adam,
+// les zones [À COMPLÉTER] visibles (forme juridique, SIRET, adresse du
+// siège) ont été retirées de l'affichage plutôt que remplies par des
+// informations inventées — il les ajoutera lui-même une fois son
+// entreprise immatriculée (idem pages/cgv.js).
 export default function Confidentialite() {
   return (
     <div className="page">
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Politique de Confidentialité</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : <Placeholder text="DATE" /></p>
+        <p className="subtitle">Fidélions — dernière mise à jour : 10 septembre 2026</p>
 
         <h2>1. Qui sommes-nous</h2>
         <p>
-          Fidélions (<Placeholder text="FORME JURIDIQUE" />, SIRET <Placeholder text="SIRET" />, siège social{" "}
-          <Placeholder text="ADRESSE DU SIÈGE" />) édite et exploite le service Fidélions, un outil de fidélisation
-          client destiné aux commerces.
+          Fidélions édite et exploite le service Fidélions, un outil de fidélisation client destiné
+          aux commerces.
         </p>
-        <p>Pour toute question relative à vos données personnelles : <Placeholder text="EMAIL DE CONTACT" />.</p>
+        <p>Pour toute question relative à vos données personnelles : ahmadadamezzine@gmail.com.</p>
 
         <h2>2. Deux rôles différents selon qui vous êtes</h2>
         <p>
@@ -72,9 +74,9 @@ export default function Confidentialite() {
 
         <h2>6. Durée de conservation</h2>
         <p>
-          Données d'un Client final : conservées tant que la carte de fidélité est active, puis{" "}
-          <Placeholder text="DURÉE — ex. 3 ans" /> à compter de la dernière activité en l'absence d'utilisation,
-          sauf demande de suppression anticipée.
+          Données d'un Client final : conservées tant que la carte de fidélité est active, puis 3 ans
+          à compter de la dernière activité en l'absence d'utilisation, sauf demande de suppression
+          anticipée.
         </p>
         <p>Données du compte Établissement : conservées pendant toute la durée du contrat, puis selon les modalités prévues aux Conditions Générales de Vente en cas de résiliation.</p>
 
@@ -87,7 +89,7 @@ export default function Confidentialite() {
         <p>
           Pour les clients finaux d'un commerce : ces droits peuvent être exercés directement
           auprès de l'Établissement concerné (responsable de traitement), ou auprès de Fidélions qui
-          transmettra votre demande, à l'adresse <Placeholder text="EMAIL DE CONTACT" />.
+          transmettra votre demande, à l'adresse ahmadadamezzine@gmail.com.
         </p>
         <p>Vous disposez également du droit d'introduire une réclamation auprès de la Commission nationale de l'informatique et des libertés (CNIL) — www.cnil.fr.</p>
 
@@ -108,18 +110,14 @@ export default function Confidentialite() {
         <p>Cette politique peut être mise à jour ; la version en vigueur est celle publiée sur cette page, avec sa date de dernière mise à jour ci-dessus.</p>
 
         <p className="footdisclaimer">
-          Cette page est en cours de finalisation (informations légales de l'entreprise à
-          compléter) et n'a pas encore été relue par un professionnel du droit.
+          Cette page n'a pas encore été relue par un professionnel du droit.
         </p>
+        <LegalFooter />
       </div>
 
       <style jsx>{`${styles}`}</style>
     </div>
   );
-}
-
-function Placeholder({ text }) {
-  return <span className="ph">[{text}]</span>;
 }
 
 const styles = `
@@ -181,14 +179,6 @@ const styles = `
     font-size: 14.5px;
     line-height: 1.65;
     margin-bottom: 6px;
-  }
-  .ph {
-    color: #8a5c00;
-    background: #fff3d6;
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 13.5px;
-    font-weight: 600;
   }
   .footdisclaimer {
     margin-top: 32px;

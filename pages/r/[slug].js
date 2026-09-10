@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import Link from "next/link";
+import LegalFooter from "../../components/LegalFooter";
 
 const DEFAULT_PURPLE = "#7414F4";
 
@@ -93,6 +93,7 @@ export default function RestaurantSignup() {
             Ce lien ne correspond à aucun établissement Fidélions. Vérifiez le
             lien ou le QR code auprès du commerce.
           </p>
+          <LegalFooter />
         </div>
         <style jsx>{`
           .page {
@@ -221,11 +222,7 @@ export default function RestaurantSignup() {
               lien — gardez-le précieusement.
             </p>
 
-            <p className="legalLinks">
-              <Link href="/cgv">CGV</Link>
-              <span> · </span>
-              <Link href="/confidentialite">Confidentialité</Link>
-            </p>
+            <LegalFooter />
           </>
         )}
       </div>
@@ -369,15 +366,6 @@ export default function RestaurantSignup() {
           font-size: 12px;
           color: #8a8a8a;
           margin-top: 24px;
-        }
-        .legalLinks {
-          font-size: 11.5px;
-          color: #b3b3b3;
-          margin-top: 10px;
-        }
-        .legalLinks :global(a) {
-          color: #b3b3b3;
-          text-decoration: underline;
         }
       `}</style>
     </div>

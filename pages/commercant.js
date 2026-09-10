@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
+import LegalFooter from "../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
@@ -2279,11 +2280,7 @@ export default function Commercant() {
             </>
           )}
 
-          <p className="legal-links">
-            <Link href="/cgv">CGV</Link>
-            <span> · </span>
-            <Link href="/confidentialite">Confidentialité</Link>
-          </p>
+          <LegalFooter />
         </div>
         {cropperFile && cropperTarget && (
           <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
@@ -3510,6 +3507,8 @@ export default function Commercant() {
             </details>
           </div>
         )}
+
+        <LegalFooter style={{ marginTop: 28 }} />
         </div>
       </div>
       </div>
@@ -4307,15 +4306,6 @@ const styles = `
   .banner.error {
     background: #fdecea;
     color: #c0392b;
-  }
-  .legal-links {
-    margin-top: 20px;
-    font-size: 11.5px;
-    color: #b3b3b3;
-  }
-  .legal-links :global(a) {
-    color: #b3b3b3;
-    text-decoration: underline;
   }
   .auth-logo {
     width: 108px;

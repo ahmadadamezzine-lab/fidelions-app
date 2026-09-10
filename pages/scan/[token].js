@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import LegalFooter from "../../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 
@@ -99,6 +100,7 @@ export default function ScanPage() {
             </form>
             {pinError && <p className="error">{pinError}</p>}
           </div>
+          <LegalFooter />
         </div>
         <style jsx>{styles}</style>
       </div>
@@ -149,6 +151,8 @@ export default function ScanPage() {
         {section === "campagnes" && auth.permissions?.campagnes && (
           <CampagneSection authHeaders={authHeaders} setMessage={setMessage} />
         )}
+
+        <LegalFooter />
       </div>
       <style jsx>{styles}</style>
     </div>

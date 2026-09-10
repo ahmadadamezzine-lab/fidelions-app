@@ -1,27 +1,29 @@
 import Link from "next/link";
+import LegalFooter from "../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 
-// Page publique des CGV. Contenu identique au modèle envoyé à Adam (docx),
-// avec les mêmes zones [À COMPLÉTER] laissées visibles plutôt que remplies
-// par des informations inventées — le SIRET/l'adresse/l'email de contact
-// n'existent pas encore, donc rien n'est fabriqué ici. À mettre à jour dès
-// que ces informations existent (voir pages/confidentialite.js, même note).
+// Page publique des CGV. À la demande d'Adam, les zones [À COMPLÉTER]
+// visibles (raison sociale, forme juridique, SIRET, adresse du siège,
+// statut TVA) ont été retirées de l'affichage plutôt que remplies par des
+// informations inventées — il les ajoutera lui-même une fois son entreprise
+// immatriculée. Pour rester valable en l'état, l'article 1 ne mentionne
+// donc pour l'instant que le nom commercial « Fidélions », sans numéro
+// SIRET ni adresse de siège ; à compléter dès que ces informations
+// existent (idem pages/confidentialite.js).
 export default function CGV() {
   return (
     <div className="page">
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : <Placeholder text="DATE" /></p>
+        <p className="subtitle">Fidélions — dernière mise à jour : 10 septembre 2026</p>
 
         <h2>Article 1 — Objet</h2>
         <p>
           Les présentes conditions générales de vente (ci-après « CGV ») ont pour objet de définir
-          les modalités et conditions dans lesquelles <Placeholder text="NOM COMMERCIAL / RAISON SOCIALE" />,{" "}
-          <Placeholder text="FORME JURIDIQUE — ex. entreprise individuelle (auto-entrepreneur), SASU..." />, immatriculée sous le
-          numéro SIRET <Placeholder text="SIRET" />, dont le siège est situé <Placeholder text="ADRESSE DU SIÈGE" /> (ci-après
-          « le Prestataire » ou « Fidélions »), propose et fournit à ses clients professionnels
+          les modalités et conditions dans lesquelles Fidélions (ci-après « le Prestataire » ou{" "}
+          « Fidélions »), propose et fournit à ses clients professionnels
           (ci-après « le Client » ou « l'Établissement ») un service de fidélisation client digitale
           accessible en ligne (ci-après « le Service »).
         </p>
@@ -50,12 +52,16 @@ export default function CGV() {
 
         <h2>Article 4 — Tarifs et modalités de paiement</h2>
         <p>
-          Le Service est proposé au tarif de <Placeholder text="50 € / mois — HT ou TTC selon le statut" />,
-          sans engagement de durée et sans commission sur les ventes du Client, sauf offre
-          commerciale particulière convenue par écrit entre les parties.
+          Le Service est proposé au tarif de 39 € par mois, sans engagement de durée et sans
+          commission sur les ventes du Client, sauf offre commerciale particulière convenue par
+          écrit entre les parties.
         </p>
         <p>Le tarif applicable est celui en vigueur au jour de la souscription, rappelé au Client avant tout premier paiement.</p>
-        <p><Placeholder text="MODALITÉS DE PAIEMENT — virement, prélèvement, lien de paiement en ligne... et date d'exigibilité exacte" /></p>
+        <p>
+          Le paiement s'effectue par virement bancaire mensuel, sur la base des coordonnées
+          bancaires (RIB) et de la référence communiquées par le Prestataire au Client, exigible au
+          début de chaque période mensuelle.
+        </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
 
         <h2>Article 5 — Durée</h2>
@@ -63,14 +69,14 @@ export default function CGV() {
 
         <h2>Article 6 — Résiliation</h2>
         <p>
-          Chaque partie peut résilier le contrat à tout moment, sans motif ni pénalité, moyennant un
-          préavis de <Placeholder text="DÉLAI — ex. 15 jours" /> avant la prochaine échéance mensuelle, par écrit
-          (un email suffit) à l'adresse de contact du Prestataire.
+          Chaque partie peut résilier le contrat à tout moment, sans motif ni pénalité et sans
+          préavis, par écrit (un email suffit) à l'adresse de contact du Prestataire. La résiliation
+          prend effet à la fin de la période mensuelle en cours ; le mois déjà entamé reste dû.
         </p>
         <p>
-          En cas de résiliation, les données du Client sont conservées pendant{" "}
-          <Placeholder text="DÉLAI — ex. 30 jours" /> puis supprimées, sauf obligation légale de conservation plus
-          longue. Le Client peut demander l'export de ses données avant suppression.
+          En cas de résiliation, les données du Client sont conservées pendant 30 jours puis
+          supprimées, sauf obligation légale de conservation plus longue. Le Client peut demander
+          l'export de ses données avant suppression.
         </p>
         <p>
           Le Prestataire se réserve le droit de suspendre ou résilier l'accès au Service en cas de
@@ -127,26 +133,22 @@ export default function CGV() {
         <p>
           Les présentes CGV sont soumises au droit français. En cas de litige, les parties
           s'efforceront de trouver une solution amiable avant toute action judiciaire. À défaut, les
-          tribunaux <Placeholder text="VILLE DU SIÈGE SOCIAL" /> seront seuls compétents, sauf disposition légale
-          impérative contraire.
+          tribunaux du ressort du siège social du Prestataire seront seuls compétents, sauf
+          disposition légale impérative contraire.
         </p>
 
         <h2>Article 14 — Contact</h2>
-        <p>Pour toute question relative aux présentes CGV : <Placeholder text="EMAIL DE CONTACT" />.</p>
+        <p>Pour toute question relative aux présentes CGV : ahmadadamezzine@gmail.com.</p>
 
         <p className="footdisclaimer">
-          Cette page est en cours de finalisation (informations légales de l'entreprise à
-          compléter) et n'a pas encore été relue par un professionnel du droit.
+          Cette page n'a pas encore été relue par un professionnel du droit.
         </p>
+        <LegalFooter />
       </div>
 
       <style jsx>{`${styles}`}</style>
     </div>
   );
-}
-
-function Placeholder({ text }) {
-  return <span className="ph">[{text}]</span>;
 }
 
 const styles = `
@@ -204,14 +206,6 @@ const styles = `
     font-size: 14.5px;
     line-height: 1.65;
     margin-bottom: 6px;
-  }
-  .ph {
-    color: #8a5c00;
-    background: #fff3d6;
-    border-radius: 4px;
-    padding: 1px 5px;
-    font-size: 13.5px;
-    font-weight: 600;
   }
   .footdisclaimer {
     margin-top: 32px;
