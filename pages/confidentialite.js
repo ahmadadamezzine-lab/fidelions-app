@@ -1,5 +1,4 @@
 import Link from "next/link";
-import LegalFooter from "../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 
@@ -108,11 +107,6 @@ export default function Confidentialite() {
 
         <h2>11. Modification de cette politique</h2>
         <p>Cette politique peut être mise à jour ; la version en vigueur est celle publiée sur cette page, avec sa date de dernière mise à jour ci-dessus.</p>
-
-        <p className="footdisclaimer">
-          Cette page n'a pas encore été relue par un professionnel du droit.
-        </p>
-        <LegalFooter />
       </div>
 
       <style jsx>{`${styles}`}</style>
@@ -179,12 +173,5 @@ const styles = `
     font-size: 14.5px;
     line-height: 1.65;
     margin-bottom: 6px;
-  }
-  .footdisclaimer {
-    margin-top: 32px;
-    padding-top: 16px;
-    border-top: 1px solid #eee;
-    color: #a3a3a3;
-    font-size: 12px;
   }
 `;

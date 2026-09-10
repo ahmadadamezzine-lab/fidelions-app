@@ -2101,7 +2101,7 @@ export default function Commercant() {
           {authMode === "choice" && (
             <>
               <h1>Espace commerçant</h1>
-              <p className="subtitle">Un seul site, un compte par établissement.</p>
+              <p className="subtitle">Tes clients reviennent, automatiquement, sans que tu y penses.</p>
               <div className="auth-choice">
                 <button type="button" className="primary" onClick={startSignup}>
                   Créer un compte
