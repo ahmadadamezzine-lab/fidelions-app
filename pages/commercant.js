@@ -2094,7 +2094,7 @@ export default function Commercant() {
 
   if (!authed) {
     return (
-      <div className="page">
+      <div className="auth-page">
         <div className="card">
           <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
 
@@ -2279,9 +2279,9 @@ export default function Commercant() {
               </p>
             </>
           )}
-
-          <LegalFooter />
         </div>
+
+        <LegalFooter style={{ marginTop: "auto" }} />
         {cropperFile && cropperTarget && (
           <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
         )}
@@ -4103,6 +4103,19 @@ const styles = `
     padding: 24px;
     display: flex;
     justify-content: center;
+  }
+  .auth-page {
+    min-height: 100vh;
+    background: #f5f4fb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .auth-page .card {
+    width: 100%;
+    max-width: 480px;
   }
   .wrap {
     width: 100%;
