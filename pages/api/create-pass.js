@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const merchant = await getMerchantBySlug(slug);
     if (!merchant || !merchant.walletClassId) {
-      return res.status(404).json({ error: "Restaurant introuvable." });
+      return res.status(404).json({ error: "Commerce introuvable." });
     }
 
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;

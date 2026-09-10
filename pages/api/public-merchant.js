@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const slug = String(req.query.slug || "");
     const merchant = await getMerchantBySlug(slug);
     if (!merchant) {
-      return res.status(404).json({ error: "Restaurant introuvable." });
+      return res.status(404).json({ error: "Commerce introuvable." });
     }
 
     const branding = await getBranding(merchant.id);

@@ -22,13 +22,13 @@ export default function CGV() {
           <Placeholder text="FORME JURIDIQUE — ex. entreprise individuelle (auto-entrepreneur), SASU..." />, immatriculée sous le
           numéro SIRET <Placeholder text="SIRET" />, dont le siège est situé <Placeholder text="ADRESSE DU SIÈGE" /> (ci-après
           « le Prestataire » ou « Fidélions »), propose et fournit à ses clients professionnels
-          (ci-après « le Client » ou « le Restaurant ») un service de fidélisation client digitale
+          (ci-après « le Client » ou « l'Établissement ») un service de fidélisation client digitale
           accessible en ligne (ci-après « le Service »).
         </p>
         <p>Toute souscription au Service implique l'acceptation sans réserve des présentes CGV par le Client.</p>
 
         <h2>Article 2 — Description du service</h2>
-        <p>Fidélions est un outil en ligne (SaaS) permettant à un restaurant de :</p>
+        <p>Fidélions est un outil en ligne (SaaS) permettant à un commerce de :</p>
         <ul>
           <li>générer une carte de fidélité numérique ajoutable directement au portefeuille mobile (Google Wallet) de ses clients, sans installation d'application dédiée ;</li>
           <li>gérer un programme de fidélité par points, à paliers personnalisables ;</li>
@@ -42,7 +42,7 @@ export default function CGV() {
 
         <h2>Article 3 — Accès au service et compte</h2>
         <p>
-          L'accès au Service est réservé aux restaurants ayant souscrit une offre auprès du
+          L'accès au Service est réservé aux commerces ayant souscrit une offre auprès du
           Prestataire. Le Client est seul responsable de la confidentialité des identifiants (mot
           de passe, codes employés) qui lui sont attribués ou qu'il définit, et de toute action
           réalisée depuis son espace.
@@ -83,7 +83,7 @@ export default function CGV() {
         <ul>
           <li>mettre en œuvre les moyens raisonnables pour assurer la disponibilité et le bon fonctionnement du Service ;</li>
           <li>assurer un support en cas de dysfonctionnement signalé par le Client, dans un délai raisonnable ;</li>
-          <li>traiter les données personnelles des clients finaux du Restaurant conformément à sa Politique de confidentialité et à la réglementation applicable (voir article 9).</li>
+          <li>traiter les données personnelles des clients finaux de l'Établissement conformément à sa Politique de confidentialité et à la réglementation applicable (voir article 9).</li>
         </ul>
         <p>Le Prestataire ne garantit pas une disponibilité continue et ininterrompue du Service, notamment en cas de maintenance, de panne d'un prestataire tiers (hébergeur, Google Wallet, etc.) ou de force majeure.</p>
 
@@ -99,8 +99,8 @@ export default function CGV() {
         <h2>Article 9 — Protection des données personnelles</h2>
         <p>
           Dans le cadre de l'utilisation du Service, le Prestataire est amené à traiter, pour le
-          compte du Client, des données à caractère personnel relatives aux clients finaux du
-          Restaurant (prénom, email, téléphone, données de localisation le cas échéant, historique
+          compte du Client, des données à caractère personnel relatives aux clients finaux de
+          l'Établissement (prénom, email, téléphone, données de localisation le cas échéant, historique
           de fidélité). À ce titre, conformément à l'article 28 du Règlement (UE) 2016/679 (« RGPD ») :
         </p>
         <ul>
@@ -109,7 +109,7 @@ export default function CGV() {
           <li>le Prestataire peut recourir à des sous-traitants ultérieurs (hébergement, envoi d'emails, service de portefeuille mobile), listés dans sa Politique de confidentialité, et s'engage à leur imposer des garanties équivalentes ;</li>
           <li>à l'issue du contrat, les données sont supprimées ou restituées selon les modalités de l'article 6.</li>
         </ul>
-        <p>Les données propres au compte du Client (identité du restaurant, moyens de contact, employés qu'il enregistre) sont quant à elles traitées par le Prestataire en qualité de responsable de traitement, dans les conditions décrites dans sa Politique de confidentialité.</p>
+        <p>Les données propres au compte du Client (identité du commerce, moyens de contact, employés qu'il enregistre) sont quant à elles traitées par le Prestataire en qualité de responsable de traitement, dans les conditions décrites dans sa Politique de confidentialité.</p>
 
         <h2>Article 10 — Propriété intellectuelle</h2>
         <p>Le Prestataire demeure titulaire de l'ensemble des droits de propriété intellectuelle attachés au Service (logiciel, interface, marque « Fidélions », etc.). Le Client bénéficie d'un droit d'usage personnel, non exclusif et non cessible, pour la durée du contrat.</p>

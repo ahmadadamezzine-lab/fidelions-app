@@ -18,7 +18,7 @@ import { getRole, getMerchantId } from "../../lib/auth";
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+    return res.status(401).json({ error: "Réservé au compte principal du commerce." });
   }
   const merchantId = getMerchantId(req);
 
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
       let lng = null;
       if (enabled) {
         if (!(address || "").trim()) {
-          return res.status(400).json({ error: "Indique l'adresse du restaurant." });
+          return res.status(400).json({ error: "Indique l'adresse du commerce." });
         }
         const found = await geocodeAddress(address);
         if (!found) {

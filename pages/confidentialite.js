@@ -17,36 +17,36 @@ export default function Confidentialite() {
         <p>
           Fidélions (<Placeholder text="FORME JURIDIQUE" />, SIRET <Placeholder text="SIRET" />, siège social{" "}
           <Placeholder text="ADRESSE DU SIÈGE" />) édite et exploite le service Fidélions, un outil de fidélisation
-          client destiné aux restaurants.
+          client destiné aux commerces.
         </p>
         <p>Pour toute question relative à vos données personnelles : <Placeholder text="EMAIL DE CONTACT" />.</p>
 
         <h2>2. Deux rôles différents selon qui vous êtes</h2>
         <p>
-          Si vous êtes un restaurant utilisant Fidélions (« le Restaurant ») : Fidélions est
+          Si vous êtes un commerce utilisant Fidélions (« l'Établissement ») : Fidélions est
           responsable du traitement des données liées à votre compte professionnel (identifiants,
           informations de contact, données des employés que vous enregistrez).
         </p>
         <p>
-          Si vous êtes client d'un restaurant utilisant Fidélions et que vous créez une carte de
-          fidélité (« le Client final ») : le Restaurant chez qui vous avez créé votre carte est
+          Si vous êtes client d'un commerce utilisant Fidélions et que vous créez une carte de
+          fidélité (« le Client final ») : l'Établissement chez qui vous avez créé votre carte est
           responsable du traitement de vos données ; Fidélions intervient comme sous-traitant
-          technique, pour le compte du Restaurant, conformément à l'article 28 du RGPD.
+          technique, pour le compte de l'Établissement, conformément à l'article 28 du RGPD.
         </p>
 
         <h2>3. Quelles données sont collectées, et pourquoi</h2>
         <p className="label">Données des clients finaux (personnes créant une carte de fidélité)</p>
         <ul>
-          <li>Prénom — nécessaire à la personnalisation de la carte et à son identification par le Restaurant lors du scan.</li>
-          <li>Adresse email — nécessaire à la création de la carte, à l'envoi des campagnes et notifications du Restaurant, et au support.</li>
+          <li>Prénom — nécessaire à la personnalisation de la carte et à son identification par l'Établissement lors du scan.</li>
+          <li>Adresse email — nécessaire à la création de la carte, à l'envoi des campagnes et notifications de l'Établissement, et au support.</li>
           <li>Numéro de téléphone (facultatif) — collecté pour un usage futur éventuel (notification par SMS), non utilisé activement à ce jour.</li>
-          <li>Données de localisation approximative — uniquement si le Restaurant a activé les notifications de proximité, et uniquement transmises à Google Wallet pour déclencher une notification native sur votre téléphone lorsque vous passez à proximité de l'établissement ; Fidélions ne suit pas votre position en continu et ne la reçoit pas directement.</li>
+          <li>Données de localisation approximative — uniquement si l'Établissement a activé les notifications de proximité, et uniquement transmises à Google Wallet pour déclencher une notification native sur votre téléphone lorsque vous passez à proximité de l'établissement ; Fidélions ne suit pas votre position en continu et ne la reçoit pas directement.</li>
           <li>Historique de fidélité (nombre de points, récompenses obtenues) — nécessaire au fonctionnement du programme.</li>
         </ul>
-        <p className="label">Données du Restaurant (compte professionnel)</p>
+        <p className="label">Données de l'Établissement (compte professionnel)</p>
         <p>
-          Identifiants de connexion, adresse du restaurant, éléments de personnalisation de la carte
-          (logo, couleurs), informations sur les employés que le Restaurant enregistre (prénom, code
+          Identifiants de connexion, adresse du commerce, éléments de personnalisation de la carte
+          (logo, couleurs), informations sur les employés que l'Établissement enregistre (prénom, code
           d'accès, horaires) — nécessaires à la fourniture du Service.
         </p>
 
@@ -54,11 +54,11 @@ export default function Confidentialite() {
         <p>Vos données peuvent être transmises aux prestataires techniques suivants, strictement nécessaires au fonctionnement du Service :</p>
         <ul>
           <li>Google (Google Wallet) — États-Unis — création et mise à jour de la carte de fidélité numérique ;</li>
-          <li>Google (Gemini) — États-Unis — analyse automatique de menu réalisée par le Restaurant (ne concerne pas les données des clients finaux) ;</li>
+          <li>Google (Gemini) — États-Unis — analyse automatique de menu réalisée par l'Établissement (ne concerne pas les données des clients finaux) ;</li>
           <li>Vercel Inc. — États-Unis — hébergement du site et stockage des images (logo/bannière) ;</li>
           <li>Upstash — hébergement de la base de données ;</li>
           <li>Resend — États-Unis — envoi des emails (création de carte, campagnes) ;</li>
-          <li>l'API Adresse du gouvernement français (api-adresse.data.gouv.fr) — recherche d'adresse du Restaurant (aucune donnée personnelle d'un Client final n'y est transmise).</li>
+          <li>l'API Adresse du gouvernement français (api-adresse.data.gouv.fr) — recherche d'adresse de l'Établissement (aucune donnée personnelle d'un Client final n'y est transmise).</li>
         </ul>
         <p>Ces prestataires n'utilisent vos données que pour exécuter les services demandés et ne sont pas autorisés à les exploiter à d'autres fins.</p>
 
@@ -76,7 +76,7 @@ export default function Confidentialite() {
           <Placeholder text="DURÉE — ex. 3 ans" /> à compter de la dernière activité en l'absence d'utilisation,
           sauf demande de suppression anticipée.
         </p>
-        <p>Données du compte Restaurant : conservées pendant toute la durée du contrat, puis selon les modalités prévues aux Conditions Générales de Vente en cas de résiliation.</p>
+        <p>Données du compte Établissement : conservées pendant toute la durée du contrat, puis selon les modalités prévues aux Conditions Générales de Vente en cas de résiliation.</p>
 
         <h2>7. Vos droits</h2>
         <p>
@@ -85,8 +85,8 @@ export default function Confidentialite() {
           des directives relatives à leur sort après votre décès.
         </p>
         <p>
-          Pour les clients finaux d'un restaurant : ces droits peuvent être exercés directement
-          auprès du Restaurant concerné (responsable de traitement), ou auprès de Fidélions qui
+          Pour les clients finaux d'un commerce : ces droits peuvent être exercés directement
+          auprès de l'Établissement concerné (responsable de traitement), ou auprès de Fidélions qui
           transmettra votre demande, à l'adresse <Placeholder text="EMAIL DE CONTACT" />.
         </p>
         <p>Vous disposez également du droit d'introduire une réclamation auprès de la Commission nationale de l'informatique et des libertés (CNIL) — www.cnil.fr.</p>
@@ -97,7 +97,7 @@ export default function Confidentialite() {
         <h2>9. Cookies et traceurs</h2>
         <p>
           Le site utilise uniquement des dispositifs techniques nécessaires au fonctionnement du
-          Service (par exemple, la mémorisation locale du mot de passe du compte Restaurant sur son
+          Service (par exemple, la mémorisation locale du mot de passe du compte Établissement sur son
           propre appareil), sans finalité publicitaire ni traceur tiers de mesure d'audience à ce jour.
         </p>
 

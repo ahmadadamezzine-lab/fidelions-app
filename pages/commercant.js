@@ -42,6 +42,8 @@ const ICONS = {
   file: <><path d="M7 3h7l4 4v14H7Z" /><path d="M14 3v4h4" /></>,
   trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
   camera: <><rect x="3" y="7" width="18" height="13" rx="2.2" /><path d="M8 7l1.5-2.5h5L16 7" /><circle cx="12" cy="13.5" r="3.4" /></>,
+  sliders: <><path d="M4 6h10" /><circle cx="16.5" cy="6" r="2" /><path d="M4 12h4" /><circle cx="10.5" cy="12" r="2" /><path d="M14.5 12H20" /><path d="M4 18h9" /><circle cx="15.5" cy="18" r="2" /></>,
+  briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
 };
 
 function Icon({ name, size = 18, className }) {
@@ -83,7 +85,7 @@ const TABS = [
   { id: "campagnes", icon: "bell", label: "Notifications" },
   { id: "carte", icon: "card", label: "Ma carte" },
   { id: "fidelite", icon: "gift", label: "Récompenses" },
-  { id: "equipe", icon: "badge", label: "Employés" },
+  { id: "equipe", icon: "briefcase", label: "Employés" },
   { id: "proximite", icon: "mappin", label: "Géolocalisation" },
   { id: "stats", icon: "barchart", label: "Statistiques" },
 ];
@@ -99,7 +101,7 @@ const ACCOUNT_TABS = [
   { id: "etablissement", icon: "building", label: "Établissement" },
   { id: "abonnement", icon: "star", label: "Abonnement" },
   { id: "aide", icon: "headset", label: "Support" },
-  { id: "parametres", icon: "gear", label: "Paramètres" },
+  { id: "parametres", icon: "sliders", label: "Paramètres" },
 ];
 
 // Types d'activité proposés à l'inscription (étape 2 de l'assistant) et
@@ -1440,7 +1442,7 @@ export default function Commercant() {
 
   async function saveGeo() {
     if (geoEnabled && !geoAddress.trim()) {
-      setMessage({ type: "error", text: "Indique l'adresse du restaurant." });
+      setMessage({ type: "error", text: "Indique l'adresse du commerce." });
       return;
     }
     setSavingGeo(true);
@@ -1832,7 +1834,7 @@ export default function Commercant() {
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="Email du restaurant"
+                  placeholder="Email du commerce"
                   autoFocus
                   required
                 />
@@ -2478,7 +2480,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Notifications de proximité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Indique l'adresse de ton restaurant : Google Wallet avertit alors
+              Indique l'adresse de ton commerce : Google Wallet avertit alors
               automatiquement, avec une vraie notification sur le téléphone,
               tout client équipé qui passe à proximité — aucune app ni réglage
               supplémentaire de ton côté.

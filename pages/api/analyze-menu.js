@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   }
   const role = getRole(req);
   if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+    return res.status(401).json({ error: "Réservé au compte principal du commerce." });
   }
 
   try {

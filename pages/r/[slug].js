@@ -88,10 +88,10 @@ export default function RestaurantSignup() {
     return (
       <div className="page">
         <div className="card">
-          <h1>Restaurant introuvable</h1>
+          <h1>Établissement introuvable</h1>
           <p className="subtitle">
-            Ce lien ne correspond à aucun restaurant Fidélions. Vérifiez le
-            lien ou le QR code auprès de l'établissement.
+            Ce lien ne correspond à aucun établissement Fidélions. Vérifiez le
+            lien ou le QR code auprès du commerce.
           </p>
         </div>
         <style jsx>{`

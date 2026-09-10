@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const walletClassId = (process.env.GOOGLE_WALLET_CLASS_ID || "").trim();
 
   if (!restaurantName) {
-    return res.status(400).json({ error: "Paramètre restaurantName manquant (le nom de ton restaurant)." });
+    return res.status(400).json({ error: "Paramètre restaurantName manquant (le nom de ton commerce)." });
   }
   if (!password) {
     return res.status(400).json({ error: "Paramètre password manquant (choisis un mot de passe d'au moins 8 caractères)." });
