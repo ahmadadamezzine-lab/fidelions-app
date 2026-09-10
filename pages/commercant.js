@@ -10,6 +10,8 @@ const PW_STORAGE_KEY = "fidelions_merchant_pw";
 // un contact ici. Modifiable à tout moment.
 const SUBSCRIPTION_PRICE = 39;
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
+const CONTACT_WHATSAPP = "33637177314";
+const CONTACT_WHATSAPP_ASSOCIE = "33749749829"; // Yassine
 
 // Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
 // et regroupées ici pour être réutilisées partout dans la page — aucune
@@ -50,6 +52,8 @@ const ICONS = {
   camera: <><rect x="3" y="7" width="18" height="13" rx="2.2" /><path d="M8 7l1.5-2.5h5L16 7" /><circle cx="12" cy="13.5" r="3.4" /></>,
   sliders: <><path d="M4 6h10" /><circle cx="16.5" cy="6" r="2" /><path d="M4 12h4" /><circle cx="10.5" cy="12" r="2" /><path d="M14.5 12H20" /><path d="M4 18h9" /><circle cx="15.5" cy="18" r="2" /></>,
   briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
+  whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
 };
 
 function Icon({ name, size = 18, className }) {
@@ -3369,13 +3373,37 @@ export default function Commercant() {
               Le règlement se fait par virement bancaire chaque mois.
               Contacte-nous pour recevoir le RIB et la référence à indiquer.
             </p>
-            <a
-              className="primary icon-heading"
-              style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
-              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidélions")}`}
-            >
-              <Icon name="headset" size={15} /> Nous contacter
-            </a>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <a
+                className="primary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="whatsapp" size={15} /> WhatsApp — Adam
+              </a>
+              <a
+                className="secondary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`https://wa.me/${CONTACT_WHATSAPP_ASSOCIE}?text=${encodeURIComponent(
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="whatsapp" size={15} /> WhatsApp — Yassine
+              </a>
+              <a
+                className="secondary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidélions")}`}
+              >
+                <Icon name="mail" size={15} /> Nous contacter par email
+              </a>
+            </div>
           </div>
         )}
 
