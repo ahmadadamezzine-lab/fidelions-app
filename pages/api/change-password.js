@@ -1,33 +1,18 @@
 // pages/api/change-password.js
 //
 // Changement de mot de passe depuis l'onglet Paramètres : mot de passe
-// actuel → code à 4 chiffres envoyé par email → nouveau mot de passe.
-// Réservé au patron (compte principal).
+// actuel → nouveau mot de passe, en un seul appel. Réservé au patron
+// (compte principal).
+//
+// Pas de vérification par email ici : Resend, sur son compte gratuit sans
+// domaine vérifié, refuse d'envoyer à n'importe quelle adresse (seulement
+// à celle du compte Resend lui-même) — vérifier un domaine suppose de
+// posséder un nom de domaine payant. Le mot de passe actuel déjà exigé
+// (et vérifié côté serveur avant tout changement) reste la protection
+// contre un changement non autorisé.
 
-import {
-  getMerchantById,
-  verifyMerchantPasswordById,
-  updateMerchantPassword,
-  createPasswordResetCode,
-  verifyAndConsumePasswordResetCode,
-} from "../../lib/db";
-import { sendEmail } from "../../lib/email";
+import { verifyMerchantPasswordById, updateMerchantPassword } from "../../lib/db";
 import { getRole, getMerchantId } from "../../lib/auth";
-
-/**
- * Masque l'email pour l'affichage côté client : 3 premières lettres de la
- * partie locale + "•••" + le vrai domaine (ex: "ahm•••@gmail.com"). L'email
- * complet ne quitte jamais le serveur.
- */
-function maskEmail(email) {
-  const clean = (email || "").trim();
-  const at = clean.indexOf("@");
-  if (at === -1) return clean;
-  const local = clean.slice(0, at);
-  const domain = clean.slice(at + 1);
-  const prefix = local.slice(0, 3);
-  return `${prefix}•••@${domain}`;
-}
 
 export default async function handler(req, res) {
   const role = getRole(req);
@@ -42,49 +27,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { step, currentPassword, code, newPassword } = req.body || {};
+    const { currentPassword, newPassword } = req.body || {};
 
-    if (step === "request") {
-      const ok = await verifyMerchantPasswordById(merchantId, currentPassword);
-      if (!ok) {
-        return res.status(401).json({ error: "Mot de passe actuel incorrect." });
-      }
-      const merchant = await getMerchantById(merchantId);
-      if (!merchant) {
-        return res.status(404).json({ error: "Compte commerçant introuvable." });
-      }
-      const maskedEmail = maskEmail(merchant.email);
-      const verificationCode = await createPasswordResetCode(merchantId);
-      try {
-        await sendEmail({
-          to: merchant.email,
-          subject: "Code de vérification Fidélions",
-          text: `Voici ton code de vérification pour changer ton mot de passe Fidélions : ${verificationCode}\n\nCe code expire dans 10 minutes. Si tu n'es pas à l'origine de cette demande, ignore simplement cet email.`,
-        });
-      } catch (err) {
-        console.error("Échec d'envoi du code de vérification :", err);
-        return res.status(500).json({
-          error: `Impossible d'envoyer le code de vérification par email : ${
-            err.message || "erreur inconnue"
-          }`,
-        });
-      }
-      return res.status(200).json({ maskedEmail });
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: "Le nouveau mot de passe doit faire au moins 4 caractères." });
     }
 
-    if (step === "confirm") {
-      if (!newPassword || newPassword.length < 4) {
-        return res.status(400).json({ error: "Le mot de passe doit faire au moins 4 caractères." });
-      }
-      const valid = await verifyAndConsumePasswordResetCode(merchantId, code);
-      if (!valid) {
-        return res.status(400).json({ error: "Code invalide ou expiré — recommence." });
-      }
-      await updateMerchantPassword(merchantId, newPassword);
-      return res.status(200).json({ ok: true });
+    const ok = await verifyMerchantPasswordById(merchantId, currentPassword);
+    if (!ok) {
+      return res.status(401).json({ error: "Mot de passe actuel incorrect." });
     }
 
-    return res.status(400).json({ error: "Étape inconnue." });
+    await updateMerchantPassword(merchantId, newPassword);
+    return res.status(200).json({ ok: true });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });

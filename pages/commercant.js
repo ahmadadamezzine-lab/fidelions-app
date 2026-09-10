@@ -5,6 +5,12 @@ import QRCode from "qrcode";
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
+// Tarif affiché sur l'onglet Abonnement — pas de facturation automatique
+// (paiement par virement bancaire géré à la main), donc juste un prix et
+// un contact ici. Modifiable à tout moment.
+const SUBSCRIPTION_PRICE = 39;
+const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
+
 // Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
 // et regroupées ici pour être réutilisées partout dans la page — aucune
 // librairie d'icônes n'est installée (et impossible d'en ajouter une sur
@@ -714,13 +720,10 @@ export default function Commercant() {
 
   // --- Changement de mot de passe (onglet Paramètres) : mot de passe actuel
   // → code à 4 chiffres envoyé par email → nouveau mot de passe.
-  const [pwStep, setPwStep] = useState("idle"); // "idle" | "current" | "code"
+  const [pwStep, setPwStep] = useState("idle"); // "idle" | "form"
   const [pwCurrentInput, setPwCurrentInput] = useState("");
-  const [pwCode, setPwCode] = useState("");
   const [pwNewPassword, setPwNewPassword] = useState("");
-  const [pwRequesting, setPwRequesting] = useState(false);
-  const [pwConfirming, setPwConfirming] = useState(false);
-  const [pwMaskedEmail, setPwMaskedEmail] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
 
   // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
   // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
@@ -1654,59 +1657,31 @@ export default function Commercant() {
   // --- Changement de mot de passe (onglet Paramètres) ---
   function pwStartFlow() {
     setMessage(null);
-    setPwStep("current");
+    setPwStep("form");
   }
 
   function pwCancelToIdle() {
     setPwStep("idle");
     setPwCurrentInput("");
-    setPwCode("");
     setPwNewPassword("");
-    setPwMaskedEmail("");
   }
 
-  async function pwSubmitCurrent() {
+  async function pwSubmitChange() {
     if (!pwCurrentInput) {
       setMessage({ type: "error", text: "Saisis ton mot de passe actuel." });
       return;
     }
-    setPwRequesting(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ step: "request", currentPassword: pwCurrentInput }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      setPwMaskedEmail(data.maskedEmail || "");
-      setPwCode("");
-      setPwNewPassword("");
-      setPwStep("code");
-    } catch (err) {
-      setMessage({ type: "error", text: err.message });
-    } finally {
-      setPwRequesting(false);
-    }
-  }
-
-  async function pwSubmitConfirm() {
-    if (!/^[0-9]{4}$/.test(pwCode)) {
-      setMessage({ type: "error", text: "Le code doit contenir 4 chiffres." });
-      return;
-    }
     if (pwNewPassword.length < 4) {
-      setMessage({ type: "error", text: "Le mot de passe doit faire au moins 4 caractères." });
+      setMessage({ type: "error", text: "Le nouveau mot de passe doit faire au moins 4 caractères." });
       return;
     }
-    setPwConfirming(true);
+    setPwSubmitting(true);
     setMessage(null);
     try {
       const res = await fetch("/api/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ step: "confirm", code: pwCode, newPassword: pwNewPassword }),
+        body: JSON.stringify({ currentPassword: pwCurrentInput, newPassword: pwNewPassword }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
@@ -1715,7 +1690,7 @@ export default function Commercant() {
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     } finally {
-      setPwConfirming(false);
+      setPwSubmitting(false);
     }
   }
 
@@ -2116,7 +2091,7 @@ export default function Commercant() {
     return (
       <div className="page">
         <div className="card">
-          <img src="/logo.png" alt="Fidélions" className="auth-logo" />
+          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
 
           {authMode === "choice" && (
             <>
@@ -3387,10 +3362,20 @@ export default function Commercant() {
           <div className="card">
             <h2>Abonnement</h2>
             <p className="subtitle">
-              Bientôt disponible. Pas de facturation ni d'abonnement payant
-              pour l'instant — Fidélions tourne pour toi tel quel, sans frais
-              caché.
+              Fidélions coûte {SUBSCRIPTION_PRICE}&nbsp;€/mois, sans
+              engagement — résiliable à tout moment.
             </p>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Le règlement se fait par virement bancaire chaque mois.
+              Contacte-nous pour recevoir le RIB et la référence à indiquer.
+            </p>
+            <a
+              className="primary icon-heading"
+              style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidélions")}`}
+            >
+              <Icon name="headset" size={15} /> Nous contacter
+            </a>
           </div>
         )}
 
@@ -3400,52 +3385,20 @@ export default function Commercant() {
 
             {pwStep === "idle" && (
               <>
-                <p className="subtitle">
-                  Change le mot de passe de ton compte. Une vérification par
-                  email (code à 4 chiffres) te sera demandée avant de
-                  valider le nouveau mot de passe.
-                </p>
+                <p className="subtitle">Change le mot de passe de ton compte.</p>
                 <button type="button" className="primary small" onClick={pwStartFlow}>
                   Changer le mot de passe
                 </button>
               </>
             )}
 
-            {pwStep === "current" && (
+            {pwStep === "form" && (
               <div className="pw-flow">
-                <p className="subtitle" style={{ marginBottom: 10 }}>
-                  Confirme ton mot de passe actuel.
-                </p>
                 <input
                   type="password"
                   value={pwCurrentInput}
                   onChange={(e) => setPwCurrentInput(e.target.value)}
                   placeholder="Mot de passe actuel"
-                  autoFocus
-                />
-                <div className="pw-flow-actions">
-                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwRequesting}>
-                    Annuler
-                  </button>
-                  <button type="button" className="primary" onClick={pwSubmitCurrent} disabled={pwRequesting}>
-                    {pwRequesting ? "Vérification…" : "Valider"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {pwStep === "code" && (
-              <div className="pw-flow">
-                <p className="subtitle" style={{ marginBottom: 10 }}>
-                  Un code a été envoyé à {pwMaskedEmail}.
-                </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pwCode}
-                  onChange={(e) => setPwCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                  placeholder="Code à 4 chiffres"
                   autoFocus
                 />
                 <input
@@ -3455,11 +3408,11 @@ export default function Commercant() {
                   placeholder="Nouveau mot de passe (4 caractères minimum)"
                 />
                 <div className="pw-flow-actions">
-                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwConfirming}>
+                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwSubmitting}>
                     Annuler
                   </button>
-                  <button type="button" className="primary" onClick={pwSubmitConfirm} disabled={pwConfirming}>
-                    {pwConfirming ? "Confirmation…" : "Confirmer"}
+                  <button type="button" className="primary" onClick={pwSubmitChange} disabled={pwSubmitting}>
+                    {pwSubmitting ? "Modification…" : "Valider"}
                   </button>
                 </div>
               </div>
@@ -4337,9 +4290,9 @@ const styles = `
     text-decoration: underline;
   }
   .auth-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
+    width: 108px;
+    height: 135px;
+    border-radius: 20px;
     margin-bottom: 14px;
   }
   .auth-switch {
