@@ -3,21 +3,21 @@
 // Appelé depuis l'espace commerçant (/commercant) ou depuis le lien
 // employé (/scan/[token]) quand on scanne le QR d'un client ou qu'on
 // clique "+1" manuellement. Met à jour la base de données ET la carte
-// Wallet du client (solde + notif), en tenant compte du mode de fidélité
-// choisi par le commerçant ("tampons" classique ou "points" à paliers).
+// Wallet du client (solde + notif) — système de fidélité unique "points",
+// à un ou plusieurs paliers de récompense (voir lib/loyalty.js).
 
 import { getClient, addPoints, getLoyaltySettings, markTiersUnlocked, logStampEvent } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
-import { computeTamponsReward, computePointsRewards } from "../../lib/loyalty";
+import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  // Le patron ET le lien employé (scan seul) peuvent ajouter un
-  // tampon/point — c'est la seule action que ce dernier autorise.
+  // Le patron ET le lien employé (scan seul) peuvent ajouter un point —
+  // c'est la seule action que ce dernier autorise.
   const auth = await getRoleAsync(req);
   if (!auth) {
     return res.status(401).json({ error: "Accès refusé." });
@@ -39,20 +39,17 @@ export default async function handler(req, res) {
     if (existing.blocked) {
       return res
         .status(403)
-        .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un tampon." });
+        .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un point." });
     }
 
-    const { type, tiers } = await getLoyaltySettings(merchantId);
+    const { tiers } = await getLoyaltySettings(merchantId);
     const updated = await addPoints(merchantId, objectId, 1);
-    const unit = type === "points" ? "point" : "tampon";
-    const walletLabel = type === "points" ? "Points" : "Tampons";
 
     // Un seul palier défini → carte classique, la récompense se
     // redéclenche à chaque multiple du seuil (comportement historique,
-    // ex : "10 tampons = café offert", encore et encore). Plusieurs
+    // ex : "10 points = café offert", encore et encore). Plusieurs
     // paliers → chacun ne se débloque qu'UNE fois, comme des étapes
-    // (ex : 20 = pizza, 30 = pizza + boisson) — quel que soit le libellé
-    // "tampons"/"points" choisi, qui ne sert plus qu'au vocabulaire affiché.
+    // (ex : 20 = pizza, 30 = pizza + boisson).
     let rewardReached;
     let notifHeader;
     let notifBody;
@@ -65,27 +62,27 @@ export default async function handler(req, res) {
         notifHeader = "Récompense débloquée !";
         notifBody = `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`;
       } else {
-        notifHeader = `+1 ${unit} !`;
+        notifHeader = "+1 point !";
         notifBody = result.nextTierLabel
-          ? `Plus que ${result.remaining} ${unit}(s) avant : ${result.nextTierLabel}.`
+          ? `Plus que ${result.remaining} point(s) avant : ${result.nextTierLabel}.`
           : "Continuez, une récompense arrive bientôt !";
       }
     } else {
-      const result = computeTamponsReward(updated.points, tiers);
+      const result = computeSingleTierReward(updated.points, tiers);
       rewardReached = result.rewardReached;
-      notifHeader = rewardReached ? "Récompense débloquée !" : `+1 ${unit} !`;
+      notifHeader = rewardReached ? "Récompense débloquée !" : "+1 point !";
       notifBody = rewardReached
         ? `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`
-        : `Plus que ${result.remaining} ${unit}(s) avant : ${result.label}.`;
+        : `Plus que ${result.remaining} point(s) avant : ${result.label}.`;
     }
 
-    await setLoyaltyPoints(objectId, updated.points, walletLabel);
+    await setLoyaltyPoints(objectId, updated.points, "Points");
     await logStampEvent(merchantId, { objectId, delta: 1, rewardReached });
 
-    // Le tampon lui-même (solde + base de données) est déjà enregistré à ce
+    // Le point lui-même (solde + base de données) est déjà enregistré à ce
     // stade. La notification est un bonus : si Google refuse (ex : quota de
     // 3 notifications/24h dépassé pour cette carte), on ne fait pas
-    // échouer tout l'ajout de tampon pour autant — le commerçant voit
+    // échouer tout l'ajout de point pour autant — le commerçant voit
     // quand même la confirmation.
     let notificationSent = true;
     try {

@@ -1,6 +1,6 @@
 // pages/api/settings.js
 //
-// Laisse le commerçant régler lui-même le nombre de tampons avant la
+// Laisse le commerçant régler lui-même le nombre de points avant la
 // récompense et ce que le client gagne (ex : "1 café offert"), sans
 // jamais avoir à toucher au code — exactement ce que fait Fidelix.
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       const threshold = Number(rewardThreshold);
 
       if (!Number.isFinite(threshold) || threshold < 1 || threshold > 100) {
-        return res.status(400).json({ error: "Le nombre de tampons doit être entre 1 et 100." });
+        return res.status(400).json({ error: "Le nombre de points doit être entre 1 et 100." });
       }
       const cleanLabel = (rewardLabel || "").trim();
       if (!cleanLabel) {

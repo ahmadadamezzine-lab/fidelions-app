@@ -4,7 +4,7 @@
 // quand le client clique sur "Ajouter à Google Wallet". Reçoit le slug du
 // restaurant (pour savoir de quel commerçant/quelle classe Wallet il
 // s'agit), un prénom (et éventuellement un code de parrainage), enregistre
-// le client en base, ajoute le tampon bonus de parrainage si besoin, et
+// le client en base, ajoute le point bonus de parrainage si besoin, et
 // renvoie l'URL du pass + son propre lien de parrainage à partager.
 
 import { v4 as uuidv4 } from "uuid";
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       referredByCode: ref,
     });
 
-    // Si un tampon bonus de parrainage a été accordé au nouveau client,
+    // Si un point bonus de parrainage a été accordé au nouveau client,
     // il faut regénérer le lien Wallet avec le bon solde de départ.
     let finalUrl = url;
     if (record.points > 0) {
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       finalUrl = rebuilt.url;
     }
 
-    // 2) Si un parrain existe, on lui ajoute aussi un tampon et on le
+    // 2) Si un parrain existe, on lui ajoute aussi un point et on le
     //    prévient — mais on ne bloque jamais l'inscription du nouveau
     //    client si ça échoue (ex: parrain sur une ancienne carte de test).
     if (referredByObjectId) {
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
           await sendWalletMessage(
             referredByObjectId,
             "Un ami vous a rejoint !",
-            `+1 tampon grâce à votre parrainage. Vous avez maintenant ${updated.points} tampon(s).`
+            `+1 point grâce à votre parrainage. Vous avez maintenant ${updated.points} point(s).`
           );
         }
       } catch (err) {

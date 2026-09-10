@@ -7,7 +7,7 @@ const PURPLE = "#7414F4";
 // WhatsApp…). Chaque employé s'identifie ensuite avec son propre code à 4
 // chiffres (réglé par le patron dans l'onglet Équipe de /commercant), ce
 // qui détermine ce qu'il peut faire : au minimum scanner une carte pour
-// ajouter un tampon/point, et en plus la liste des clients / les
+// ajouter un point, et en plus la liste des clients / les
 // statistiques / l'envoi de campagnes si le patron le lui a autorisé. Le
 // token dans l'URL fait office de porte d'entrée commune (voir
 // getRoleAsync dans lib/auth.js) — le régénérer depuis /commercant coupe
@@ -199,7 +199,7 @@ function ScannerSection({ authHeaders, setMessage }) {
       let text = "Impossible d'accéder à la caméra : " + (err?.message || err);
       if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
         text =
-          "L'accès à la caméra a été refusé pour ce site. Ouvre les réglages du navigateur (icône 🔒 à côté de l'adresse) → Autorisations → Caméra → Autoriser, puis recharge la page.";
+          "L'accès à la caméra a été refusé pour ce site. Ouvre les réglages du navigateur (icône cadenas à côté de l'adresse) → Autorisations → Caméra → Autoriser, puis recharge la page.";
       } else if (err && err.name === "NotFoundError") {
         text = "Aucune caméra détectée sur cet appareil.";
       }
@@ -306,8 +306,8 @@ function ScannerSection({ authHeaders, setMessage }) {
         setMessage({
           type: "success",
           text: data.rewardReached
-            ? `🎉 Récompense débloquée pour ${found.prenom} !`
-            : `✅ +1 pour ${found.prenom} (total : ${data.client.points}).`,
+            ? `Récompense débloquée pour ${found.prenom} !`
+            : `+1 pour ${found.prenom} (total : ${data.client.points}).`,
         });
         setFound(null);
       }
@@ -338,7 +338,7 @@ function ScannerSection({ authHeaders, setMessage }) {
 
         {!cameraOn && (
           <button className="primary" onClick={startCamera}>
-            📷 Ouvrir le scanner
+            Ouvrir le scanner
           </button>
         )}
         {cameraOn && (

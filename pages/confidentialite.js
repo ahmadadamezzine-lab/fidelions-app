@@ -41,7 +41,7 @@ export default function Confidentialite() {
           <li>Adresse email — nécessaire à la création de la carte, à l'envoi des campagnes et notifications du Restaurant, et au support.</li>
           <li>Numéro de téléphone (facultatif) — collecté pour un usage futur éventuel (notification par SMS), non utilisé activement à ce jour.</li>
           <li>Données de localisation approximative — uniquement si le Restaurant a activé les notifications de proximité, et uniquement transmises à Google Wallet pour déclencher une notification native sur votre téléphone lorsque vous passez à proximité de l'établissement ; Fidélions ne suit pas votre position en continu et ne la reçoit pas directement.</li>
-          <li>Historique de fidélité (nombre de tampons/points, récompenses obtenues) — nécessaire au fonctionnement du programme.</li>
+          <li>Historique de fidélité (nombre de points, récompenses obtenues) — nécessaire au fonctionnement du programme.</li>
         </ul>
         <p className="label">Données du Restaurant (compte professionnel)</p>
         <p>

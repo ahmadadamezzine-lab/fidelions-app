@@ -5,42 +5,127 @@ import QRCode from "qrcode";
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
+// Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
+// et regroupées ici pour être réutilisées partout dans la page — aucune
+// librairie d'icônes n'est installée (et impossible d'en ajouter une sur
+// cet environnement), donc tout est du SVG inline minimal.
+const ICONS = {
+  home: <><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h5v-5h2v5h5v-9" /></>,
+  share: <><circle cx="6" cy="12" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="18" cy="18" r="2.2" /><path d="M8 10.8 16 7.2M8 13.2l8 3.6" /></>,
+  users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
+  bell: <><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 14 6 10Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
+  card: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M3 10.5h18" /><path d="M6.5 14.5h4" /></>,
+  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3C10 9.3 8.5 8 8.5 6.4 8.5 5.1 9.5 4 10.7 4c1.3 0 1.3 2.3 1.3 5.3Z" /><path d="M12 9.3c2 0 3.5-1.3 3.5-2.9C15.5 5.1 14.5 4 13.3 4c-1.3 0-1.3 2.3-1.3 5.3Z" /></>,
+  badge: <><path d="M12 3.2 18.5 6v5.3c0 4.4-2.9 6.9-6.5 8.5-3.6-1.6-6.5-4.1-6.5-8.5V6Z" /><path d="m9.2 12 1.9 1.9L14.9 10" /></>,
+  mappin: <><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.4" /></>,
+  barchart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
+  building: <><rect x="5" y="3" width="10" height="18" /><path d="M9 21v-4h2v4" /><path d="M8 7h1M8 10h1M8 13h1M11 7h1M11 10h1M11 13h1" /><path d="M15 10h4v11h-4" /></>,
+  star: <path d="M12 3.2 14.6 9l6.2.6-4.7 4.2 1.4 6.2L12 16.9l-5.5 2.9 1.4-6.2-4.7-4.2L9.4 9Z" />,
+  headset: <><path d="M4 13v-1a8 8 0 0 1 16 0v1" /><rect x="3" y="13" width="4" height="6" rx="1.4" /><rect x="17" y="13" width="4" height="6" rx="1.4" /><path d="M19 19v1a3 3 0 0 1-3 3h-3" /></>,
+  gear: <><circle cx="12" cy="12" r="3.1" /><path d="M12 3v2.3M12 18.7V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.3M18.7 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" /></>,
+  chevronLeft: <path d="M14.5 5.5 8 12l6.5 6.5" />,
+  panel: <><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15" /></>,
+  chevronUpDown: <><path d="M8 10l4-4 4 4" /><path d="M8 14l4 4 4-4" /></>,
+  check: <path d="M5 12.5 10 17 19 7" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  warning: <><path d="M12 3.4 21 20H3Z" /><path d="M12 9.4v4.6" /><path d="M12 17h.01" /></>,
+  trash: <><path d="M4 7h16" /><path d="M9 7V4.5h6V7" /><path d="M6.5 7 7.3 20h9.4L18 7" /><path d="M10 11v6M14 11v6" /></>,
+  edit: <path d="M4 20h4l10.5-10.5a2 2 0 0 0-4-4L4 16v4Z" />,
+  lock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
+  unlock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 7.4-2" /></>,
+  download: <><path d="M12 4v11" /><path d="m7.5 11 4.5 4.5L16.5 11" /><path d="M5 19.5h14" /></>,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="1.8" /><path d="M6 15H4.8A1.8 1.8 0 0 1 3 13.2V4.8A1.8 1.8 0 0 1 4.8 3h8.4A1.8 1.8 0 0 1 15 4.8V6" /></>,
+  refresh: <><path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2" /><path d="M18 3v4.5h-4.5" /><path d="M6 21v-4.5h4.5" /></>,
+  save: <><path d="M5 4h11l3 3v13H5Z" /><path d="M8 4v5h8V4" /><path d="M8 14h8v6H8Z" /></>,
+  robot: <><rect x="5" y="8" width="14" height="10" rx="2.3" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1.1" /><circle cx="9" cy="13" r="1.1" /><circle cx="15" cy="13" r="1.1" /><path d="M9 17h6" /></>,
+  paperclip: <path d="M17 7.5 9.3 15.2a3 3 0 1 1-4.2-4.2l8-8a2 2 0 1 1 2.9 2.9l-7.7 7.7a1 1 0 1 1-1.4-1.4l6.9-6.9" />,
+  file: <><path d="M7 3h7l4 4v14H7Z" /><path d="M14 3v4h4" /></>,
+  trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
+  camera: <><rect x="3" y="7" width="18" height="13" rx="2.2" /><path d="M8 7l1.5-2.5h5L16 7" /><circle cx="12" cy="13.5" r="3.4" /></>,
+};
+
+function Icon({ name, size = 18, className }) {
+  const d = ICONS[name];
+  if (!d) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {d}
+    </svg>
+  );
+}
+
 // Onglets de l'espace commerçant (patron uniquement — un caissier garde
 // l'ancien écran simple : scanner + recherche, rien d'autre). Rubriques et
-// ordre calqués exactement sur la barre latérale de Sydely (captures
-// envoyées par Adam) : liste principale, puis un groupe "Compte" séparé.
-// "Aperçu" n'est pas dans ces captures mais reste en premier — c'est le
-// tableau de bord (chiffres clés + classement clients), trop utile pour le
-// supprimer, et cohérent avec le fait qu'une appli pro a presque toujours
-// un accueil avant les rubriques métier. Sur mobile, reste en rangée de
-// pastilles défilable (pas de place pour une vraie barre latérale) ; à
-// partir de 900px de large, devient la barre latérale fixée à gauche que
-// Adam a demandée.
+// ordre calqués sur la barre latérale de Sydely (captures envoyées par
+// Adam) : liste principale, puis un groupe "Compte" séparé. "Aperçu" n'est
+// pas dans ces captures mais reste en premier — c'est le tableau de bord
+// (chiffres clés + classement clients), trop utile pour le supprimer, et
+// cohérent avec le fait qu'une appli pro a presque toujours un accueil
+// avant les rubriques métier. Sur mobile, reste en rangée de pastilles
+// défilable (pas de place pour une vraie barre latérale) ; à partir de
+// 900px de large, devient la barre latérale fixée à gauche que Adam a
+// demandée.
 const TABS = [
-  { id: "apercu", icon: "🏠", label: "Aperçu" },
-  { id: "partager", icon: "🔗", label: "Partager" },
-  { id: "clients", icon: "👥", label: "Clients" },
-  { id: "campagnes", icon: "🔔", label: "Notifications" },
-  { id: "carte", icon: "💳", label: "Ma carte" },
-  { id: "fidelite", icon: "🎁", label: "Récompenses" },
-  { id: "equipe", icon: "🧑‍💼", label: "Employés" },
-  { id: "proximite", icon: "📍", label: "Géolocalisation" },
-  { id: "stats", icon: "📈", label: "Statistiques" },
-  { id: "api-dev", icon: "</>", label: "API & développeurs" },
+  { id: "apercu", icon: "home", label: "Aperçu" },
+  { id: "partager", icon: "share", label: "Partager" },
+  { id: "clients", icon: "users", label: "Clients" },
+  { id: "campagnes", icon: "bell", label: "Notifications" },
+  { id: "carte", icon: "card", label: "Ma carte" },
+  { id: "fidelite", icon: "gift", label: "Récompenses" },
+  { id: "equipe", icon: "badge", label: "Employés" },
+  { id: "proximite", icon: "mappin", label: "Géolocalisation" },
+  { id: "stats", icon: "barchart", label: "Statistiques" },
 ];
 
 // Groupe "Compte" séparé, comme sur les captures. "Support" réutilise la
-// vraie rubrique Aide (FAQ) déjà construite — pas de doublon. Établissement,
-// Abonnement et Paramètres n'ont pas encore de vrai contenu derrière (pas
-// de gestion multi-établissement, pas de facturation, pas de compte à
-// personnaliser au-delà du mot de passe défini dans Vercel) : plutôt que
-// de faire semblant, ces 3 rubriques affichent honnêtement "bientôt
-// disponible" jusqu'à ce que ça existe pour de vrai.
+// vraie rubrique Aide (FAQ) déjà construite — pas de doublon. Abonnement et
+// Paramètres n'ont pas encore de vrai contenu derrière (pas de
+// facturation, pas de compte à personnaliser au-delà du mot de passe) :
+// plutôt que de faire semblant, ces 2 rubriques affichent honnêtement
+// "bientôt disponible" jusqu'à ce que ça existe pour de vrai. Établissement
+// a, lui, un vrai contenu (voir plus bas).
 const ACCOUNT_TABS = [
-  { id: "etablissement", icon: "🏢", label: "Établissement" },
-  { id: "abonnement", icon: "🧾", label: "Abonnement" },
-  { id: "aide", icon: "🎧", label: "Support" },
-  { id: "parametres", icon: "⚙️", label: "Paramètres" },
+  { id: "etablissement", icon: "building", label: "Établissement" },
+  { id: "abonnement", icon: "star", label: "Abonnement" },
+  { id: "aide", icon: "headset", label: "Support" },
+  { id: "parametres", icon: "gear", label: "Paramètres" },
+];
+
+// Types d'activité proposés à l'inscription (étape 2 de l'assistant) et
+// réutilisés dans l'onglet Établissement — mêmes identifiants des deux
+// côtés. "autre" révèle un champ texte libre (businessTypeOther).
+const BUSINESS_TYPES = [
+  { id: "coiffeur", label: "Coiffeur" },
+  { id: "beaute", label: "Soins & beauté" },
+  { id: "supermarche", label: "Supermarché / épicerie" },
+  { id: "restaurant", label: "Restaurant" },
+  { id: "snack", label: "Snack / fast-food" },
+  { id: "boulangerie", label: "Boulangerie / pâtisserie" },
+  { id: "cafe", label: "Café / bar" },
+  { id: "autre", label: "Autre" },
+];
+
+// Jours de la semaine pour les horaires d'ouverture (onglet Établissement)
+// — mêmes identifiants que côté serveur (lib/db.js).
+const ESTABLISHMENT_DAYS = [
+  { id: "lundi", label: "Lundi" },
+  { id: "mardi", label: "Mardi" },
+  { id: "mercredi", label: "Mercredi" },
+  { id: "jeudi", label: "Jeudi" },
+  { id: "vendredi", label: "Vendredi" },
+  { id: "samedi", label: "Samedi" },
+  { id: "dimanche", label: "Dimanche" },
 ];
 
 // Sélecteur de période pour la courbe "évolution des clients fidélisés"
@@ -81,20 +166,20 @@ function computeInsights(clients, rewardThreshold) {
     (c) => now - c.createdAt >= 7 * DAY && now - c.createdAt < 14 * DAY
   ).length;
   if (newThisWeek > 0 && newLastWeek === 0) {
-    insights.push(`📈 ${newThisWeek} nouve${newThisWeek > 1 ? "aux clients" : "au client"} cette semaine.`);
+    insights.push(`${newThisWeek} nouve${newThisWeek > 1 ? "aux clients" : "au client"} cette semaine.`);
   } else if (newLastWeek > 0) {
     const diff = newThisWeek - newLastWeek;
     const pct = Math.round((Math.abs(diff) / newLastWeek) * 100);
     insights.push(
       diff >= 0
-        ? `📈 Inscriptions en hausse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
-        : `📉 Inscriptions en baisse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+        ? `Inscriptions en hausse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+        : `Inscriptions en baisse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
     );
   }
 
   const top = [...clients].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
   if (top && top.points > 0) {
-    insights.push(`🏆 ${top.prenom} est ton client le plus fidèle avec ${top.points} tampons.`);
+    insights.push(`${top.prenom} est ton client le plus fidèle avec ${top.points} points.`);
   }
 
   const threshold = rewardThreshold || 10;
@@ -106,14 +191,14 @@ function computeInsights(clients, rewardThreshold) {
   }).length;
   if (nearReward > 0) {
     insights.push(
-      `🎯 ${nearReward} client${nearReward > 1 ? "s sont" : " est"} à 1-2 tampons de la récompense — bon moment pour une campagne.`
+      `${nearReward} client${nearReward > 1 ? "s sont" : " est"} à 1-2 points de la récompense — bon moment pour une campagne.`
     );
   }
 
   const inactive = clients.filter((c) => now - (c.lastVisitAt || c.createdAt) > 30 * DAY).length;
   if (inactive > 0) {
     insights.push(
-      `⚠️ ${inactive} client${inactive > 1 ? "s n'ont" : " n'a"} pas visité depuis plus de 30 jours — pense à une campagne de relance.`
+      `${inactive} client${inactive > 1 ? "s n'ont" : " n'a"} pas visité depuis plus de 30 jours — pense à une campagne de relance.`
     );
   }
 
@@ -171,25 +256,25 @@ function analyzeMenu(menuText, rewardLabel, rewardThreshold) {
   const suggestions = [];
 
   suggestions.push(
-    `🍽️ Menu du midi à ${(priceAvg * 0.85).toFixed(2)}€ (prix moyen actuel : ${priceAvg.toFixed(2)}€) — attire les habitués du quartier en semaine.`
+    `Menu du midi à ${(priceAvg * 0.85).toFixed(2)}€ (prix moyen actuel : ${priceAvg.toFixed(2)}€) — attire les habitués du quartier en semaine.`
   );
 
   if (items.length >= 2 && cheapest.name !== priciest.name) {
     suggestions.push(
-      `🤝 Formule duo "${cheapest.name}" + "${priciest.name}" à prix réduit — pousse à commander plus qu'un seul plat.`
+      `Formule duo "${cheapest.name}" + "${priciest.name}" à prix réduit — pousse à commander plus qu'un seul plat.`
     );
   }
 
   suggestions.push(
-    `📅 Offre "lundi tranquille" : -20% sur "${priciest.name}" (ton plat le plus cher) pour remplir la salle en début de semaine.`
+    `Offre "lundi tranquille" : -20% sur "${priciest.name}" (ton plat le plus cher) pour remplir la salle en début de semaine.`
   );
 
   suggestions.push(
-    `🎯 Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} tampons — mets une petite affiche à côté de "${cheapest.name}" pour donner envie de commencer la carte.`
+    `Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} points — mets une petite affiche à côté de "${cheapest.name}" pour donner envie de commencer la carte.`
   );
 
   suggestions.push(
-    `📸 Mets "${priciest.name}" en avant sur tes réseaux — c'est souvent le plat qui donne le plus envie de venir.`
+    `Mets "${priciest.name}" en avant sur tes réseaux — c'est souvent le plat qui donne le plus envie de venir.`
   );
 
   return {
@@ -366,12 +451,23 @@ export default function Commercant() {
   const [checking, setChecking] = useState(false);
 
   // --- Écran de connexion / inscription (avant authentification) ---
-  const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
+  // "choice" est l'écran de départ : on demande d'abord de choisir entre
+  // créer un compte et se connecter, plutôt que de présenter directement
+  // un formulaire de connexion par défaut.
+  const [authMode, setAuthMode] = useState("choice"); // "choice" | "login" | "signup"
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // --- Inscription : assistant en 3 étapes (voir handleSignupSubmit) ---
+  const [signupStep, setSignupStep] = useState(1);
   const [signupRestaurantName, setSignupRestaurantName] = useState("");
+  const [signupLogo, setSignupLogo] = useState(null); // { base64, mimeType, filename } ou null (optionnel)
+  const [signupBusinessType, setSignupBusinessType] = useState("");
+  const [signupBusinessTypeOther, setSignupBusinessTypeOther] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
+  const signupLogoInputRef = useRef(null);
 
   // --- Identité du restaurant connecté (renvoyée par /api/clients juste
   // après la connexion) — utilisée pour construire le lien public
@@ -386,6 +482,7 @@ export default function Commercant() {
   const [rewardThreshold, setRewardThreshold] = useState(10);
   const [rewardLabel, setRewardLabel] = useState("Récompense fidélité");
   const [activeTab, setActiveTab] = useState("apercu");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // --- Gestion des fiches client : renommer / bloquer / supprimer ---
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -406,8 +503,8 @@ export default function Commercant() {
   const [offerText, setOfferText] = useState("");
   const [savingOffer, setSavingOffer] = useState(false);
 
-  // --- Fidélité : mode "tampons" (classique) ou "points" (paliers multiples) ---
-  const [loyaltyType, setLoyaltyType] = useState("tampons");
+  // --- Fidélité : paliers de récompense (système unique "points", voir
+  // lib/loyalty.js) — un seul palier = carte classique, plusieurs = étapes.
   const [tiers, setTiers] = useState([{ threshold: 10, label: "Récompense fidélité" }]);
   const [savingLoyalty, setSavingLoyalty] = useState(false);
 
@@ -434,6 +531,23 @@ export default function Commercant() {
   const [geoSuggestions, setGeoSuggestions] = useState([]);
   const [savingGeo, setSavingGeo] = useState(false);
   const geoDebounceRef = useRef(null);
+
+  // --- Fiche établissement (onglet "Établissement") : chargée seulement à
+  // l'ouverture de l'onglet, comme les statistiques.
+  const [establishment, setEstablishment] = useState(null);
+  const [loadingEstablishment, setLoadingEstablishment] = useState(false);
+  const [savingEstablishment, setSavingEstablishment] = useState(false);
+  const [estBusinessType, setEstBusinessType] = useState("");
+  const [estBusinessTypeOther, setEstBusinessTypeOther] = useState("");
+  const [estPhone, setEstPhone] = useState("");
+  const [estWebsite, setEstWebsite] = useState("");
+  const [estInstagram, setEstInstagram] = useState("");
+  const [estFacebook, setEstFacebook] = useState("");
+  const [estDescription, setEstDescription] = useState("");
+  const [estHours, setEstHours] = useState(null);
+  const [estPhotos, setEstPhotos] = useState([]); // URLs déjà enregistrées
+  const [estNewPhotos, setEstNewPhotos] = useState([]); // { base64, mimeType, filename } en attente d'envoi
+  const estPhotoInputRef = useRef(null);
 
   // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
   // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
@@ -584,7 +698,6 @@ export default function Commercant() {
           const res2 = await fetch("/api/loyalty-settings", { headers: { "x-merchant-password": pw } });
           const data2 = await res2.json();
           if (res2.ok) {
-            setLoyaltyType(data2.type);
             setTiers(data2.tiers);
           }
         } catch {
@@ -633,6 +746,21 @@ export default function Commercant() {
     }
   }
 
+  // --- Écran de départ : choisir entre créer un compte et se connecter ---
+  function goToChoice() {
+    setAuthMode("choice");
+    setAuthError("");
+  }
+  function goToLogin() {
+    setAuthMode("login");
+    setAuthError("");
+  }
+  function startSignup() {
+    setAuthMode("signup");
+    setSignupStep(1);
+    setAuthError("");
+  }
+
   // --- Connexion (compte déjà créé) ---
   async function handleLoginSubmit(e) {
     e.preventDefault();
@@ -658,7 +786,56 @@ export default function Commercant() {
     }
   }
 
-  // --- Inscription (nouveau restaurant) ---
+  // --- Inscription (nouveau restaurant) : assistant en 3 étapes ---
+  // Étape 1 : nom + logo (optionnel, gardé en mémoire, pas encore envoyé).
+  // Étape 2 : type d'activité (bulles). Étape 3 : identifiants + téléphone
+  // (optionnel), puis un seul appel à /api/auth-signup avec tout ce qui a
+  // été accumulé — pas d'écran de confirmation intermédiaire, accès direct
+  // au tableau de bord dès le succès, comme avant l'assistant.
+  async function handleSignupLogoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setAuthError("Logo trop lourd (4 Mo max).");
+      return;
+    }
+    const encoded = await readFileAsBase64(file);
+    setSignupLogo(encoded);
+  }
+
+  function goSignupStep2() {
+    if (!signupRestaurantName.trim()) {
+      setAuthError("Le nom de ton établissement est obligatoire.");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(2);
+  }
+
+  function goSignupStep1() {
+    setAuthError("");
+    setSignupStep(1);
+  }
+
+  function goSignupStep3() {
+    if (!signupBusinessType) {
+      setAuthError("Choisis le type de ton activité.");
+      return;
+    }
+    if (signupBusinessType === "autre" && !signupBusinessTypeOther.trim()) {
+      setAuthError("Décris ton activité.");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(3);
+  }
+
+  function goSignupStep2Back() {
+    setAuthError("");
+    setSignupStep(2);
+  }
+
   async function handleSignupSubmit(e) {
     e.preventDefault();
     if (signupPassword.length < 8) {
@@ -675,6 +852,10 @@ export default function Commercant() {
           email: signupEmail,
           password: signupPassword,
           restaurantName: signupRestaurantName,
+          businessType: signupBusinessType,
+          businessTypeOther: signupBusinessType === "autre" ? signupBusinessTypeOther : "",
+          phone: signupPhone,
+          logo: signupLogo,
         }),
       });
       const data = await res.json();
@@ -688,6 +869,22 @@ export default function Commercant() {
     } catch (err) {
       setAuthError("Inscription impossible : " + err.message);
       setChecking(false);
+    }
+  }
+
+  // --- Déconnexion : clic sur le logo/wordmark Fidélions de la barre
+  // latérale (voir sidebar) — remet l'écran de pré-connexion sur le choix
+  // initial plutôt que de rouvrir directement le formulaire de connexion.
+  function handleLogout() {
+    setAuthed(false);
+    setPassword("");
+    setRole(null);
+    setAuthMode("choice");
+    setAuthError("");
+    try {
+      localStorage.removeItem(PW_STORAGE_KEY);
+    } catch {
+      // ignoré — au pire l'appareil réessaiera l'ancien jeton au prochain chargement
     }
   }
 
@@ -717,8 +914,8 @@ export default function Commercant() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       let text = data.rewardReached
-        ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} ${loyaltyType === "points" ? "points" : "tampons"})`
-        : `+1 pour ${data.client.prenom} (${data.client.points} ${loyaltyType === "points" ? "point" : "tampon"}${data.client.points > 1 ? "s" : ""})`;
+        ? `${data.client.prenom} a débloqué sa récompense ! (${data.client.points} points)`
+        : `+1 pour ${data.client.prenom} (${data.client.points} point${data.client.points > 1 ? "s" : ""})`;
       if (data.notificationSent === false) {
         text += " — bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
       }
@@ -729,7 +926,7 @@ export default function Commercant() {
     }
   }
 
-  // --- Fidélité : type (tampons/points) + paliers ---
+  // --- Fidélité : paliers de récompense ---
   function addTier() {
     if (tiers.length >= 10) return;
     const last = tiers[tiers.length - 1];
@@ -764,11 +961,10 @@ export default function Commercant() {
       const res = await fetch("/api/loyalty-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ type: loyaltyType, tiers }),
+        body: JSON.stringify({ tiers }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setLoyaltyType(data.type);
       setTiers(data.tiers);
       setRewardThreshold(data.tiers[0].threshold);
       setRewardLabel(data.tiers[0].label);
@@ -1055,6 +1251,102 @@ export default function Commercant() {
     setActiveTab(tab);
     if (tab === "stats" && !statsData && !loadingStats) {
       loadStats();
+    }
+    if (tab === "etablissement" && !establishment && !loadingEstablishment) {
+      loadEstablishment();
+    }
+  }
+
+  // --- Fiche établissement ---
+  async function loadEstablishment() {
+    setLoadingEstablishment(true);
+    try {
+      const res = await fetch("/api/establishment", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) {
+        setEstablishment(data);
+        setEstBusinessType(data.businessType || "");
+        setEstBusinessTypeOther(data.businessTypeOther || "");
+        setEstPhone(data.phone || "");
+        setEstWebsite(data.website || "");
+        setEstInstagram(data.instagram || "");
+        setEstFacebook(data.facebook || "");
+        setEstDescription(data.description || "");
+        setEstHours(data.hours || null);
+        setEstPhotos(data.photos || []);
+      }
+    } catch {
+      // silencieux — l'onglet réessaiera à la prochaine ouverture
+    } finally {
+      setLoadingEstablishment(false);
+    }
+  }
+
+  function toggleEstDayClosed(dayId) {
+    setEstHours((prev) => ({ ...prev, [dayId]: { ...prev[dayId], closed: !prev[dayId].closed } }));
+  }
+
+  function updateEstDayTime(dayId, field, value) {
+    setEstHours((prev) => ({ ...prev, [dayId]: { ...prev[dayId], [field]: value } }));
+  }
+
+  async function handleEstPhotoChange(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const room = 4 - estPhotos.length - estNewPhotos.length;
+    if (room <= 0) {
+      setMessage({ type: "error", text: "4 photos maximum — retire-en une avant d'en ajouter une nouvelle." });
+      return;
+    }
+    for (const file of files.slice(0, room)) {
+      if (file.size > 4 * 1024 * 1024) continue;
+      const encoded = await readFileAsBase64(file);
+      setEstNewPhotos((prev) => [...prev, encoded]);
+    }
+  }
+
+  function removeEstNewPhoto(i) {
+    setEstNewPhotos((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function removeEstExistingPhoto(url) {
+    setEstPhotos((prev) => prev.filter((u) => u !== url));
+  }
+
+  async function saveEstablishment() {
+    if (estBusinessType === "autre" && !estBusinessTypeOther.trim()) {
+      setMessage({ type: "error", text: "Décris ton activité." });
+      return;
+    }
+    setSavingEstablishment(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/establishment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          businessType: estBusinessType,
+          businessTypeOther: estBusinessType === "autre" ? estBusinessTypeOther : "",
+          phone: estPhone,
+          website: estWebsite,
+          instagram: estInstagram,
+          facebook: estFacebook,
+          description: estDescription,
+          hours: estHours,
+          newPhotos: estNewPhotos,
+          removedPhotoUrls: (establishment?.photos || []).filter((u) => !estPhotos.includes(u)),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEstablishment(data);
+      setEstPhotos(data.photos || []);
+      setEstNewPhotos([]);
+      setMessage({ type: "success", text: "Fiche établissement enregistrée." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEstablishment(false);
     }
   }
 
@@ -1365,7 +1657,7 @@ export default function Commercant() {
       setMessage({
         type: "success",
         text:
-          `Campagne envoyée : ${parts.join(" + ")} 🎉` +
+          `Campagne envoyée : ${parts.join(" + ")}` +
           (failedParts.length > 0 ? ` (échec : ${failedParts.join(", ")})` : ""),
       });
       setCampaignHeader("");
@@ -1405,7 +1697,7 @@ export default function Commercant() {
       let text = "Impossible d'accéder à la caméra : " + (err?.message || err);
       if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
         text =
-          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
+          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône cadenas/i à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
       } else if (err && err.name === "NotFoundError") {
         text = "Aucune caméra détectée sur cet appareil.";
       }
@@ -1469,7 +1761,7 @@ export default function Commercant() {
 
         if (match) {
           setSearch(match.prenom);
-          setCameraStatus(`✅ ${match.prenom} trouvé — clique "+1" ci-dessous pour valider.`);
+          setCameraStatus(`${match.prenom} trouvé — clique "+1" ci-dessous pour valider.`);
         } else {
           setCameraStatus("QR non reconnu — réessaie, ou cherche le client par prénom ci-dessous.");
         }
@@ -1494,7 +1786,7 @@ export default function Commercant() {
   // (non bloqués) — un client bloqué n'entre plus dans aucun calcul.
   const activeClients = clients.filter((c) => !c.blocked);
 
-  const totalTampons = activeClients.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalPoints = activeClients.reduce((sum, c) => sum + (c.points || 0), 0);
   const safeThreshold = Number(rewardThreshold) > 0 ? Number(rewardThreshold) : 10;
   const totalRecompenses = activeClients.reduce(
     (sum, c) => sum + Math.floor((c.points || 0) / safeThreshold),
@@ -1515,10 +1807,26 @@ export default function Commercant() {
       <div className="page">
         <div className="card">
           <img src="/logo.png" alt="Fidélions" className="auth-logo" />
-          {authMode === "login" ? (
+
+          {authMode === "choice" && (
             <>
               <h1>Espace commerçant</h1>
-              <p className="subtitle">Connecte-toi à ton compte restaurant.</p>
+              <p className="subtitle">Un seul site, un compte par établissement.</p>
+              <div className="auth-choice">
+                <button type="button" className="primary" onClick={startSignup}>
+                  Créer un compte
+                </button>
+                <button type="button" className="secondary" onClick={goToLogin}>
+                  Se connecter
+                </button>
+              </div>
+            </>
+          )}
+
+          {authMode === "login" && (
+            <>
+              <h1>Espace commerçant</h1>
+              <p className="subtitle">Connecte-toi à ton compte.</p>
               <form onSubmit={handleLoginSubmit}>
                 <input
                   type="email"
@@ -1541,66 +1849,147 @@ export default function Commercant() {
               </form>
               {authError && <p className="error">{authError}</p>}
               <p className="auth-switch">
+                <button type="button" className="link-btn" onClick={goToChoice}>
+                  Retour
+                </button>
+                {" · "}
                 Pas encore de compte ?{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => {
-                    setAuthMode("signup");
-                    setAuthError("");
-                  }}
-                >
-                  Crée ton restaurant sur Fidélions
+                <button type="button" className="link-btn" onClick={startSignup}>
+                  Crée ton établissement sur Fidélions
                 </button>
               </p>
             </>
-          ) : (
+          )}
+
+          {authMode === "signup" && (
             <>
-              <h1>Créer mon restaurant</h1>
-              <p className="subtitle">Un compte par restaurant — 2 minutes, sans engagement.</p>
-              <form onSubmit={handleSignupSubmit}>
-                <input
-                  type="text"
-                  value={signupRestaurantName}
-                  onChange={(e) => setSignupRestaurantName(e.target.value)}
-                  placeholder="Nom du restaurant"
-                  autoFocus
-                  required
-                />
-                <input
-                  type="email"
-                  value={signupEmail}
-                  onChange={(e) => setSignupEmail(e.target.value)}
-                  placeholder="Ton email"
-                  required
-                />
-                <input
-                  type="password"
-                  value={signupPassword}
-                  onChange={(e) => setSignupPassword(e.target.value)}
-                  placeholder="Mot de passe (8 caractères minimum)"
-                  required
-                />
-                <button type="submit" disabled={checking}>
-                  {checking ? "Création…" : "Créer mon compte"}
-                </button>
-              </form>
-              {authError && <p className="error">{authError}</p>}
+              <h1>Créer mon compte</h1>
+              <p className="subtitle">Étape {signupStep}/3</p>
+              <div className="step-dots">
+                <span className={signupStep >= 1 ? "active" : ""} />
+                <span className={signupStep >= 2 ? "active" : ""} />
+                <span className={signupStep >= 3 ? "active" : ""} />
+              </div>
+
+              {signupStep === 1 && (
+                <div className="signup-step">
+                  <input
+                    type="text"
+                    value={signupRestaurantName}
+                    onChange={(e) => setSignupRestaurantName(e.target.value)}
+                    placeholder="Nom de ton établissement"
+                    autoFocus
+                    required
+                  />
+                  <div className="signup-logo-row">
+                    {signupLogo && (
+                      <img
+                        className="upload-preview"
+                        src={`data:${signupLogo.mimeType};base64,${signupLogo.base64}`}
+                        alt="Aperçu du logo"
+                      />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={signupLogoInputRef}
+                      style={{ display: "none" }}
+                      onChange={handleSignupLogoChange}
+                    />
+                    <button type="button" className="secondary" onClick={() => signupLogoInputRef.current?.click()}>
+                      <Icon name="paperclip" /> {signupLogo ? "Changer le logo" : "Ajouter un logo (optionnel)"}
+                    </button>
+                  </div>
+                  {authError && <p className="error">{authError}</p>}
+                  <button type="button" className="primary" onClick={goSignupStep2}>
+                    Valider
+                  </button>
+                </div>
+              )}
+
+              {signupStep === 2 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Quel type d'activité ?
+                  </p>
+                  <div className="bubble-group">
+                    {BUSINESS_TYPES.map((bt) => (
+                      <button
+                        key={bt.id}
+                        type="button"
+                        className={`bubble-chip${signupBusinessType === bt.id ? " active" : ""}`}
+                        onClick={() => setSignupBusinessType(bt.id)}
+                      >
+                        {bt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {signupBusinessType === "autre" && (
+                    <input
+                      type="text"
+                      value={signupBusinessTypeOther}
+                      onChange={(e) => setSignupBusinessTypeOther(e.target.value)}
+                      placeholder="Décris ton activité"
+                      maxLength={60}
+                      autoFocus
+                    />
+                  )}
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep1}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep3}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 3 && (
+                <form className="signup-step" onSubmit={handleSignupSubmit}>
+                  <input
+                    type="email"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    placeholder="Ton email"
+                    autoFocus
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Mot de passe (8 caractères minimum)"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    value={signupPhone}
+                    onChange={(e) => setSignupPhone(e.target.value)}
+                    placeholder="Téléphone (optionnel)"
+                  />
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep2Back}>
+                      Retour
+                    </button>
+                    <button type="submit" className="primary" disabled={checking}>
+                      {checking ? "Création…" : "Créer mon compte"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               <p className="auth-switch">
                 Déjà un compte ?{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => {
-                    setAuthMode("login");
-                    setAuthError("");
-                  }}
-                >
+                <button type="button" className="link-btn" onClick={goToLogin}>
                   Connecte-toi
                 </button>
               </p>
             </>
           )}
+
           <p className="legal-links">
             <Link href="/cgv">CGV</Link>
             <span> · </span>
@@ -1612,11 +2001,11 @@ export default function Commercant() {
     );
   }
 
-  const pointLabel = loyaltyType === "points" ? "point" : "tampon";
+  const pointLabel = "point";
 
   return (
     <div className="page">
-      <div className="wrap">
+      <div className={`wrap${sidebarCollapsed && role === "owner" ? " sb-collapsed" : ""}`}>
         <h1>Espace commerçant</h1>
 
         {message && (
@@ -1625,35 +2014,79 @@ export default function Commercant() {
 
       <div className="dashboard">
         {role === "owner" && (
-          <>
-          <div className="sidebar-brand">
-            <img src="/logo.png" alt="Fidélions" className="sidebar-logo" />
-            <span className="sidebar-wordmark">Fidélions</span>
-          </div>
-          <div className="tabs">
-            {TABS.map((t) => (
+          <div className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
+            <button
+              type="button"
+              className="sb-brand"
+              onClick={handleLogout}
+              title="Se déconnecter"
+              aria-label="Fidélions — se déconnecter et revenir à l'accueil"
+            >
+              <img src="/logo.png" alt="Fidélions" className="sb-logo" />
+              <span className="sb-wordmark">Fidélions</span>
+            </button>
+            <div className="sb-topbar">
               <button
-                key={t.id}
                 type="button"
-                className={`tab-btn${activeTab === t.id ? " active" : ""}`}
-                onClick={() => switchTab(t.id)}
+                className="sb-icon-btn"
+                onClick={handleLogout}
+                aria-label="Revenir à l'accueil (déconnexion)"
+                title="Revenir à l'accueil"
               >
-                <span className="tab-icon">{t.icon}</span> {t.label}
+                <Icon name="chevronLeft" size={17} />
               </button>
-            ))}
-            <div className="tab-group-label">Compte</div>
-            {ACCOUNT_TABS.map((t) => (
               <button
-                key={t.id}
                 type="button"
-                className={`tab-btn${activeTab === t.id ? " active" : ""}`}
-                onClick={() => switchTab(t.id)}
+                className="sb-icon-btn"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                aria-label={sidebarCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+                title={sidebarCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
               >
-                <span className="tab-icon">{t.icon}</span> {t.label}
+                <Icon name="panel" size={17} />
               </button>
-            ))}
+            </div>
+            <nav className="sb-nav">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`sb-item${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => switchTab(t.id)}
+                  title={t.label}
+                >
+                  <span className="sb-item-icon">
+                    <Icon name={t.icon} />
+                  </span>
+                  <span className="sb-item-label">{t.label}</span>
+                </button>
+              ))}
+              <div className="sb-section-label">Compte</div>
+              {ACCOUNT_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`sb-item${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => switchTab(t.id)}
+                  title={t.label}
+                >
+                  <span className="sb-item-icon">
+                    <Icon name={t.icon} />
+                  </span>
+                  <span className="sb-item-label">{t.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="sb-footer">
+              <div className="sb-avatar">{(restaurantName || "F").trim().charAt(0).toUpperCase()}</div>
+              <div className="sb-footer-text">
+                <strong className="sb-footer-name">{restaurantName || "Mon établissement"}</strong>
+                <span className="sb-footer-role">Commerçant</span>
+              </div>
+              <span className="sb-footer-chevron">
+                <Icon name="chevronUpDown" size={16} />
+              </span>
+            </div>
           </div>
-          </>
         )}
 
         <div className="dashboard-content">
@@ -1666,8 +2099,8 @@ export default function Commercant() {
                 <div className="stat-label">Clients inscrits</div>
               </div>
               <div className="stat">
-                <div className="stat-value">{totalTampons}</div>
-                <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} distribués</div>
+                <div className="stat-value">{totalPoints}</div>
+                <div className="stat-label">Points distribués</div>
               </div>
               <div className="stat">
                 <div className="stat-value">{visitesAujourdhui}</div>
@@ -1680,8 +2113,8 @@ export default function Commercant() {
             </div>
             {ranking.length > 0 && (
               <>
-                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                  🏆 Classement de fidélité
+                <p className="subtitle icon-heading" style={{ marginTop: 16, marginBottom: 8 }}>
+                  <Icon name="trophy" size={15} /> Classement de fidélité
                 </p>
                 <div className="ranking">
                   {ranking.map((c, i) => (
@@ -1699,8 +2132,8 @@ export default function Commercant() {
             )}
             {insights.length > 0 && (
               <>
-                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                  🤖 Analyse automatique
+                <p className="subtitle icon-heading" style={{ marginTop: 16, marginBottom: 8 }}>
+                  <Icon name="robot" size={15} /> Analyse automatique
                 </p>
                 <div className="insights">
                   {insights.map((text, i) => (
@@ -1730,8 +2163,8 @@ export default function Commercant() {
                   style={{ width: 220, height: 220, borderRadius: 12, border: "1.5px solid #e6e2f2" }}
                 />
                 <p style={{ marginTop: 12 }}>
-                  <a href={signupQrUrl} download="qr-fidelions.png" className="link-btn">
-                    ⬇️ Télécharger l'image à imprimer
+                  <a href={signupQrUrl} download="qr-fidelions.png" className="link-btn icon-heading">
+                    <Icon name="download" size={14} /> Télécharger l'image à imprimer
                   </a>
                 </p>
               </div>
@@ -1746,8 +2179,8 @@ export default function Commercant() {
                 ? `${window.location.origin}/r/${merchantSlug}`
                 : ""}
             </div>
-            <button className="secondary" type="button" onClick={copySignupLink}>
-              📋 Copier le lien
+            <button className="secondary icon-heading" type="button" onClick={copySignupLink}>
+              <Icon name="copy" size={15} /> Copier le lien
             </button>
           </div>
         )}
@@ -1756,29 +2189,12 @@ export default function Commercant() {
           <div className="card">
             <h2>Programme de fidélité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Choisis le mot utilisé sur la carte ("tampons" ou "points"), puis
-              écris librement autant de récompenses que tu veux, chacune avec
-              son propre seuil — ex : 20 {loyaltyType === "points" ? "points" : "tampons"} = une pizza offerte,
+              Écris librement autant de récompenses que tu veux, chacune avec
+              son propre seuil de points — ex : 20 points = une pizza offerte,
               30 = une pizza + une boisson offertes. Une seule récompense, ça
               fait cheap : ajoutes-en plusieurs pour donner plusieurs objectifs
               à tes clients.
             </p>
-            <div className="type-toggle">
-              <button
-                type="button"
-                className={loyaltyType === "tampons" ? "active" : ""}
-                onClick={() => setLoyaltyType("tampons")}
-              >
-                🎫 Tampons
-              </button>
-              <button
-                type="button"
-                className={loyaltyType === "points" ? "active" : ""}
-                onClick={() => setLoyaltyType("points")}
-              >
-                🏅 Points
-              </button>
-            </div>
 
             {tiers.map((t, i) => (
               <div key={i} className="tier-block">
@@ -1798,7 +2214,7 @@ export default function Commercant() {
                     maxLength={80}
                   />
                   <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
-                    ✖
+                    <Icon name="x" size={14} />
                   </button>
                 </div>
                 <div className="presets">
@@ -1820,8 +2236,7 @@ export default function Commercant() {
                 .sort((a, b) => a.threshold - b.threshold)
                 .map((t, i) => (
                   <div key={i}>
-                    🎁 À <strong>{t.threshold}</strong> {loyaltyType === "points" ? "point" : "tampon"}
-                    {t.threshold > 1 ? "s" : ""} : <strong>{t.label}</strong>
+                    À <strong>{t.threshold}</strong> point{t.threshold > 1 ? "s" : ""} : <strong>{t.label}</strong>
                   </div>
                 ))}
             </div>
@@ -1841,7 +2256,7 @@ export default function Commercant() {
                 <div className="tiles-row">
                   <div className="stat">
                     <div className="stat-value">{statsData.tiles.pointsThisWeek}</div>
-                    <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} cette semaine</div>
+                    <div className="stat-label">Points cette semaine</div>
                     <Delta pct={statsData.tiles.pointsChangePct} />
                   </div>
                   <div className="stat">
@@ -1877,7 +2292,7 @@ export default function Commercant() {
                   <p className="subtitle">Pas encore de client fidélisé sur cette période.</p>
                 )}
 
-                <p className="chart-title">{loyaltyType === "points" ? "Points" : "Tampons"} distribués par jour (14 derniers jours)</p>
+                <p className="chart-title">Points distribués par jour (14 derniers jours)</p>
                 <BarChart data={statsData.pointsParJour} />
 
                 <p className="chart-title">Heures de pointe</p>
@@ -1891,7 +2306,7 @@ export default function Commercant() {
               </>
             )}
             {!loadingStats && !statsData && (
-              <p className="subtitle">Pas encore de données — reviens après quelques tampons/points ajoutés.</p>
+              <p className="subtitle">Pas encore de données — reviens après quelques points ajoutés.</p>
             )}
 
             <h2 style={{ marginTop: 28 }}>Analyse du menu & suggestions (IA)</h2>
@@ -1930,8 +2345,8 @@ export default function Commercant() {
               tabIndex={0}
             >
               {menuFile ? (
-                <p className="subtitle" style={{ margin: 0 }}>
-                  📎 {menuFile.name} prêt à analyser —{" "}
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à analyser —{" "}
                   <button
                     type="button"
                     className="link-btn"
@@ -1944,17 +2359,17 @@ export default function Commercant() {
                   </button>
                 </p>
               ) : (
-                <p className="subtitle" style={{ margin: 0 }}>
-                  📄 Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="file" size={14} /> Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
                 </p>
               )}
             </div>
             <div className="menu-actions">
-              <button className="secondary" type="button" onClick={saveMenu} disabled={savingMenu}>
-                {savingMenu ? "Enregistrement…" : "💾 Enregistrer le menu"}
+              <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
+                {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
               </button>
-              <button className="primary" type="button" onClick={analyzeWithAI} disabled={analyzing}>
-                {analyzing ? "Analyse en cours…" : "🤖 Analyser avec l'IA"}
+              <button className="primary icon-heading" type="button" onClick={analyzeWithAI} disabled={analyzing}>
+                {analyzing ? "Analyse en cours…" : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
               </button>
             </div>
             {aiResult && aiResult.items && aiResult.items.length > 0 && (
@@ -1974,8 +2389,8 @@ export default function Commercant() {
                   ))}
                 </div>
                 <div className="menu-actions" style={{ marginTop: 10 }}>
-                  <button className="secondary" type="button" onClick={useAiSuggestions}>
-                    ⬇️ Utiliser ces suggestions dans mon offre
+                  <button className="secondary icon-heading" type="button" onClick={useAiSuggestions}>
+                    <Icon name="download" size={15} /> Utiliser ces suggestions dans mon offre
                   </button>
                 </div>
               </>
@@ -1996,23 +2411,10 @@ export default function Commercant() {
               rows={5}
             />
             <div className="menu-actions">
-              <button className="primary" type="button" onClick={saveOffer} disabled={savingOffer}>
-                {savingOffer ? "Enregistrement…" : "💾 Enregistrer mon offre"}
+              <button className="primary icon-heading" type="button" onClick={saveOffer} disabled={savingOffer}>
+                {savingOffer ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer mon offre</>)}
               </button>
             </div>
-          </div>
-        )}
-
-        {role === "owner" && activeTab === "api-dev" && (
-          <div className="card">
-            <h2>API & développeurs</h2>
-            <p className="subtitle">
-              🚧 Bientôt disponible. L'idée : un accès pour connecter
-              Fidélions à ta caisse ou à d'autres outils que tu utilises déjà
-              (clés API, webhooks). Rien à faire pour l'instant — cette page
-              existe pour que tu la retrouves facilement le jour où ce sera
-              prêt.
-            </p>
           </div>
         )}
 
@@ -2046,8 +2448,8 @@ export default function Commercant() {
                 />
               )}
               <input type="file" accept="image/*" ref={logoInputRef} style={{ display: "none" }} onChange={handleLogoChange} />
-              <button type="button" className="secondary" onClick={() => logoInputRef.current?.click()}>
-                📎 Choisir un logo
+              <button type="button" className="secondary icon-heading" onClick={() => logoInputRef.current?.click()}>
+                <Icon name="paperclip" size={15} /> Choisir un logo
               </button>
             </div>
 
@@ -2061,8 +2463,8 @@ export default function Commercant() {
                 />
               )}
               <input type="file" accept="image/*" ref={bannerInputRef} style={{ display: "none" }} onChange={handleBannerChange} />
-              <button type="button" className="secondary" onClick={() => bannerInputRef.current?.click()}>
-                📎 Choisir une bannière
+              <button type="button" className="secondary icon-heading" onClick={() => bannerInputRef.current?.click()}>
+                <Icon name="paperclip" size={15} /> Choisir une bannière
               </button>
             </div>
 
@@ -2097,8 +2499,8 @@ export default function Commercant() {
               {geoSuggestions.length > 0 && (
                 <div className="suggest-list">
                   {geoSuggestions.map((label, i) => (
-                    <button key={i} type="button" onClick={() => pickGeoSuggestion(label)}>
-                      📍 {label}
+                    <button key={i} type="button" className="icon-heading" onClick={() => pickGeoSuggestion(label)}>
+                      <Icon name="mappin" size={14} /> {label}
                     </button>
                   ))}
                 </div>
@@ -2113,7 +2515,7 @@ export default function Commercant() {
             </p>
             <textarea
               className="menu-textarea"
-              placeholder="Ex : On a hâte de vous voir ! Passez nous dire bonjour 👋"
+              placeholder="Ex : On a hâte de vous voir ! Passez nous dire bonjour."
               value={geoMessage}
               onChange={(e) => setGeoMessage(e.target.value)}
               maxLength={200}
@@ -2144,11 +2546,11 @@ export default function Commercant() {
               <p className="subtitle">Chargement du lien…</p>
             )}
             <div className="menu-actions">
-              <button className="secondary" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
-                📋 Copier le lien
+              <button className="secondary icon-heading" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
+                <Icon name="copy" size={15} /> Copier le lien
               </button>
-              <button className="primary" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
-                {regeneratingToken ? "…" : "🔄 Régénérer le lien"}
+              <button className="primary icon-heading" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
+                {regeneratingToken ? "…" : (<><Icon name="refresh" size={15} /> Régénérer le lien</>)}
               </button>
             </div>
           </div>
@@ -2193,17 +2595,21 @@ export default function Commercant() {
                     aria-pressed={on}
                     title={on ? `${d.label} : accès activé` : `${d.label} : accès désactivé`}
                   >
-                    <span className="day-chip-mark">{on ? "✓" : "✕"}</span> {d.label}
+                    <span className="day-chip-mark"><Icon name={on ? "check" : "x"} size={12} /></span> {d.label}
                   </button>
                 );
               })}
             </div>
-            <p className="day-chips-summary">
-              {empDays.length === 0
-                ? "⚠️ Aucun jour activé — l'employé ne pourra jamais se connecter."
-                : empDays.length === 7
-                ? "Accès activé tous les jours."
-                : `Accès activé ${empDays.length} jour${empDays.length > 1 ? "s" : ""} sur 7 : ${DAY_OPTIONS.filter((d) => empDays.includes(d.id)).map((d) => d.label).join(", ")}.`}
+            <p className="day-chips-summary icon-heading">
+              {empDays.length === 0 ? (
+                <>
+                  <Icon name="warning" size={14} /> Aucun jour activé — l'employé ne pourra jamais se connecter.
+                </>
+              ) : empDays.length === 7 ? (
+                "Accès activé tous les jours."
+              ) : (
+                `Accès activé ${empDays.length} jour${empDays.length > 1 ? "s" : ""} sur 7 : ${DAY_OPTIONS.filter((d) => empDays.includes(d.id)).map((d) => d.label).join(", ")}.`
+              )}
             </p>
             <p className="subtitle" style={{ marginBottom: 6 }}>
               Plage horaire (optionnel — laisse vide pour un accès à toute heure les jours cochés)
@@ -2419,14 +2825,14 @@ export default function Commercant() {
                           autoFocus
                         />
                         <button className="primary small" type="button" onClick={() => confirmRename(c)}>
-                          ✔
+                          <Icon name="check" size={14} />
                         </button>
                         <button
                           className="secondary small"
                           type="button"
                           onClick={() => setRenamingId(null)}
                         >
-                          ✖
+                          <Icon name="x" size={14} />
                         </button>
                       </div>
                     ) : (
@@ -2462,23 +2868,23 @@ export default function Commercant() {
                       </button>
                       {openMenuId === c.objectId && (
                         <div className="row-menu">
-                          <button type="button" onClick={() => startRename(c)}>
-                            ✏️ Renommer
+                          <button type="button" className="icon-heading" onClick={() => startRename(c)}>
+                            <Icon name="edit" size={14} /> Renommer
                           </button>
-                          <button type="button" onClick={() => toggleBlock(c)}>
-                            {c.blocked ? "🔓 Débloquer" : "🔒 Bloquer"}
+                          <button type="button" className="icon-heading" onClick={() => toggleBlock(c)}>
+                            <Icon name={c.blocked ? "unlock" : "lock"} size={14} /> {c.blocked ? "Débloquer" : "Bloquer"}
                           </button>
                           {confirmDeleteId === c.objectId ? (
-                            <button type="button" className="danger" onClick={() => doDelete(c)}>
-                              ⚠️ Confirmer la suppression
+                            <button type="button" className="danger icon-heading" onClick={() => doDelete(c)}>
+                              <Icon name="warning" size={14} /> Confirmer la suppression
                             </button>
                           ) : (
                             <button
                               type="button"
-                              className="danger"
+                              className="danger icon-heading"
                               onClick={() => setConfirmDeleteId(c.objectId)}
                             >
-                              🗑️ Supprimer
+                              <Icon name="trash" size={14} /> Supprimer
                             </button>
                           )}
                         </div>
@@ -2494,12 +2900,137 @@ export default function Commercant() {
         {role === "owner" && activeTab === "etablissement" && (
           <div className="card">
             <h2>Établissement</h2>
-            <p className="subtitle">
-              🚧 Bientôt disponible. L'idée : les infos de ton établissement
-              (nom, horaires d'ouverture…) réunies ici. En attendant,
-              l'adresse utilisée pour la géolocalisation se règle dans
-              l'onglet "Géolocalisation".
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Ces informations aident tes clients à te connaître avant de
+              venir. L'adresse utilisée pour les notifications de proximité
+              se règle, elle, dans son propre onglet "Géolocalisation".
             </p>
+            {loadingEstablishment && <p className="subtitle">Chargement…</p>}
+            {!loadingEstablishment && estHours && (
+              <>
+                <p className="subtitle" style={{ marginBottom: 6 }}>Type d'activité</p>
+                <div className="bubble-group">
+                  {BUSINESS_TYPES.map((bt) => (
+                    <button
+                      key={bt.id}
+                      type="button"
+                      className={`bubble-chip${estBusinessType === bt.id ? " active" : ""}`}
+                      onClick={() => setEstBusinessType(bt.id)}
+                    >
+                      {bt.label}
+                    </button>
+                  ))}
+                </div>
+                {estBusinessType === "autre" && (
+                  <input
+                    type="text"
+                    value={estBusinessTypeOther}
+                    onChange={(e) => setEstBusinessTypeOther(e.target.value)}
+                    placeholder="Décris ton activité"
+                    maxLength={60}
+                  />
+                )}
+
+                <p className="subtitle" style={{ marginTop: 6, marginBottom: 6 }}>Coordonnées</p>
+                <input type="tel" value={estPhone} onChange={(e) => setEstPhone(e.target.value)} placeholder="Téléphone" />
+                <input
+                  type="url"
+                  value={estWebsite}
+                  onChange={(e) => setEstWebsite(e.target.value)}
+                  placeholder="Site web (https://...)"
+                />
+                <input
+                  type="text"
+                  value={estInstagram}
+                  onChange={(e) => setEstInstagram(e.target.value)}
+                  placeholder="Instagram (lien ou @pseudo)"
+                />
+                <input
+                  type="text"
+                  value={estFacebook}
+                  onChange={(e) => setEstFacebook(e.target.value)}
+                  placeholder="Facebook (lien)"
+                />
+
+                <p className="subtitle" style={{ marginBottom: 6 }}>À propos</p>
+                <textarea
+                  className="menu-textarea"
+                  value={estDescription}
+                  onChange={(e) => setEstDescription(e.target.value)}
+                  placeholder="Quelques phrases pour te présenter à tes clients…"
+                  maxLength={600}
+                  rows={4}
+                />
+
+                <p className="subtitle" style={{ marginBottom: 6 }}>Horaires d'ouverture</p>
+                <div className="hours-table">
+                  {ESTABLISHMENT_DAYS.map((d) => {
+                    const day = estHours[d.id] || { closed: false, start: "09:00", end: "19:00" };
+                    return (
+                      <div className="hours-row" key={d.id}>
+                        <span className="hours-day">{d.label}</span>
+                        <label className="channel hours-closed-toggle">
+                          <input type="checkbox" checked={!!day.closed} onChange={() => toggleEstDayClosed(d.id)} />
+                          Fermé
+                        </label>
+                        {!day.closed && (
+                          <div className="time-row hours-time-row">
+                            <input
+                              type="time"
+                              value={day.start}
+                              onChange={(e) => updateEstDayTime(d.id, "start", e.target.value)}
+                            />
+                            <span>à</span>
+                            <input
+                              type="time"
+                              value={day.end}
+                              onChange={(e) => updateEstDayTime(d.id, "end", e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="subtitle" style={{ marginTop: 14, marginBottom: 6 }}>Photos (4 maximum)</p>
+                <div className="photo-grid">
+                  {estPhotos.map((url) => (
+                    <div className="photo-thumb" key={url}>
+                      <img src={url} alt="" />
+                      <button type="button" className="photo-remove" onClick={() => removeEstExistingPhoto(url)}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {estNewPhotos.map((p, i) => (
+                    <div className="photo-thumb" key={`new-${i}`}>
+                      <img src={`data:${p.mimeType};base64,${p.base64}`} alt="" />
+                      <button type="button" className="photo-remove" onClick={() => removeEstNewPhoto(i)}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {estPhotos.length + estNewPhotos.length < 4 && (
+                    <button type="button" className="photo-add" onClick={() => estPhotoInputRef.current?.click()}>
+                      <Icon name="paperclip" size={17} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  ref={estPhotoInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleEstPhotoChange}
+                />
+
+                <button className="primary" style={{ marginTop: 14 }} onClick={saveEstablishment} disabled={savingEstablishment}>
+                  {savingEstablishment ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -2507,7 +3038,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Abonnement</h2>
             <p className="subtitle">
-              🚧 Bientôt disponible. Pas de facturation ni d'abonnement payant
+              Bientôt disponible. Pas de facturation ni d'abonnement payant
               pour l'instant — Fidélions tourne pour toi tel quel, sans frais
               caché.
             </p>
@@ -2518,7 +3049,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Paramètres</h2>
             <p className="subtitle">
-              🚧 Bientôt disponible. Le changement de mot de passe et
+              Bientôt disponible. Le changement de mot de passe et
               d'autres réglages de compte viendront ici prochainement.
             </p>
           </div>
@@ -2547,7 +3078,7 @@ export default function Commercant() {
               <summary>La caméra reste noire ou refuse de s'activer</summary>
               <p>
                 L'autorisation caméra du site a été refusée. Sur le téléphone :
-                appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le
+                appuie sur l'icône cadenas/i à côté de l'adresse du site dans le
                 navigateur → Autorisations (ou Paramètres du site) → Caméra →
                 Autoriser, puis recharge la page.
               </p>
@@ -2850,50 +3381,8 @@ const styles = `
     opacity: 0.6;
     cursor: default;
   }
-  .sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .sidebar-logo {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    flex: none;
-  }
-  .sidebar-wordmark {
-    font-size: 17px;
-    font-weight: 800;
-    color: ${PURPLE};
-    letter-spacing: -0.01em;
-  }
-  .tabs {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    margin-bottom: 16px;
-    padding-bottom: 4px;
-  }
-  .tab-btn {
-    flex: none;
-    background: #fff;
-    color: #595959;
-    border: 1.5px solid #e6e2f2;
-    border-radius: 99px;
-    padding: 8px 14px;
-    font-size: 12.5px;
-    font-weight: 700;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .tab-icon {
-    display: inline-block;
-    width: 1.1em;
-  }
-  .tab-group-label {
-    display: none;
-  }
+  /* --- Barre latérale (voir aussi la media query 900px+ en bas de ce
+     fichier pour la version "vraie barre latérale fixe") --- */
   .dashboard {
     display: flex;
     flex-direction: column;
@@ -2901,27 +3390,112 @@ const styles = `
   .dashboard-content {
     min-width: 0;
   }
-  .tab-btn.active {
-    background: ${PURPLE};
-    border-color: ${PURPLE};
-    color: #fff;
-  }
-  .type-toggle {
+  .sidebar {
     display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    margin-bottom: 16px;
+    overflow: hidden;
   }
-  .type-toggle button {
-    flex: 1;
-    width: auto;
-    background: #f3f0fa;
+  .sb-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sb-brand:hover {
+    background: #faf9fd;
+  }
+  .sb-logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    flex: none;
+  }
+  .sb-wordmark {
+    font-size: 15px;
+    font-weight: 800;
     color: ${PURPLE};
-    padding: 10px;
-    font-size: 13px;
+    letter-spacing: -0.01em;
   }
-  .type-toggle button.active {
-    background: ${PURPLE};
-    color: #fff;
+  .sb-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px 10px;
+    border-bottom: 1px solid #ece9f5;
+  }
+  .sb-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: none;
+    border: none;
+    color: #8a8a8a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .sb-icon-btn:hover {
+    background: #f5f4fb;
+    color: ${PURPLE};
+  }
+  .sb-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 10px;
+  }
+  .sb-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: none;
+    border: none;
+    color: #595959;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    flex: none;
+  }
+  .sb-item:hover {
+    background: #faf9fd;
+  }
+  .sb-item.active {
+    background: #f0eef8;
+    color: ${PURPLE};
+  }
+  .sb-item-icon {
+    display: flex;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .sb-section-label {
+    display: none;
+  }
+  .sb-footer {
+    display: none;
+  }
+  .icon-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .tier-row {
     display: flex;
@@ -3359,6 +3933,148 @@ const styles = `
     color: #595959;
     text-align: center;
   }
+  .auth-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .auth-choice button {
+    margin-top: 0;
+  }
+  .step-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .step-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e0dcee;
+  }
+  .step-dots span.active {
+    background: ${PURPLE};
+  }
+  .signup-step {
+    display: flex;
+    flex-direction: column;
+  }
+  .signup-logo-row {
+    margin-bottom: 6px;
+  }
+  .signup-nav-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .signup-nav-row button {
+    width: auto;
+    flex: 1;
+    margin-top: 0;
+  }
+  .bubble-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .bubble-chip {
+    width: auto;
+    background: #f3f0fa;
+    color: ${PURPLE};
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bubble-chip.active {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .hours-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .hours-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #faf9fd;
+    border-radius: 10px;
+  }
+  .hours-day {
+    width: 78px;
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .hours-closed-toggle {
+    flex: none;
+    font-size: 12px;
+    margin-bottom: 0;
+  }
+  .hours-time-row {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 150px;
+  }
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .photo-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #faf9fd;
+  }
+  .photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+  }
+  .photo-add {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 1.5px dashed #c9c2dd;
+    background: #faf9fd;
+    color: ${PURPLE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 0;
+  }
 
   /* Barre latérale + pleine largeur à partir de 900px : placé tout à la
      fin du fichier de styles exprès — ".page"/".wrap" ont aussi des
@@ -3379,63 +4095,122 @@ const styles = `
       max-width: none;
       width: 100%;
       box-sizing: border-box;
-      padding: 32px 40px 60px 272px;
+      padding: 32px 40px 60px 276px;
     }
     .dashboard {
       display: block;
     }
-    .sidebar-brand {
+    .sidebar {
       position: fixed;
       top: 0;
       left: 0;
-      width: 232px;
-      height: 68px;
-      margin-bottom: 0;
-      padding: 0 18px;
-      box-sizing: border-box;
-      background: #fff;
-      border-right: 1px solid #ece9f5;
-      border-bottom: 1px solid #ece9f5;
-      z-index: 6;
-    }
-    .sidebar-logo {
-      width: 38px;
-      height: 38px;
-    }
-    .sidebar-wordmark {
-      font-size: 19px;
-    }
-    .tabs {
-      position: fixed;
-      top: 68px;
-      left: 0;
       bottom: 0;
-      width: 232px;
+      width: 236px;
+      margin-bottom: 0;
+      border-radius: 0;
+      border-right: 1px solid #ece9f5;
+      box-shadow: none;
+      z-index: 6;
+      transition: width 0.15s ease;
+    }
+    .sidebar.collapsed {
+      width: 68px;
+    }
+    .wrap.sb-collapsed {
+      padding-left: 108px;
+    }
+    .sb-brand {
+      padding: 14px 16px;
+    }
+    .sb-topbar {
+      padding: 4px 12px 12px;
+    }
+    .sidebar.collapsed .sb-topbar {
+      justify-content: center;
+      gap: 4px;
+    }
+    .sidebar.collapsed .sb-brand .sb-wordmark,
+    .sidebar.collapsed .sb-topbar .sb-icon-btn:first-child {
+      display: none;
+    }
+    .sb-nav {
+      flex: 1;
       flex-direction: column;
+      align-items: stretch;
       overflow-x: visible;
       overflow-y: auto;
-      margin-bottom: 0;
-      padding: 14px 14px 24px;
-      background: #fff;
-      border-right: 1px solid #ece9f5;
-      gap: 3px;
-      box-sizing: border-box;
-      z-index: 5;
+      padding: 12px;
+      gap: 2px;
     }
-    .tab-btn {
+    .sb-item {
       width: 100%;
-      text-align: left;
-      padding: 11px 14px;
+      padding: 10px 12px;
       border-radius: 10px;
     }
-    .tab-group-label {
+    .sidebar.collapsed .sb-item {
+      justify-content: center;
+      padding: 10px;
+    }
+    .sidebar.collapsed .sb-item-label,
+    .sidebar.collapsed .sb-section-label,
+    .sidebar.collapsed .sb-footer-text,
+    .sidebar.collapsed .sb-footer-chevron {
+      display: none;
+    }
+    .sb-section-label {
       display: block;
-      margin: 20px 10px 8px;
+      margin: 18px 10px 6px;
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.08em;
       color: #a79fc4;
       text-transform: uppercase;
+    }
+    .sb-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #ece9f5;
+    }
+    .sidebar.collapsed .sb-footer {
+      justify-content: center;
+      padding: 14px 8px;
+    }
+    .sb-avatar {
+      width: 30px;
+      height: 30px;
+      flex: none;
+      border-radius: 50%;
+      background: ${PURPLE};
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sb-footer-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .sb-footer-name {
+      font-size: 12.5px;
+      color: #1a1a1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sb-footer-role {
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .sb-footer-chevron {
+      flex: none;
+      color: #a3a3a3;
+      display: flex;
     }
     .dashboard-content {
       width: 100%;

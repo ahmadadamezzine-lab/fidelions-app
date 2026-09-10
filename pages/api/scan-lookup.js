@@ -2,7 +2,7 @@
 //
 // Utilisé par le scanner (espace commerçant ET lien employé /scan/[token])
 // juste après la lecture d'un QR, pour afficher le prénom et le solde du
-// client avant de valider le tampon. Volontairement minimal : seulement
+// client avant de valider le point. Volontairement minimal : seulement
 // l'objectId exact scanné, jamais de recherche par nom — c'est ce qui
 // distingue ce rôle "scanner" de "cashier"/"owner".
 

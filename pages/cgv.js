@@ -31,7 +31,7 @@ export default function CGV() {
         <p>Fidélions est un outil en ligne (SaaS) permettant à un restaurant de :</p>
         <ul>
           <li>générer une carte de fidélité numérique ajoutable directement au portefeuille mobile (Google Wallet) de ses clients, sans installation d'application dédiée ;</li>
-          <li>gérer un programme de fidélité (tampons ou points, à paliers personnalisables) ;</li>
+          <li>gérer un programme de fidélité par points, à paliers personnalisables ;</li>
           <li>envoyer des notifications et campagnes promotionnelles à ses clients inscrits ;</li>
           <li>consulter des statistiques de fréquentation et de fidélité ;</li>
           <li>personnaliser l'apparence de la carte (couleur, logo, bannière) ;</li>

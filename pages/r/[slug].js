@@ -145,7 +145,7 @@ export default function RestaurantSignup() {
                   aucune application à installer.
                 </p>
                 {refCode && (
-                  <p className="refNotice">🎁 Un ami vous a invité — vous démarrez avec un tampon offert !</p>
+                  <p className="refNotice">Un ami vous a invité — vous démarrez avec un point offert !</p>
                 )}
 
                 <form onSubmit={handleAdd}>
@@ -190,11 +190,11 @@ export default function RestaurantSignup() {
               </>
             ) : (
               <>
-                <h1>Votre carte est prête 🎉</h1>
+                <h1>Votre carte est prête !</h1>
                 <p className="subtitle">
                   {result.points > 0
-                    ? `Vous démarrez avec ${result.points} tampon${result.points > 1 ? "s" : ""} !`
-                    : "Ajoutez-la à Google Wallet pour commencer à collectionner vos tampons."}
+                    ? `Vous démarrez avec ${result.points} point${result.points > 1 ? "s" : ""} !`
+                    : "Ajoutez-la à Google Wallet pour commencer à collectionner vos points."}
                 </p>
 
                 <a className="walletBtn" href={result.url}>
@@ -202,9 +202,9 @@ export default function RestaurantSignup() {
                 </a>
 
                 <div className="referralBox">
-                  <p className="referralTitle">Invitez un ami, gagnez un tampon</p>
+                  <p className="referralTitle">Invitez un ami, gagnez un point</p>
                   <p className="referralText">
-                    Partagez votre lien : vous gagnez chacun 1 tampon quand il s'inscrit.
+                    Partagez votre lien : vous gagnez chacun 1 point quand il s'inscrit.
                   </p>
                   <div className="referralRow">
                     <input readOnly value={result.referralUrl} onFocus={(e) => e.target.select()} />

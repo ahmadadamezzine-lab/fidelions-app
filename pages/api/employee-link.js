@@ -1,7 +1,7 @@
 // pages/api/employee-link.js
 //
 // Le lien "employé" (/scan/[token]) donne un accès volontairement très
-// restreint : scanner un QR pour ajouter un tampon/point, rien d'autre —
+// restreint : scanner un QR pour ajouter un point, rien d'autre —
 // pas de liste de clients, pas de recherche, pas de campagnes. Réservé au
 // patron : lui seul peut voir/régénérer ce lien.
 

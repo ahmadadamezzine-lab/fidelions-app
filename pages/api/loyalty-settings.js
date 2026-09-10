@@ -1,8 +1,10 @@
 // pages/api/loyalty-settings.js
 //
-// Choix du mode de fidélité (tampons classiques vs points à paliers
-// multiples, façon Sydely) et des paliers eux-mêmes. Réservé au patron —
-// changer ce réglage change l'expérience de tous les clients.
+// Paliers du programme de fidélité (système unique "points", voir
+// lib/loyalty.js) : un seul palier défini = carte classique à seuil
+// unique, plusieurs paliers = étapes qui se débloquent chacune une fois.
+// Réservé au patron — changer ce réglage change l'expérience de tous les
+// clients.
 
 import { getLoyaltySettings, updateLoyaltySettings, getMerchantById } from "../../lib/db";
 import { patchLoyaltyClassPointsLabel } from "../../lib/walletObjects";
@@ -27,10 +29,7 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { type, tiers } = req.body || {};
-      if (type !== "tampons" && type !== "points") {
-        return res.status(400).json({ error: "Mode de fidélité invalide." });
-      }
+      const { tiers } = req.body || {};
       if (!Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({ error: "Ajoute au moins un palier." });
       }
@@ -47,7 +46,7 @@ export default async function handler(req, res) {
         }
       }
 
-      const settings = await updateLoyaltySettings(merchantId, { type, tiers });
+      const settings = await updateLoyaltySettings(merchantId, { tiers });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
       // valable côté Fidélions, seul le libellé affiché sur Wallet ne
@@ -57,7 +56,7 @@ export default async function handler(req, res) {
         if (!merchant?.walletClassId) {
           throw new Error("Classe Google Wallet introuvable pour ce compte.");
         }
-        await patchLoyaltyClassPointsLabel(merchant.walletClassId, type === "points" ? "Points" : "Tampons");
+        await patchLoyaltyClassPointsLabel(merchant.walletClassId, "Points");
       } catch (err) {
         console.error("Libellé Wallet non mis à jour :", err);
       }
