@@ -1,14 +1,15 @@
 // pages/api/create-pass.js
 //
-// Endpoint appelé par la page d'inscription quand le client clique sur
-// "Ajouter à Google Wallet". Reçoit un prénom (et éventuellement un code
-// de parrainage), enregistre le client en base, ajoute le tampon bonus
-// de parrainage si besoin, et renvoie l'URL du pass + son propre lien de
-// parrainage à partager.
+// Endpoint appelé par la page d'inscription d'UN restaurant (/r/[slug])
+// quand le client clique sur "Ajouter à Google Wallet". Reçoit le slug du
+// restaurant (pour savoir de quel commerçant/quelle classe Wallet il
+// s'agit), un prénom (et éventuellement un code de parrainage), enregistre
+// le client en base, ajoute le tampon bonus de parrainage si besoin, et
+// renvoie l'URL du pass + son propre lien de parrainage à partager.
 
 import { v4 as uuidv4 } from "uuid";
 import { buildSaveToWalletUrl } from "../../lib/wallet";
-import { createClient, addPoints, getSettings } from "../../lib/db";
+import { createClient, addPoints, getSettings, getMerchantBySlug } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 
 export default async function handler(req, res) {
@@ -18,16 +19,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prenom, email, telephone, ref } = req.body || {};
+    const { slug, prenom, email, telephone, ref } = req.body || {};
+
+    const merchant = await getMerchantBySlug(slug);
+    if (!merchant || !merchant.walletClassId) {
+      return res.status(404).json({ error: "Restaurant introuvable." });
+    }
+
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;
     const accountName = (prenom || "").trim() || "Client Fidélions";
 
     const { url, objectId } = buildSaveToWalletUrl({
+      classId: merchant.walletClassId,
       objectSuffix,
       accountName,
     });
 
     const { record, referredByObjectId } = await createClient({
+      merchantId: merchant.id,
       objectId,
       prenom: accountName,
       email,
@@ -40,6 +49,7 @@ export default async function handler(req, res) {
     let finalUrl = url;
     if (record.points > 0) {
       const rebuilt = buildSaveToWalletUrl({
+        classId: merchant.walletClassId,
         objectSuffix,
         accountName,
         initialPoints: record.points,
@@ -52,7 +62,7 @@ export default async function handler(req, res) {
     //    client si ça échoue (ex: parrain sur une ancienne carte de test).
     if (referredByObjectId) {
       try {
-        const updated = await addPoints(referredByObjectId, 1);
+        const updated = await addPoints(merchant.id, referredByObjectId, 1);
         if (updated) {
           await setLoyaltyPoints(referredByObjectId, updated.points);
           await sendWalletMessage(
@@ -66,12 +76,12 @@ export default async function handler(req, res) {
       }
     }
 
-    const { rewardThreshold } = await getSettings();
+    const { rewardThreshold } = await getSettings(merchant.id);
 
     return res.status(200).json({
       url: finalUrl,
       referralCode: record.referralCode,
-      referralUrl: `${getBaseUrl(req)}/?ref=${record.referralCode}`,
+      referralUrl: `${getBaseUrl(req)}/r/${merchant.slug}?ref=${record.referralCode}`,
       points: record.points,
       rewardThreshold,
     });

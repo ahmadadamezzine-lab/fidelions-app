@@ -35,7 +35,10 @@ export default async function handler(req, res) {
   const range = EVOLUTION_RANGES.includes(req.query.range) ? req.query.range : "mois";
 
   try {
-    const [events, clients] = await Promise.all([getRecentEvents(), listClients()]);
+    const [events, clients] = await Promise.all([
+      getRecentEvents(auth.merchantId),
+      listClients(auth.merchantId),
+    ]);
 
     return res.status(200).json({
       tiles: statTiles(events, clients),

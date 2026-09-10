@@ -5,10 +5,10 @@
 // manuelle "modifie ta classe dans la Wallet Console" du README : tout se
 // fait maintenant depuis /commercant. Réservé au patron.
 
-import { getBranding, saveBranding } from "../../lib/db";
+import { getBranding, saveBranding, getMerchantById } from "../../lib/db";
 import { uploadBrandingImage } from "../../lib/blob";
 import { patchLoyaltyClassBranding, describeWalletError } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 // Un logo/bannière encodé en base64 peut peser plusieurs Mo — la limite
 // par défaut de Next (1 Mo) est trop basse (même pattern que analyze-menu).
@@ -25,10 +25,11 @@ export default async function handler(req, res) {
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const branding = await getBranding();
+      const branding = await getBranding(merchantId);
       return res.status(200).json(branding);
     } catch (err) {
       console.error(err);
@@ -47,16 +48,16 @@ export default async function handler(req, res) {
       let logoUrl;
       if (logo && logo.base64 && logo.mimeType) {
         const buffer = Buffer.from(logo.base64, "base64");
-        logoUrl = await uploadBrandingImage(logo.filename || "logo.png", buffer, logo.mimeType);
+        logoUrl = await uploadBrandingImage(`${merchantId}/${logo.filename || "logo.png"}`, buffer, logo.mimeType);
       }
 
       let bannerUrl;
       if (banner && banner.base64 && banner.mimeType) {
         const buffer = Buffer.from(banner.base64, "base64");
-        bannerUrl = await uploadBrandingImage(banner.filename || "banniere.png", buffer, banner.mimeType);
+        bannerUrl = await uploadBrandingImage(`${merchantId}/${banner.filename || "banniere.png"}`, buffer, banner.mimeType);
       }
 
-      const branding = await saveBranding({ hexColor, logoUrl, bannerUrl });
+      const branding = await saveBranding(merchantId, { hexColor, logoUrl, bannerUrl });
 
       // Non bloquant : la carte reste utilisable même si Google refuse la
       // mise à jour visuelle (ex : identifiants Wallet mal configurés) —
@@ -64,7 +65,11 @@ export default async function handler(req, res) {
       let walletUpdated = true;
       let walletError = null;
       try {
-        await patchLoyaltyClassBranding(branding);
+        const merchant = await getMerchantById(merchantId);
+        if (!merchant?.walletClassId) {
+          throw new Error("Classe Google Wallet introuvable pour ce compte.");
+        }
+        await patchLoyaltyClassBranding(merchant.walletClassId, branding);
       } catch (err) {
         console.error("Branding Wallet non appliqué :", err?.response?.data || err);
         walletUpdated = false;

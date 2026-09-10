@@ -354,15 +354,35 @@ function Delta({ pct }) {
 }
 
 export default function Commercant() {
+  // `password` garde son nom historique mais contient depuis le passage
+  // aux comptes un JETON DE SESSION (renvoyé par /api/auth-login ou
+  // /api/auth-signup), plus un mot de passe en clair — c'est ce qui
+  // permet à toutes les requêtes déjà écrites plus bas (headers:
+  // {"x-merchant-password": password}) de continuer à fonctionner sans
+  // rien changer d'autre.
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [checking, setChecking] = useState(false);
 
+  // --- Écran de connexion / inscription (avant authentification) ---
+  const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupRestaurantName, setSignupRestaurantName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+
+  // --- Identité du restaurant connecté (renvoyée par /api/clients juste
+  // après la connexion) — utilisée pour construire le lien public
+  // /r/[slug] affiché dans l'onglet Partager.
+  const [restaurantName, setRestaurantName] = useState("");
+  const [merchantSlug, setMerchantSlug] = useState("");
+
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
-  const [role, setRole] = useState(null); // "owner" | "cashier"
+  const [role, setRole] = useState(null); // "owner" | "employee"
   const [rewardThreshold, setRewardThreshold] = useState(10);
   const [rewardLabel, setRewardLabel] = useState("Récompense fidélité");
   const [activeTab, setActiveTab] = useState("apercu");
@@ -416,17 +436,23 @@ export default function Commercant() {
   const geoDebounceRef = useRef(null);
 
   // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
+  // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
+  // attend d'avoir récupéré le slug (voir tryAuth) avant de générer le QR.
   const [signupQrUrl, setSignupQrUrl] = useState("");
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    QRCode.toDataURL(window.location.origin, { width: 500, margin: 2, color: { dark: "#1a1a1a" } })
+    if (typeof window === "undefined" || !merchantSlug) return;
+    QRCode.toDataURL(`${window.location.origin}/r/${merchantSlug}`, {
+      width: 500,
+      margin: 2,
+      color: { dark: "#1a1a1a" },
+    })
       .then(setSignupQrUrl)
       .catch(() => setSignupQrUrl(""));
-  }, []);
+  }, [merchantSlug]);
   function copySignupLink() {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !merchantSlug) return;
     navigator.clipboard
-      .writeText(window.location.origin)
+      .writeText(`${window.location.origin}/r/${merchantSlug}`)
       .then(() => setMessage({ type: "success", text: "Lien copié !" }))
       .catch(() => setMessage({ type: "error", text: "Impossible de copier — copie-le à la main." }));
   }
@@ -517,7 +543,11 @@ export default function Commercant() {
         headers: { "x-merchant-password": pw },
       });
       if (res.status === 401) {
-        setAuthError("Mot de passe incorrect.");
+        // Ce cas ne se produit plus qu'au rechargement automatique avec un
+        // jeton déjà enregistré sur l'appareil (voir plus bas) — la
+        // connexion elle-même passe maintenant par /api/auth-login, qui
+        // renvoie sa propre erreur avant même d'arriver ici.
+        setAuthError("Session expirée — reconnecte-toi.");
         setChecking(false);
         return;
       }
@@ -527,6 +557,8 @@ export default function Commercant() {
       setRole(data.role || "owner");
       if (data.rewardThreshold) setRewardThreshold(data.rewardThreshold);
       if (data.rewardLabel) setRewardLabel(data.rewardLabel);
+      if (data.restaurantName) setRestaurantName(data.restaurantName);
+      if (data.slug) setMerchantSlug(data.slug);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
 
@@ -597,6 +629,64 @@ export default function Commercant() {
     } catch (err) {
       setAuthError(err.message);
     } finally {
+      setChecking(false);
+    }
+  }
+
+  // --- Connexion (compte déjà créé) ---
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    setChecking(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Connexion impossible.");
+        setChecking(false);
+        return;
+      }
+      setPassword(data.token);
+      await tryAuth(data.token);
+    } catch (err) {
+      setAuthError("Connexion impossible : " + err.message);
+      setChecking(false);
+    }
+  }
+
+  // --- Inscription (nouveau restaurant) ---
+  async function handleSignupSubmit(e) {
+    e.preventDefault();
+    if (signupPassword.length < 8) {
+      setAuthError("Le mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+    setChecking(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupEmail,
+          password: signupPassword,
+          restaurantName: signupRestaurantName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Inscription impossible.");
+        setChecking(false);
+        return;
+      }
+      setPassword(data.token);
+      await tryAuth(data.token);
+    } catch (err) {
+      setAuthError("Inscription impossible : " + err.message);
       setChecking(false);
     }
   }
@@ -1424,26 +1514,93 @@ export default function Commercant() {
     return (
       <div className="page">
         <div className="card">
-          <h1>Espace commerçant</h1>
-          <p className="subtitle">Réservé au restaurant — entrez le mot de passe.</p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              tryAuth(password);
-            }}
-          >
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mot de passe"
-              autoFocus
-            />
-            <button type="submit" disabled={checking}>
-              {checking ? "Vérification…" : "Entrer"}
-            </button>
-          </form>
-          {authError && <p className="error">{authError}</p>}
+          <img src="/logo.png" alt="Fidélions" className="auth-logo" />
+          {authMode === "login" ? (
+            <>
+              <h1>Espace commerçant</h1>
+              <p className="subtitle">Connecte-toi à ton compte restaurant.</p>
+              <form onSubmit={handleLoginSubmit}>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Email du restaurant"
+                  autoFocus
+                  required
+                />
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Mot de passe"
+                  required
+                />
+                <button type="submit" disabled={checking}>
+                  {checking ? "Connexion…" : "Se connecter"}
+                </button>
+              </form>
+              {authError && <p className="error">{authError}</p>}
+              <p className="auth-switch">
+                Pas encore de compte ?{" "}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setAuthError("");
+                  }}
+                >
+                  Crée ton restaurant sur Fidélions
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <h1>Créer mon restaurant</h1>
+              <p className="subtitle">Un compte par restaurant — 2 minutes, sans engagement.</p>
+              <form onSubmit={handleSignupSubmit}>
+                <input
+                  type="text"
+                  value={signupRestaurantName}
+                  onChange={(e) => setSignupRestaurantName(e.target.value)}
+                  placeholder="Nom du restaurant"
+                  autoFocus
+                  required
+                />
+                <input
+                  type="email"
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  placeholder="Ton email"
+                  required
+                />
+                <input
+                  type="password"
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  placeholder="Mot de passe (8 caractères minimum)"
+                  required
+                />
+                <button type="submit" disabled={checking}>
+                  {checking ? "Création…" : "Créer mon compte"}
+                </button>
+              </form>
+              {authError && <p className="error">{authError}</p>}
+              <p className="auth-switch">
+                Déjà un compte ?{" "}
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                  }}
+                >
+                  Connecte-toi
+                </button>
+              </p>
+            </>
+          )}
           <p className="legal-links">
             <Link href="/cgv">CGV</Link>
             <span> · </span>
@@ -1585,7 +1742,9 @@ export default function Commercant() {
               Ou partage directement le lien :
             </p>
             <div className="link-box">
-              {typeof window !== "undefined" ? window.location.origin : ""}
+              {typeof window !== "undefined" && merchantSlug
+                ? `${window.location.origin}/r/${merchantSlug}`
+                : ""}
             </div>
             <button className="secondary" type="button" onClick={copySignupLink}>
               📋 Copier le lien
@@ -2359,11 +2518,8 @@ export default function Commercant() {
           <div className="card">
             <h2>Paramètres</h2>
             <p className="subtitle">
-              🚧 Bientôt disponible. Le mot de passe de cet espace commerçant
-              se change pour l'instant dans les variables d'environnement de
-              ton hébergement (Vercel → Settings → Environment Variables →
-              `MERCHANT_PASSWORD`) ; d'autres réglages de compte viendront
-              ici.
+              🚧 Bientôt disponible. Le changement de mot de passe et
+              d'autres réglages de compte viendront ici prochainement.
             </p>
           </div>
         )}
@@ -3190,6 +3346,18 @@ const styles = `
   .legal-links :global(a) {
     color: #b3b3b3;
     text-decoration: underline;
+  }
+  .auth-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+  .auth-switch {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #595959;
+    text-align: center;
   }
 
   /* Barre latérale + pleine largeur à partir de 900px : placé tout à la

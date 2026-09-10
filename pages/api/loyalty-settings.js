@@ -4,19 +4,20 @@
 // multiples, façon Sydely) et des paliers eux-mêmes. Réservé au patron —
 // changer ce réglage change l'expérience de tous les clients.
 
-import { getLoyaltySettings, updateLoyaltySettings } from "../../lib/db";
+import { getLoyaltySettings, updateLoyaltySettings, getMerchantById } from "../../lib/db";
 import { patchLoyaltyClassPointsLabel } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const settings = await getLoyaltySettings();
+      const settings = await getLoyaltySettings(merchantId);
       return res.status(200).json(settings);
     } catch (err) {
       console.error(err);
@@ -46,13 +47,17 @@ export default async function handler(req, res) {
         }
       }
 
-      const settings = await updateLoyaltySettings({ type, tiers });
+      const settings = await updateLoyaltySettings(merchantId, { type, tiers });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
       // valable côté Fidélions, seul le libellé affiché sur Wallet ne
       // change pas tout de suite.
       try {
-        await patchLoyaltyClassPointsLabel(type === "points" ? "Points" : "Tampons");
+        const merchant = await getMerchantById(merchantId);
+        if (!merchant?.walletClassId) {
+          throw new Error("Classe Google Wallet introuvable pour ce compte.");
+        }
+        await patchLoyaltyClassPointsLabel(merchant.walletClassId, type === "points" ? "Points" : "Tampons");
       } catch (err) {
         console.error("Libellé Wallet non mis à jour :", err);
       }

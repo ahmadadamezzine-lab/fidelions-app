@@ -10,20 +10,21 @@
 // carte, car Google ne permet pas de personnaliser le texte du popup natif
 // de proximité via l'API publique. Réservé au patron.
 
-import { getGeoSettings, saveGeoSettings } from "../../lib/db";
+import { getGeoSettings, saveGeoSettings, getMerchantById } from "../../lib/db";
 import { geocodeAddress } from "../../lib/geocode";
 import { patchLoyaltyClassLocations, patchLoyaltyClassMessage, describeWalletError } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const geo = await getGeoSettings();
+      const geo = await getGeoSettings(merchantId);
       return res.status(200).json(geo);
     } catch (err) {
       console.error(err);
@@ -51,13 +52,20 @@ export default async function handler(req, res) {
         lng = found.lng;
       }
 
-      const geo = await saveGeoSettings({ enabled, address, lat, lng, message });
+      const geo = await saveGeoSettings(merchantId, { enabled, address, lat, lng, message });
 
       let walletUpdated = true;
       let walletError = null;
       try {
-        await patchLoyaltyClassLocations(geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []);
-        await patchLoyaltyClassMessage(geo.message);
+        const merchant = await getMerchantById(merchantId);
+        if (!merchant?.walletClassId) {
+          throw new Error("Classe Google Wallet introuvable pour ce compte.");
+        }
+        await patchLoyaltyClassLocations(
+          merchant.walletClassId,
+          geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []
+        );
+        await patchLoyaltyClassMessage(merchant.walletClassId, geo.message);
       } catch (err) {
         console.error("Localisation/message Wallet non appliqués :", err?.response?.data || err);
         walletUpdated = false;

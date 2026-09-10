@@ -6,17 +6,18 @@
 // font côté frontend (lib/menuAnalysis, pas d'IA payante ici).
 
 import { getMenuText, saveMenuText } from "../../lib/db";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const menuText = await getMenuText();
+      const menuText = await getMenuText(merchantId);
       return res.status(200).json({ menuText });
     } catch (err) {
       console.error(err);
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
       if (!menuText || !menuText.trim()) {
         return res.status(400).json({ error: "Le menu est vide." });
       }
-      const saved = await saveMenuText(menuText);
+      const saved = await saveMenuText(merchantId, menuText);
       return res.status(200).json({ menuText: saved });
     } catch (err) {
       console.error(err);

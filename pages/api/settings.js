@@ -5,18 +5,19 @@
 // jamais avoir à toucher au code — exactement ce que fait Fidelix.
 
 import { getSettings, updateSettings } from "../../lib/db";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
-  // Réglé uniquement par le patron (owner), pas par un caissier.
+  // Réglé uniquement par le patron (owner).
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const settings = await getSettings();
+      const settings = await getSettings(merchantId);
       return res.status(200).json(settings);
     } catch (err) {
       console.error(err);
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "La description de la récompense est trop longue (80 caractères max)." });
       }
 
-      const settings = await updateSettings({ rewardThreshold: threshold, rewardLabel: cleanLabel });
+      const settings = await updateSettings(merchantId, { rewardThreshold: threshold, rewardLabel: cleanLabel });
       return res.status(200).json(settings);
     } catch (err) {
       console.error(err);

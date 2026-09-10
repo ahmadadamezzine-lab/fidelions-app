@@ -7,7 +7,7 @@
 // exactement comme getRoleAsync (lib/auth.js) les revérifie à chaque fois —
 // rien n'est stocké côté serveur au-delà du token/PIN déjà en base.
 
-import { isValidEmployeeToken, findEmployeeByPin } from "../../lib/db";
+import { getMerchantIdForEmployeeToken, findEmployeeByPin } from "../../lib/db";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,11 +17,12 @@ export default async function handler(req, res) {
 
   try {
     const { token, pin } = req.body || {};
-    if (!token || !(await isValidEmployeeToken(token))) {
+    const merchantId = token ? await getMerchantIdForEmployeeToken(token) : null;
+    if (!merchantId) {
       return res.status(401).json({ error: "Lien invalide ou expiré — demande un nouveau lien à ton responsable." });
     }
 
-    const employee = await findEmployeeByPin(pin);
+    const employee = await findEmployeeByPin(merchantId, pin);
     if (!employee) {
       return res
         .status(401)

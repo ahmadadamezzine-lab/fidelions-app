@@ -14,8 +14,8 @@ export default async function handler(req, res) {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  const role = await getRoleAsync(req);
-  if (!role) {
+  const auth = await getRoleAsync(req);
+  if (!auth) {
     return res.status(401).json({ error: "Accès refusé." });
   }
 
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Identifiant client manquant." });
     }
 
-    const client = await getClient(objectId);
+    const client = await getClient(auth.merchantId, objectId);
     if (!client) {
       return res
         .status(404)

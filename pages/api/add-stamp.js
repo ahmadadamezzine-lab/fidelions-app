@@ -16,12 +16,13 @@ export default async function handler(req, res) {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  // Le patron, le caissier, ET le lien employé (scan seul) peuvent ajouter
-  // un tampon/point — c'est la seule action que ce dernier autorise.
-  const role = await getRoleAsync(req);
-  if (!role) {
+  // Le patron ET le lien employé (scan seul) peuvent ajouter un
+  // tampon/point — c'est la seule action que ce dernier autorise.
+  const auth = await getRoleAsync(req);
+  if (!auth) {
     return res.status(401).json({ error: "Accès refusé." });
   }
+  const merchantId = auth.merchantId;
 
   try {
     const { objectId } = req.body || {};
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Identifiant client manquant." });
     }
 
-    const existing = await getClient(objectId);
+    const existing = await getClient(merchantId, objectId);
     if (!existing) {
       return res
         .status(404)
@@ -41,8 +42,8 @@ export default async function handler(req, res) {
         .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un tampon." });
     }
 
-    const { type, tiers } = await getLoyaltySettings();
-    const updated = await addPoints(objectId, 1);
+    const { type, tiers } = await getLoyaltySettings(merchantId);
+    const updated = await addPoints(merchantId, objectId, 1);
     const unit = type === "points" ? "point" : "tampon";
     const walletLabel = type === "points" ? "Points" : "Tampons";
 
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
       const result = computePointsRewards(updated.points, tiers, existing.unlockedTiers);
       rewardReached = result.rewardReached;
       if (rewardReached) {
-        await markTiersUnlocked(objectId, result.newlyUnlockedIndexes);
+        await markTiersUnlocked(merchantId, objectId, result.newlyUnlockedIndexes);
         notifHeader = "Récompense débloquée !";
         notifBody = `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`;
       } else {
@@ -79,7 +80,7 @@ export default async function handler(req, res) {
     }
 
     await setLoyaltyPoints(objectId, updated.points, walletLabel);
-    await logStampEvent({ objectId, delta: 1, rewardReached });
+    await logStampEvent(merchantId, { objectId, delta: 1, rewardReached });
 
     // Le tampon lui-même (solde + base de données) est déjà enregistré à ce
     // stade. La notification est un bonus : si Google refuse (ex : quota de

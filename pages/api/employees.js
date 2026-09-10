@@ -9,17 +9,18 @@
 // une restriction de l'API elle-même.
 
 import { getEmployees, upsertEmployee, deleteEmployee } from "../../lib/db";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const employees = await getEmployees();
+      const employees = await getEmployees(merchantId);
       return res.status(200).json({ employees });
     } catch (err) {
       console.error(err);
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
 
       if (action === "delete") {
         if (!id) return res.status(400).json({ error: "Identifiant manquant." });
-        const employees = await deleteEmployee(id);
+        const employees = await deleteEmployee(merchantId, id);
         return res.status(200).json({ employees });
       }
 
@@ -54,15 +55,15 @@ export default async function handler(req, res) {
         // connexion (le premier trouvé dans la liste serait authentifié à
         // la place de l'autre, avec son nom et ses permissions) — un code
         // doit donc être unique dans l'équipe.
-        const existingEmployees = await getEmployees();
+        const existingEmployees = await getEmployees(merchantId);
         const clash = existingEmployees.find((e) => e.pin === pin && e.id !== id);
         if (clash) {
           return res.status(400).json({ error: `Ce code est déjà utilisé par ${clash.name}. Choisis un autre code à 4 chiffres.` });
         }
       }
 
-      const employee = await upsertEmployee({ id, name, pin, active, days, startTime, endTime, permissions });
-      const employees = await getEmployees();
+      const employee = await upsertEmployee(merchantId, { id, name, pin, active, days, startTime, endTime, permissions });
+      const employees = await getEmployees(merchantId);
       return res.status(200).json({ employee, employees });
     } catch (err) {
       console.error(err);

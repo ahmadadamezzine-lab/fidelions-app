@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     }
 
     // Les clients bloqués ne reçoivent aucune campagne.
-    const clients = (await listClients()).filter((c) => !c.blocked);
+    const clients = (await listClients(auth.merchantId)).filter((c) => !c.blocked);
     if (clients.length === 0) {
       return res.status(400).json({ error: "Aucun client à qui envoyer la campagne pour le moment." });
     }

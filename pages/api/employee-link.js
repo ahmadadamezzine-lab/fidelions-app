@@ -6,17 +6,18 @@
 // patron : lui seul peut voir/régénérer ce lien.
 
 import { getEmployeeLinkToken, regenerateEmployeeLinkToken } from "../../lib/db";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
     return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const token = await getEmployeeLinkToken();
+      const token = await getEmployeeLinkToken(merchantId);
       return res.status(200).json({ token });
     } catch (err) {
       console.error(err);
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
     // Régénère le lien — l'ancien arrête de fonctionner immédiatement
     // (utile si un employé quitte le restaurant).
     try {
-      const token = await regenerateEmployeeLinkToken();
+      const token = await regenerateEmployeeLinkToken(merchantId);
       return res.status(200).json({ token });
     } catch (err) {
       console.error(err);
