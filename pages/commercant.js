@@ -2390,7 +2390,13 @@ export default function Commercant() {
               ))}
             </nav>
             <div className="sb-footer">
-              <div className="sb-avatar">{(restaurantName || "F").trim().charAt(0).toUpperCase()}</div>
+              <div className="sb-avatar">
+                {brandingInfo?.logoUrl ? (
+                  <img src={brandingInfo.logoUrl} alt="" />
+                ) : (
+                  (restaurantName || "F").trim().charAt(0).toUpperCase()
+                )}
+              </div>
               <div className="sb-footer-text">
                 <strong className="sb-footer-name">{restaurantName || "Mon établissement"}</strong>
                 <span className="sb-footer-role">Commerçant</span>
@@ -3212,43 +3218,46 @@ export default function Commercant() {
 
         {role === "owner" && activeTab === "etablissement" && (
           <div className="card">
-            <h2>Établissement</h2>
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Ces informations aident tes clients à te connaître avant de
-              venir. L'adresse utilisée pour les notifications de proximité
-              se règle, elle, dans son propre onglet "Géolocalisation".
-            </p>
+            <div className="est-header">
+              <div className="est-logo-col">
+                {brandingInfo?.logoUrl ? (
+                  <img className="est-logo-preview" src={brandingInfo.logoUrl} alt="Logo actuel" />
+                ) : (
+                  <div className="est-logo-placeholder">
+                    {(restaurantName || "F").trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={estLogoInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleEstLogoChange}
+                />
+                <button
+                  type="button"
+                  className="secondary icon-heading est-logo-btn"
+                  onClick={() => estLogoInputRef.current?.click()}
+                  disabled={savingEstLogo}
+                >
+                  <Icon name="paperclip" size={13} />{" "}
+                  {savingEstLogo ? "Enregistrement…" : "Changer le logo"}
+                </button>
+              </div>
+              <div className="est-header-text">
+                <p className="est-eyebrow">Établissement</p>
+                <h2 className="est-name">{restaurantName || "Mon établissement"}</h2>
+                <p className="subtitle">
+                  Ces informations aident tes clients à te connaître avant de
+                  venir. L'adresse utilisée pour les notifications de proximité
+                  se règle, elle, dans son propre onglet "Géolocalisation".
+                </p>
+              </div>
+            </div>
             {loadingEstablishment && <p className="subtitle">Chargement…</p>}
             {!loadingEstablishment && estHours && (
               <>
-                <p className="subtitle" style={{ marginBottom: 6 }}>Logo</p>
-                <div className="est-logo-row">
-                  {brandingInfo?.logoUrl ? (
-                    <img className="est-logo-preview" src={brandingInfo.logoUrl} alt="Logo actuel" />
-                  ) : (
-                    <div className="est-logo-placeholder">
-                      {(restaurantName || "F").trim().charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={estLogoInputRef}
-                    style={{ display: "none" }}
-                    onChange={handleEstLogoChange}
-                  />
-                  <button
-                    type="button"
-                    className="secondary icon-heading"
-                    onClick={() => estLogoInputRef.current?.click()}
-                    disabled={savingEstLogo}
-                  >
-                    <Icon name="paperclip" size={15} />{" "}
-                    {savingEstLogo ? "Enregistrement…" : "Changer le logo"}
-                  </button>
-                </div>
-
-                <p className="subtitle" style={{ marginBottom: 6 }}>Type d'activité</p>
+                <p className="subtitle" style={{ marginBottom: 6, marginTop: 4 }}>Type d'activité</p>
                 <div className="bubble-group">
                   {BUSINESS_TYPES.map((bt) => (
                     <button
@@ -4482,37 +4491,63 @@ const styles = `
     margin-top: 0;
   }
 
-  /* Logo de la fiche établissement (onglet Établissement) */
-  .est-logo-row {
+  /* En-tête de la fiche établissement (onglet Établissement) : logo à
+     gauche, nom de l'établissement à droite. */
+  .est-header {
     display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .est-logo-col {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 8px;
+    flex: none;
   }
   .est-logo-preview {
-    width: 64px;
-    height: 64px;
-    border-radius: 14px;
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
     object-fit: cover;
     background: #faf9fd;
     flex: none;
   }
   .est-logo-placeholder {
-    width: 64px;
-    height: 64px;
-    border-radius: 14px;
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
     background: ${PURPLE};
     color: #fff;
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
     flex: none;
   }
-  .est-logo-row button.secondary {
+  .est-logo-btn {
     width: auto;
     margin-top: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .est-header-text {
+    flex: 1;
+    min-width: 200px;
+  }
+  .est-eyebrow {
+    margin: 0 0 2px;
+    color: #8a8a8a;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .est-name {
+    margin: 0 0 8px;
   }
 
   /* Recadreur de logo (modal partagé — voir LogoCropper) */
@@ -4718,6 +4753,12 @@ const styles = `
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+    .sb-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .sb-footer-text {
       display: flex;

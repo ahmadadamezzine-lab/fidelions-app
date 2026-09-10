@@ -64,7 +64,9 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error("Échec d'envoi du code de vérification :", err);
         return res.status(500).json({
-          error: "Impossible d'envoyer le code de vérification par email pour le moment. Réessaie plus tard.",
+          error: `Impossible d'envoyer le code de vérification par email : ${
+            err.message || "erreur inconnue"
+          }`,
         });
       }
       return res.status(200).json({ maskedEmail });
