@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Paramètre restaurantName manquant (le nom de ton commerce)." });
   }
   if (!password) {
-    return res.status(400).json({ error: "Paramètre password manquant (choisis un mot de passe d'au moins 8 caractères)." });
+    return res.status(400).json({ error: "Paramètre password manquant (choisis un mot de passe d'au moins 4 caractères)." });
   }
   if (!walletClassId) {
     return res

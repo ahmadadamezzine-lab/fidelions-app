@@ -301,6 +301,159 @@ function readFileAsBase64(file) {
   });
 }
 
+// Recadreur de logo partagé (carré, glisser pour déplacer, molette/curseur
+// pour zoomer) — aucune librairie de crop n'étant installable, tout est
+// fait à la main : un <img> "cover"-fitté dans un cadre fixe de
+// VIEWPORT×VIEWPORT px, un décalage (offset) borné pour ne jamais laisser
+// de zone vide visible, et un rendu final sur un <canvas> hors écran au
+// moment de valider. Utilisé par les 3 sélecteurs de logo de la page (voir
+// cropperTarget dans le composant principal) — un seul modal, jamais
+// dupliqué trois fois.
+const CROP_VIEWPORT = 280;
+const CROP_OUTPUT = 512;
+
+function clampCropOffset(offset, maxX, maxY) {
+  return {
+    x: Math.min(maxX, Math.max(-maxX, offset.x)),
+    y: Math.min(maxY, Math.max(-maxY, offset.y)),
+  };
+}
+
+function LogoCropper({ file, onCancel, onConfirm }) {
+  const [imgUrl, setImgUrl] = useState("");
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const imgRef = useRef(null);
+  const dragRef = useRef(null);
+
+  useEffect(() => {
+    if (!file) return undefined;
+    const url = URL.createObjectURL(file);
+    setImgUrl(url);
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+    const probe = new Image();
+    probe.onload = () => setNatural({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const baseScale = natural.w && natural.h ? Math.max(CROP_VIEWPORT / natural.w, CROP_VIEWPORT / natural.h) : 1;
+  const scale = baseScale * zoom;
+  const scaledW = natural.w * scale;
+  const scaledH = natural.h * scale;
+  const maxOffsetX = Math.max(0, (scaledW - CROP_VIEWPORT) / 2);
+  const maxOffsetY = Math.max(0, (scaledH - CROP_VIEWPORT) / 2);
+
+  // Re-borne le décalage à chaque changement de zoom (ou une fois l'image
+  // chargée) — sans ça, dézoomer après avoir déplacé l'image en bord ferait
+  // apparaître une bande vide.
+  useEffect(() => {
+    setOffset((prev) => clampCropOffset(prev, maxOffsetX, maxOffsetY));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom, natural.w, natural.h]);
+
+  function onPointerDown(e) {
+    if (!natural.w) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore — certains navigateurs mobiles anciens n'ont pas cette API
+    }
+    dragRef.current = { startX: e.clientX, startY: e.clientY, offX: offset.x, offY: offset.y };
+  }
+  function onPointerMove(e) {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setOffset(
+      clampCropOffset({ x: dragRef.current.offX + dx, y: dragRef.current.offY + dy }, maxOffsetX, maxOffsetY)
+    );
+  }
+  function onPointerUp(e) {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    dragRef.current = null;
+  }
+
+  function handleConfirm() {
+    if (!natural.w || !natural.h || !imgRef.current) return;
+    // Portion (en pixels réels de l'image source) qui correspond au cadre
+    // carré actuellement visible, compte tenu du zoom et du glissement —
+    // voir le commentaire au-dessus du composant.
+    const srcW = CROP_VIEWPORT / scale;
+    const srcH = CROP_VIEWPORT / scale;
+    const srcX = (-CROP_VIEWPORT / 2 - offset.x) / scale + natural.w / 2;
+    const srcY = (-CROP_VIEWPORT / 2 - offset.y) / scale + natural.h / 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = CROP_OUTPUT;
+    canvas.height = CROP_OUTPUT;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgRef.current, srcX, srcY, srcW, srcH, 0, 0, CROP_OUTPUT, CROP_OUTPUT);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    const base64 = dataUrl.split(",")[1] || "";
+    onConfirm(base64, "image/jpeg");
+  }
+
+  return (
+    <div className="crop-backdrop" onClick={onCancel}>
+      <div className="crop-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="crop-modal-head">
+          <h3>Recadrer le logo</h3>
+          <button type="button" className="crop-close" onClick={onCancel} aria-label="Fermer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div
+          className="crop-viewport"
+          style={{ width: CROP_VIEWPORT, height: CROP_VIEWPORT }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        >
+          {imgUrl && (
+            <img
+              ref={imgRef}
+              src={imgUrl}
+              alt=""
+              draggable={false}
+              className="crop-img"
+              style={{
+                width: scaledW || undefined,
+                height: scaledH || undefined,
+                transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+              }}
+            />
+          )}
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="3"
+          step="0.01"
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="crop-zoom"
+          disabled={!natural.w}
+        />
+        <div className="crop-actions">
+          <button type="button" className="secondary" onClick={onCancel}>
+            Annuler
+          </button>
+          <button type="button" className="primary" onClick={handleConfirm} disabled={!natural.w}>
+            Valider le recadrage
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Petit graphe en barres, une seule teinte (violet Fidélions) — inutile
 // d'avoir une légende ou un dégradé de couleurs pour une seule série.
 // Survol = tooltip avec la valeur exacte, comme sur les vrais tableaux de
@@ -550,6 +703,24 @@ export default function Commercant() {
   const [estPhotos, setEstPhotos] = useState([]); // URLs déjà enregistrées
   const [estNewPhotos, setEstNewPhotos] = useState([]); // { base64, mimeType, filename } en attente d'envoi
   const estPhotoInputRef = useRef(null);
+  const estLogoInputRef = useRef(null);
+  const [savingEstLogo, setSavingEstLogo] = useState(false);
+
+  // --- Recadrage de logo (modal partagé par les 3 sélecteurs de logo :
+  // inscription, "Ma carte", Établissement) — cropperTarget dit quel
+  // sélecteur a ouvert le modal, pour router le résultat vers le bon état.
+  const [cropperFile, setCropperFile] = useState(null); // File brut en attente de recadrage, ou null
+  const [cropperTarget, setCropperTarget] = useState(null); // "signup" | "branding" | "establishment" | null
+
+  // --- Changement de mot de passe (onglet Paramètres) : mot de passe actuel
+  // → code à 4 chiffres envoyé par email → nouveau mot de passe.
+  const [pwStep, setPwStep] = useState("idle"); // "idle" | "current" | "code"
+  const [pwCurrentInput, setPwCurrentInput] = useState("");
+  const [pwCode, setPwCode] = useState("");
+  const [pwNewPassword, setPwNewPassword] = useState("");
+  const [pwRequesting, setPwRequesting] = useState(false);
+  const [pwConfirming, setPwConfirming] = useState(false);
+  const [pwMaskedEmail, setPwMaskedEmail] = useState("");
 
   // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
   // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
@@ -794,16 +965,20 @@ export default function Commercant() {
   // (optionnel), puis un seul appel à /api/auth-signup avec tout ce qui a
   // été accumulé — pas d'écran de confirmation intermédiaire, accès direct
   // au tableau de bord dès le succès, comme avant l'assistant.
-  async function handleSignupLogoChange(e) {
+  function handleSignupLogoChange(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setAuthError("Logo trop lourd (4 Mo max).");
+    if (!file.type.startsWith("image/")) {
+      setAuthError("Le logo doit être une image.");
       return;
     }
-    const encoded = await readFileAsBase64(file);
-    setSignupLogo(encoded);
+    if (file.size > 8 * 1024 * 1024) {
+      setAuthError("Logo trop lourd (8 Mo max).");
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("signup");
   }
 
   function goSignupStep2() {
@@ -840,8 +1015,8 @@ export default function Commercant() {
 
   async function handleSignupSubmit(e) {
     e.preventDefault();
-    if (signupPassword.length < 8) {
-      setAuthError("Le mot de passe doit faire au moins 8 caractères.");
+    if (signupPassword.length < 4) {
+      setAuthError("Le mot de passe doit faire au moins 4 caractères.");
       return;
     }
     setChecking(true);
@@ -1352,17 +1527,82 @@ export default function Commercant() {
     }
   }
 
-  // --- Personnalisation de la carte ---
-  async function handleLogoChange(e) {
+  // Logo de la fiche établissement : contrairement au reste de l'onglet
+  // (bouton "Enregistrer" unique), le logo est enregistré immédiatement dès
+  // le recadrage validé — c'est la même image que celle de l'onglet "Ma
+  // carte" (voir /api/branding), pas un champ propre à la fiche établissement.
+  function handleEstLogoChange(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Logo trop lourd (4 Mo max)." });
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Le logo doit être une image." });
       return;
     }
-    const encoded = await readFileAsBase64(file);
-    setLogoFile(encoded);
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo trop lourd (8 Mo max)." });
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("establishment");
+  }
+
+  async function saveEstLogo(base64, mimeType) {
+    setSavingEstLogo(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/branding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ logo: { base64, mimeType, filename: "logo.jpg" } }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setBrandingInfo(data);
+      setMessage({ type: "success", text: "Logo mis à jour." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEstLogo(false);
+    }
+  }
+
+  // --- Recadrage de logo : point d'entrée unique du modal partagé (voir
+  // LogoCropper plus haut) — route le résultat vers le bon état selon quel
+  // sélecteur a ouvert le modal.
+  function handleCropConfirm(base64, mimeType) {
+    const target = cropperTarget;
+    setCropperFile(null);
+    setCropperTarget(null);
+    if (target === "signup") {
+      setSignupLogo({ base64, mimeType, filename: "logo.jpg" });
+    } else if (target === "branding") {
+      setLogoFile({ base64, mimeType, filename: "logo.jpg" });
+    } else if (target === "establishment") {
+      saveEstLogo(base64, mimeType);
+    }
+  }
+
+  function handleCropCancel() {
+    setCropperFile(null);
+    setCropperTarget(null);
+  }
+
+  // --- Personnalisation de la carte ---
+  function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Le logo doit être une image." });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo trop lourd (8 Mo max)." });
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("branding");
   }
 
   async function handleBannerChange(e) {
@@ -1408,6 +1648,74 @@ export default function Commercant() {
       setMessage({ type: "error", text: err.message });
     } finally {
       setSavingBranding(false);
+    }
+  }
+
+  // --- Changement de mot de passe (onglet Paramètres) ---
+  function pwStartFlow() {
+    setMessage(null);
+    setPwStep("current");
+  }
+
+  function pwCancelToIdle() {
+    setPwStep("idle");
+    setPwCurrentInput("");
+    setPwCode("");
+    setPwNewPassword("");
+    setPwMaskedEmail("");
+  }
+
+  async function pwSubmitCurrent() {
+    if (!pwCurrentInput) {
+      setMessage({ type: "error", text: "Saisis ton mot de passe actuel." });
+      return;
+    }
+    setPwRequesting(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ step: "request", currentPassword: pwCurrentInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setPwMaskedEmail(data.maskedEmail || "");
+      setPwCode("");
+      setPwNewPassword("");
+      setPwStep("code");
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setPwRequesting(false);
+    }
+  }
+
+  async function pwSubmitConfirm() {
+    if (!/^[0-9]{4}$/.test(pwCode)) {
+      setMessage({ type: "error", text: "Le code doit contenir 4 chiffres." });
+      return;
+    }
+    if (pwNewPassword.length < 4) {
+      setMessage({ type: "error", text: "Le mot de passe doit faire au moins 4 caractères." });
+      return;
+    }
+    setPwConfirming(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ step: "confirm", code: pwCode, newPassword: pwNewPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setMessage({ type: "success", text: "Mot de passe modifié." });
+      pwCancelToIdle();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setPwConfirming(false);
     }
   }
 
@@ -1962,7 +2270,7 @@ export default function Commercant() {
                     type="password"
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
-                    placeholder="Mot de passe (8 caractères minimum)"
+                    placeholder="Mot de passe (4 caractères minimum)"
                     required
                   />
                   <input
@@ -1998,6 +2306,9 @@ export default function Commercant() {
             <Link href="/confidentialite">Confidentialité</Link>
           </p>
         </div>
+        {cropperFile && cropperTarget && (
+          <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+        )}
         <style jsx>{styles}</style>
       </div>
     );
@@ -2910,6 +3221,33 @@ export default function Commercant() {
             {loadingEstablishment && <p className="subtitle">Chargement…</p>}
             {!loadingEstablishment && estHours && (
               <>
+                <p className="subtitle" style={{ marginBottom: 6 }}>Logo</p>
+                <div className="est-logo-row">
+                  {brandingInfo?.logoUrl ? (
+                    <img className="est-logo-preview" src={brandingInfo.logoUrl} alt="Logo actuel" />
+                  ) : (
+                    <div className="est-logo-placeholder">
+                      {(restaurantName || "F").trim().charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={estLogoInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleEstLogoChange}
+                  />
+                  <button
+                    type="button"
+                    className="secondary icon-heading"
+                    onClick={() => estLogoInputRef.current?.click()}
+                    disabled={savingEstLogo}
+                  >
+                    <Icon name="paperclip" size={15} />{" "}
+                    {savingEstLogo ? "Enregistrement…" : "Changer le logo"}
+                  </button>
+                </div>
+
                 <p className="subtitle" style={{ marginBottom: 6 }}>Type d'activité</p>
                 <div className="bubble-group">
                   {BUSINESS_TYPES.map((bt) => (
@@ -3050,10 +3388,73 @@ export default function Commercant() {
         {role === "owner" && activeTab === "parametres" && (
           <div className="card">
             <h2>Paramètres</h2>
-            <p className="subtitle">
-              Bientôt disponible. Le changement de mot de passe et
-              d'autres réglages de compte viendront ici prochainement.
-            </p>
+
+            {pwStep === "idle" && (
+              <>
+                <p className="subtitle">
+                  Change le mot de passe de ton compte. Une vérification par
+                  email (code à 4 chiffres) te sera demandée avant de
+                  valider le nouveau mot de passe.
+                </p>
+                <button type="button" className="primary small" onClick={pwStartFlow}>
+                  Changer le mot de passe
+                </button>
+              </>
+            )}
+
+            {pwStep === "current" && (
+              <div className="pw-flow">
+                <p className="subtitle" style={{ marginBottom: 10 }}>
+                  Confirme ton mot de passe actuel.
+                </p>
+                <input
+                  type="password"
+                  value={pwCurrentInput}
+                  onChange={(e) => setPwCurrentInput(e.target.value)}
+                  placeholder="Mot de passe actuel"
+                  autoFocus
+                />
+                <div className="pw-flow-actions">
+                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwRequesting}>
+                    Annuler
+                  </button>
+                  <button type="button" className="primary" onClick={pwSubmitCurrent} disabled={pwRequesting}>
+                    {pwRequesting ? "Vérification…" : "Valider"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {pwStep === "code" && (
+              <div className="pw-flow">
+                <p className="subtitle" style={{ marginBottom: 10 }}>
+                  Un code a été envoyé à {pwMaskedEmail}.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pwCode}
+                  onChange={(e) => setPwCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                  placeholder="Code à 4 chiffres"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  value={pwNewPassword}
+                  onChange={(e) => setPwNewPassword(e.target.value)}
+                  placeholder="Nouveau mot de passe (4 caractères minimum)"
+                />
+                <div className="pw-flow-actions">
+                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwConfirming}>
+                    Annuler
+                  </button>
+                  <button type="button" className="primary" onClick={pwSubmitConfirm} disabled={pwConfirming}>
+                    {pwConfirming ? "Confirmation…" : "Confirmer"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3122,6 +3523,9 @@ export default function Commercant() {
         </div>
       </div>
       </div>
+      {cropperFile && cropperTarget && (
+        <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+      )}
       <style jsx>{styles}</style>
     </div>
   );
@@ -4075,6 +4479,129 @@ const styles = `
     justify-content: center;
     cursor: pointer;
     width: 100%;
+    margin-top: 0;
+  }
+
+  /* Logo de la fiche établissement (onglet Établissement) */
+  .est-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .est-logo-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    object-fit: cover;
+    background: #faf9fd;
+    flex: none;
+  }
+  .est-logo-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    background: ${PURPLE};
+    color: #fff;
+    font-size: 24px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .est-logo-row button.secondary {
+    width: auto;
+    margin-top: 0;
+  }
+
+  /* Recadreur de logo (modal partagé — voir LogoCropper) */
+  .crop-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 10, 35, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  .crop-modal {
+    background: #fff;
+    border-radius: 18px;
+    padding: 20px;
+    width: 100%;
+    max-width: 340px;
+    box-sizing: border-box;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  }
+  .crop-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .crop-modal-head h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1a1a1a;
+  }
+  .crop-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    color: #888;
+    display: flex;
+    cursor: pointer;
+  }
+  .crop-viewport {
+    position: relative;
+    width: 280px;
+    max-width: 100%;
+    height: 280px;
+    margin: 0 auto;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f0eef7;
+    cursor: grab;
+    touch-action: none;
+  }
+  .crop-viewport:active {
+    cursor: grabbing;
+  }
+  .crop-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    max-width: none;
+    user-select: none;
+    pointer-events: none;
+  }
+  .crop-zoom {
+    width: 100%;
+    margin: 16px 0 4px;
+  }
+  .crop-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .crop-actions button {
+    flex: 1;
+    width: auto;
+    margin-top: 0;
+  }
+
+  /* Changement de mot de passe (onglet Paramètres) */
+  .pw-flow-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .pw-flow-actions button {
+    width: auto;
+    flex: 1;
     margin-top: 0;
   }
 
