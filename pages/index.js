@@ -567,8 +567,8 @@ const styles = `
   .btn-secondary {
     background: #f3ecff;
     color: ${PURPLE};
-    width: 100%;
-    padding: 12px;
+    padding: 12px 30px;
+    border-radius: 999px;
   }
   .btn-secondary:hover {
     background: ${PURPLE};
@@ -1316,6 +1316,9 @@ const styles = `
        sans ça son bouton remonte et casse l'alignement avec les 3 autres
        cartes — on colle toujours le bouton en bas de la carte. */
     margin-top: auto;
+    /* Bouton recentré (plus étiré sur toute la largeur de la carte) et
+       complètement arrondi façon pilule. */
+    align-self: center;
   }
 
   .cta-banner {
