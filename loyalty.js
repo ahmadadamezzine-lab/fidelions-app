@@ -1,21 +1,44 @@
 // lib/loyalty.js
 //
-// Logique pure de calcul des récompenses, indépendante du mode choisi par
-// le commerçant :
-// - "tampons" : carte classique, un seuil unique, la récompense se
-//   redéclenche à chaque multiple du seuil (comportement historique de
-//   Fidélions, inchangé).
-// - "points" : points cumulés à paliers multiples (comme Sydely) — chaque
-//   palier ne se débloque qu'UNE fois, quand le total cumulé le dépasse
-//   pour la première fois.
+// Logique pure de calcul des récompenses. Depuis la fusion "tampons"/
+// "points" en un seul système ("points", vocabulaire universel — un
+// coiffeur ou un supermarché ne "tamponnent" rien, mais donnent des
+// points comme n'importe quel autre commerce), il n'y a plus qu'UN seul
+// concept de fidélité ; ce qui varie, c'est le nombre de paliers de
+// récompense que le commerçant a définis :
+// - un seul palier : carte classique, la récompense se redéclenche à
+//   chaque multiple du seuil (comportement historique de Fidélions,
+//   inchangé) ;
+// - plusieurs paliers : chacun ne se débloque qu'UNE fois, quand le
+//   total cumulé le dépasse pour la première fois (comme Sydely).
 //
 // Isolé ici (aucun accès réseau/Redis) pour être testable directement avec
 // node, sans dépendance externe.
 
-export function computeTamponsReward(points, tiers) {
+/**
+ * Récompense à seuil unique (un seul palier défini) : se redéclenche à
+ * chaque multiple du seuil.
+ *
+ * `previousPoints` (le solde AVANT ce passage) est optionnel mais
+ * important depuis que le mode "points" (voir pages/api/add-stamp.js) peut
+ * ajouter plusieurs points d'un coup selon le montant dépensé : une égalité
+ * exacte (`points % threshold === 0`) suffisait quand chaque passage
+ * valait toujours +1, mais un delta de plusieurs points peut sauter
+ * PAR-DESSUS le seuil (ex : 7 → 12 avec un seuil à 10) sans jamais tomber
+ * pile dessus. On détecte donc le franchissement d'au moins un multiple du
+ * seuil entre l'ancien et le nouveau solde plutôt qu'une égalité exacte,
+ * dès que ce solde précédent est connu ; à défaut (appelant historique),
+ * on retombe sur l'ancien comportement.
+ */
+export function computeSingleTierReward(points, tiers, previousPoints = null) {
   const threshold = (tiers && tiers[0] && tiers[0].threshold) || 10;
   const label = (tiers && tiers[0] && tiers[0].label) || "Récompense fidélité";
-  const rewardReached = points > 0 && points % threshold === 0;
+  let rewardReached;
+  if (Number.isFinite(previousPoints)) {
+    rewardReached = points > 0 && Math.floor(points / threshold) > Math.floor(previousPoints / threshold);
+  } else {
+    rewardReached = points > 0 && points % threshold === 0;
+  }
   const remaining = threshold - (points % threshold || threshold);
   return { rewardReached, remaining, label, threshold };
 }

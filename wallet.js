@@ -6,9 +6,12 @@
 
 import jwt from "jsonwebtoken";
 
-// L'ID de la classe de fidélité créée dans la Google Wallet Business Console.
-// Format : <MERCHANT_ID>.<nom_de_la_classe>
-const CLASS_ID = (process.env.GOOGLE_WALLET_CLASS_ID || "").trim(); // ex: "3388000000023199659.fidelions_loyalty"
+// Depuis le passage aux comptes commerçants, l'ID de la classe de fidélité
+// n'est plus une seule variable d'environnement globale : chaque
+// restaurant a la sienne, créée à l'inscription (voir
+// lib/walletObjects.js: insertLoyaltyClass) et stockée sur son compte —
+// buildSaveToWalletUrl la reçoit maintenant en paramètre (`classId`).
+// Format : <ISSUER_ID>.<identifiant> — ex: "3388000000023199659.fid_ab12cd34".
 
 // Nettoie la valeur collée dans Vercel, quelle que soit la façon dont elle a
 // été copiée (avec ou sans guillemets autour, avec "\n" littéral ou de vrais
@@ -37,9 +40,9 @@ function getServiceAccount() {
   const email = (process.env.GOOGLE_WALLET_CLIENT_EMAIL || "").trim();
   const privateKey = normalizePrivateKey(process.env.GOOGLE_WALLET_PRIVATE_KEY);
 
-  if (!email || !privateKey || !CLASS_ID) {
+  if (!email || !privateKey) {
     throw new Error(
-      "Variables d'environnement manquantes : GOOGLE_WALLET_CLIENT_EMAIL, GOOGLE_WALLET_PRIVATE_KEY, GOOGLE_WALLET_CLASS_ID"
+      "Variables d'environnement manquantes : GOOGLE_WALLET_CLIENT_EMAIL, GOOGLE_WALLET_PRIVATE_KEY"
     );
   }
 
@@ -57,28 +60,34 @@ function getServiceAccount() {
 
 /**
  * Construit le lien "Ajouter à Google Wallet" pour un nouveau client.
+ * @param {string} classId - identifiant de la classe de fidélité DE CE restaurant
  * @param {string} objectSuffix - identifiant unique du client (ex: uuid)
  * @param {string} accountName - nom affiché sur la carte (ex: prénom du client)
+ * @param {string} [reviewUrl] - lien "avis Google" du commerce (onglet Établissement), affiché sur la carte s'il est renseigné
  * @returns {string} URL à ouvrir pour ajouter la carte au Wallet
  */
-function buildSaveToWalletUrl({ objectSuffix, accountName, initialPoints }) {
+function buildSaveToWalletUrl({ classId, objectSuffix, accountName, initialPoints, reviewUrl }) {
   const { email, privateKey } = getServiceAccount();
 
-  const issuerId = CLASS_ID.split(".")[0];
+  if (!classId) {
+    throw new Error("Ce commerce n'a pas encore de classe de fidélité Google Wallet configurée.");
+  }
+
+  const issuerId = classId.split(".")[0];
   const objectId = `${issuerId}.${objectSuffix}`;
 
   const loyaltyObject = {
     id: objectId,
-    classId: CLASS_ID,
+    classId,
     state: "ACTIVE",
     accountId: objectSuffix,
     accountName: accountName || "Client Fidélions",
     loyaltyPoints: {
-      label: "Tampons",
+      label: "Points",
       balance: { int: String(initialPoints || 0) },
     },
     // QR code affiché sur la carte : c'est ce que le commerçant scanne
-    // depuis l'espace commerçant pour ajouter un tampon.
+    // depuis l'espace commerçant pour ajouter un point.
     barcode: {
       type: "QR_CODE",
       value: objectId,
@@ -87,15 +96,25 @@ function buildSaveToWalletUrl({ objectSuffix, accountName, initialPoints }) {
   };
 
   // Bouton "Laisser un avis Google" directement sur la carte — uniquement
-  // si une URL est configurée, et jamais lié à une récompense (conforme
-  // aux règles de Google sur les avis incités).
-  const reviewUrl = (process.env.GOOGLE_REVIEW_URL || "").trim();
-  if (reviewUrl) {
+  // si le commerce a renseigné son lien d'avis (onglet Établissement,
+  // reçu ici en paramètre `reviewUrl` ; à défaut, la variable
+  // d'environnement globale GOOGLE_REVIEW_URL sert de repli pour les
+  // comptes qui n'ont pas encore rempli ce champ).
+  //
+  // À la demande d'Adam, ce bouton annonce désormais explicitement le
+  // bonus de points ("Donnez votre avis, gagnez des points"). Point
+  // important pour la suite : cliquer ce lien ouvre juste la page d'avis
+  // Google, ça ne crédite aucun point tout seul — le bonus est ajouté par
+  // le commerçant/l'employé en caisse (case "avis Google laissé", voir
+  // pages/commercant.js et pages/scan/[token].js), donc le message ne
+  // promet rien d'automatique.
+  const finalReviewUrl = (reviewUrl || process.env.GOOGLE_REVIEW_URL || "").trim();
+  if (finalReviewUrl) {
     loyaltyObject.linksModuleData = {
       uris: [
         {
-          uri: reviewUrl,
-          description: "Laisser un avis Google",
+          uri: finalReviewUrl,
+          description: "Donnez votre avis Google, gagnez des points",
           id: "google_review_link",
         },
       ],

@@ -8,7 +8,7 @@
 
 import { getClient, renameClient, setClientBlocked, deleteClient } from "../../lib/db";
 import { renameLoyaltyObject } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,8 +17,9 @@ export default async function handler(req, res) {
   }
   const role = getRole(req);
   if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+    return res.status(401).json({ error: "Réservé au compte principal du commerce." });
   }
+  const merchantId = getMerchantId(req);
 
   try {
     const { objectId, action, value } = req.body || {};
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Requête incomplète." });
     }
 
-    const existing = await getClient(objectId);
+    const existing = await getClient(merchantId, objectId);
     if (!existing) {
       return res.status(404).json({ error: "Client introuvable." });
     }
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
       if (newName.length > 40) {
         return res.status(400).json({ error: "Le prénom est trop long (40 caractères max)." });
       }
-      const updated = await renameClient(objectId, newName);
+      const updated = await renameClient(merchantId, objectId, newName);
       // Renomme aussi la carte Wallet elle-même — pas grave si ça échoue
       // (le renommage en base reste valable, c'est juste un bonus visuel).
       try {
@@ -51,12 +52,12 @@ export default async function handler(req, res) {
     }
 
     if (action === "block" || action === "unblock") {
-      const updated = await setClientBlocked(objectId, action === "block");
+      const updated = await setClientBlocked(merchantId, objectId, action === "block");
       return res.status(200).json({ client: updated });
     }
 
     if (action === "delete") {
-      await deleteClient(objectId);
+      await deleteClient(merchantId, objectId);
       return res.status(200).json({ deleted: true });
     }
 

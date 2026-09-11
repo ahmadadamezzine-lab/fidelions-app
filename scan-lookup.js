@@ -2,7 +2,7 @@
 //
 // Utilisé par le scanner (espace commerçant ET lien employé /scan/[token])
 // juste après la lecture d'un QR, pour afficher le prénom et le solde du
-// client avant de valider le tampon. Volontairement minimal : seulement
+// client avant de valider le point. Volontairement minimal : seulement
 // l'objectId exact scanné, jamais de recherche par nom — c'est ce qui
 // distingue ce rôle "scanner" de "cashier"/"owner".
 
@@ -14,8 +14,8 @@ export default async function handler(req, res) {
     res.setHeader("Allow", ["GET"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
-  const role = await getRoleAsync(req);
-  if (!role) {
+  const auth = await getRoleAsync(req);
+  if (!auth) {
     return res.status(401).json({ error: "Accès refusé." });
   }
 
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Identifiant client manquant." });
     }
 
-    const client = await getClient(objectId);
+    const client = await getClient(auth.merchantId, objectId);
     if (!client) {
       return res
         .status(404)
@@ -37,6 +37,7 @@ export default async function handler(req, res) {
       prenom: client.prenom,
       points: client.points,
       blocked: !!client.blocked,
+      reviewLeft: !!client.reviewLeft,
     });
   } catch (err) {
     console.error(err);

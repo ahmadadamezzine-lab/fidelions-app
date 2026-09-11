@@ -1,26 +1,30 @@
 // pages/api/geolocation.js
 //
-// Notifications de proximité : le commerçant tape juste son adresse, on la
-// géocode (lib/geocode.js, Nominatim/OpenStreetMap — gratuit) puis on
+// Notifications de proximité : le commerçant tape juste son adresse (avec
+// autocomplétion via l'API Adresse du gouvernement français), on la géocode
+// (lib/geocode.js, api-adresse.data.gouv.fr — gratuit, sans clé) puis on
 // l'envoie à Google Wallet (lib/walletObjects.js, patchLoyaltyClassLocations)
 // qui se charge lui-même d'avertir le téléphone d'un client équipé quand il
-// passe à proximité — aucun code de géolocalisation côté client. Réservé
-// au patron.
+// passe à proximité — aucun code de géolocalisation côté client. Le message
+// personnalisé (patchLoyaltyClassMessage) est affiché en permanence sur la
+// carte, car Google ne permet pas de personnaliser le texte du popup natif
+// de proximité via l'API publique. Réservé au patron.
 
-import { getGeoSettings, saveGeoSettings } from "../../lib/db";
+import { getGeoSettings, saveGeoSettings, getMerchantById } from "../../lib/db";
 import { geocodeAddress } from "../../lib/geocode";
-import { patchLoyaltyClassLocations } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { patchLoyaltyClassLocations, patchLoyaltyClassMessage, describeWalletError } from "../../lib/walletObjects";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+    return res.status(401).json({ error: "Réservé au compte principal du commerce." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const geo = await getGeoSettings();
+      const geo = await getGeoSettings(merchantId);
       return res.status(200).json(geo);
     } catch (err) {
       console.error(err);
@@ -36,7 +40,7 @@ export default async function handler(req, res) {
       let lng = null;
       if (enabled) {
         if (!(address || "").trim()) {
-          return res.status(400).json({ error: "Indique l'adresse du restaurant." });
+          return res.status(400).json({ error: "Indique l'adresse du commerce." });
         }
         const found = await geocodeAddress(address);
         if (!found) {
@@ -48,17 +52,27 @@ export default async function handler(req, res) {
         lng = found.lng;
       }
 
-      const geo = await saveGeoSettings({ enabled, address, lat, lng, message });
+      const geo = await saveGeoSettings(merchantId, { enabled, address, lat, lng, message });
 
       let walletUpdated = true;
+      let walletError = null;
       try {
-        await patchLoyaltyClassLocations(geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []);
+        const merchant = await getMerchantById(merchantId);
+        if (!merchant?.walletClassId) {
+          throw new Error("Classe Google Wallet introuvable pour ce compte.");
+        }
+        await patchLoyaltyClassLocations(
+          merchant.walletClassId,
+          geo.enabled ? [{ lat: geo.lat, lng: geo.lng }] : []
+        );
+        await patchLoyaltyClassMessage(merchant.walletClassId, geo.message);
       } catch (err) {
-        console.error("Localisation Wallet non appliquée :", err);
+        console.error("Localisation/message Wallet non appliqués :", err?.response?.data || err);
         walletUpdated = false;
+        walletError = describeWalletError(err);
       }
 
-      return res.status(200).json({ ...geo, walletUpdated });
+      return res.status(200).json({ ...geo, walletUpdated, walletError });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message || "Erreur serveur" });

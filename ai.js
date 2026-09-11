@@ -10,13 +10,24 @@
 // installer, ce qui compte vu qu'on ne peut pas ajouter de dépendance
 // npm facilement sur cet environnement.
 
-// "gemini-flash-latest" est un alias qui pointe toujours vers le modèle
-// Flash actuel de Google (au lieu d'un numéro de version figé). Les
-// modèles Gemini sont retirés régulièrement (ex : gemini-2.0-flash a été
-// arrêté mi-2026) — l'alias évite que cette fonctionnalité se casse toute
-// seule au prochain retrait de modèle.
-const GEMINI_MODEL = "gemini-flash-latest";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// Cascade de plusieurs alias de modèles Gemini, chacun avec son PROPRE
+// quota/pool de charge chez Google — si le premier modèle est surchargé
+// (503/500), on retombe sur le suivant au lieu d'abandonner tout de
+// suite : ça absorbe le cas fréquent où UN SEUL modèle est temporairement
+// saturé alors que les autres répondent normalement. "gemini-flash-latest"
+// reste en premier (le plus rapide), "gemini-flash-lite-latest" en repli
+// (plus léger, pool distinct), et "gemini-pro-latest" en tout dernier
+// recours (plus lent/coûteux mais généralement moins sollicité). Ce sont
+// des alias qui pointent toujours vers le modèle actuel de chaque gamme
+// (au lieu d'un numéro de version figé) — les modèles Gemini sont retirés
+// régulièrement (ex : gemini-2.0-flash a été arrêté mi-2026) — les alias
+// évitent que cette fonctionnalité se casse toute seule au prochain
+// retrait de modèle.
+const GEMINI_MODEL_CASCADE = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-pro-latest"];
+
+function geminiUrlFor(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 const PROMPT = `Tu es un assistant pour un restaurant qui utilise un programme de fidélité. On te donne le menu du restaurant (texte, PDF, ou photo). Analyse-le et comprends son contenu par toi-même, puis réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant ou après, au format exact :
 {
@@ -41,6 +52,51 @@ function extractJson(rawText) {
     throw new Error("Réponse IA illisible (pas de JSON trouvé).");
   }
   return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+/**
+ * Appelle un seul modèle Gemini, avec un court retry sur les erreurs
+ * transitoires (503/500 — pic de charge temporaire, pas une vraie panne).
+ * Renvoie soit { ok: true, res }, soit { ok: false, transient, status,
+ * body } pour laisser l'appelant décider de basculer sur le modèle
+ * suivant de la cascade (uniquement pour les erreurs transitoires — une
+ * clé invalide ou un quota dépassé, par exemple, ne changerait pas de
+ * résultat sur un autre modèle, donc on abandonne tout de suite).
+ */
+async function callGeminiModel(model, apiKey, parts) {
+  const MAX_ATTEMPTS = 2;
+  let res;
+  let lastBody = "";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      res = await fetch(geminiUrlFor(model), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+        }),
+      });
+    } catch (err) {
+      if (attempt === MAX_ATTEMPTS) {
+        return { ok: false, transient: true, networkError: true, err };
+      }
+      await new Promise((r) => setTimeout(r, attempt * 900));
+      continue;
+    }
+
+    if (res.ok) return { ok: true, res };
+
+    lastBody = await res.text().catch(() => "");
+    const transient = res.status === 503 || res.status === 500;
+    if (transient && attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, attempt * 900));
+      continue;
+    }
+
+    return { ok: false, transient, status: res.status, body: lastBody };
+  }
+  return { ok: false, transient: true, status: res?.status, body: lastBody };
 }
 
 /**
@@ -74,59 +130,47 @@ export async function analyzeMenuWithAI({ text, file }) {
   // que par ?key= dans l'URL — plus fiable avec les clés récentes (format
   // "AQ." que Google délivre depuis 2026, à la place des anciennes clés
   // "AIza...").
-  //
-  // Le modèle gratuit renvoie parfois un 503 "high demand / UNAVAILABLE" —
-  // un pic de charge temporaire chez Google, pas une vraie panne. On
-  // réessaie automatiquement 2 fois avec un court délai avant d'abandonner,
-  // pour que ça se répare tout seul dans la majorité des cas plutôt que de
-  // faire échouer l'analyse pour rien.
-  const MAX_ATTEMPTS = 2;
-  let res;
-  let lastBody = "";
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      res = await fetch(GEMINI_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
-        }),
-      });
-    } catch (err) {
-      if (attempt === MAX_ATTEMPTS) {
-        throw new Error("Impossible de joindre le service IA (réseau) — réessaie dans un instant.");
+  let res = null;
+  let lastFailure = null;
+  for (const model of GEMINI_MODEL_CASCADE) {
+    const attempt = await callGeminiModel(model, apiKey, parts);
+    if (attempt.ok) {
+      res = attempt.res;
+      break;
+    }
+
+    // Erreur définitive (pas de charge) : inutile d'essayer les autres
+    // modèles de la cascade, le résultat serait le même.
+    if (!attempt.transient) {
+      if (attempt.status === 429) {
+        throw new Error(
+          "Limite gratuite Gemini atteinte pour l'instant (quota par minute/jour) — réessaie dans quelques minutes."
+        );
       }
-      await new Promise((r) => setTimeout(r, attempt * 900));
-      continue;
+      if (attempt.status === 401 || attempt.status === 403 || (attempt.status === 400 && /API key/i.test(attempt.body || ""))) {
+        throw new Error("Clé GEMINI_API_KEY invalide ou refusée — recrée-en une sur aistudio.google.com/apikey.");
+      }
+      if (attempt.status === 404) {
+        // Modèle retiré : on continue la cascade plutôt que d'abandonner —
+        // un autre alias de la liste répond peut-être encore.
+        lastFailure = attempt;
+        continue;
+      }
+      throw new Error(`Échec de l'analyse IA (${attempt.status}) : ${(attempt.body || "").slice(0, 300)}`);
     }
 
-    if (res.ok) break;
+    lastFailure = attempt;
+    // Transitoire (503/500, ou réseau) : on passe au modèle suivant de la
+    // cascade, qui a son propre pool de quota/charge chez Google.
+  }
 
-    lastBody = await res.text().catch(() => "");
-    const transient = res.status === 503 || res.status === 500;
-    if (transient && attempt < MAX_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, attempt * 900));
-      continue;
+  if (!res) {
+    if (lastFailure && lastFailure.networkError) {
+      throw new Error("Impossible de joindre le service IA (réseau) — réessaie dans un instant.");
     }
-
-    if (res.status === 429) {
-      throw new Error(
-        "Limite gratuite Gemini atteinte pour l'instant (quota par minute/jour) — réessaie dans quelques minutes."
-      );
-    }
-    if (res.status === 401 || res.status === 403 || (res.status === 400 && /API key/i.test(lastBody))) {
-      throw new Error("Clé GEMINI_API_KEY invalide ou refusée — recrée-en une sur aistudio.google.com/apikey.");
-    }
-    if (res.status === 404) {
-      throw new Error("Modèle IA introuvable (probablement retiré par Google) — préviens-moi, il faut mettre à jour le nom du modèle dans le code.");
-    }
-    if (transient) {
-      throw new Error(
-        "Le service IA de Google est temporairement surchargé (forte demande) — réessaie dans une minute, ce n'est pas un bug du site."
-      );
-    }
-    throw new Error(`Échec de l'analyse IA (${res.status}) : ${lastBody.slice(0, 300)}`);
+    throw new Error(
+      "Le service IA de Google est temporairement surchargé (forte demande) — réessaie dans une minute, ce n'est pas un bug du site."
+    );
   }
 
   const data = await res.json();

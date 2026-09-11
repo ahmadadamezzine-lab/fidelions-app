@@ -1,22 +1,25 @@
 // pages/api/loyalty-settings.js
 //
-// Choix du mode de fidélité (tampons classiques vs points à paliers
-// multiples, façon Sydely) et des paliers eux-mêmes. Réservé au patron —
-// changer ce réglage change l'expérience de tous les clients.
+// Paliers du programme de fidélité (système unique "points", voir
+// lib/loyalty.js) : un seul palier défini = carte classique à seuil
+// unique, plusieurs paliers = étapes qui se débloquent chacune une fois.
+// Réservé au patron — changer ce réglage change l'expérience de tous les
+// clients.
 
-import { getLoyaltySettings, updateLoyaltySettings } from "../../lib/db";
+import { getLoyaltySettings, updateLoyaltySettings, getMerchantById } from "../../lib/db";
 import { patchLoyaltyClassPointsLabel } from "../../lib/walletObjects";
-import { getRole } from "../../lib/auth";
+import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
   const role = getRole(req);
   if (role !== "owner") {
-    return res.status(401).json({ error: "Réservé au compte principal du restaurant." });
+    return res.status(401).json({ error: "Réservé au compte principal du commerce." });
   }
+  const merchantId = getMerchantId(req);
 
   if (req.method === "GET") {
     try {
-      const settings = await getLoyaltySettings();
+      const settings = await getLoyaltySettings(merchantId);
       return res.status(200).json(settings);
     } catch (err) {
       console.error(err);
@@ -26,14 +29,11 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { type, tiers } = req.body || {};
-      if (type !== "tampons" && type !== "points") {
-        return res.status(400).json({ error: "Mode de fidélité invalide." });
-      }
+      const { tiers, mode, pointsConfig, reviewBonusPoints } = req.body || {};
       if (!Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({ error: "Ajoute au moins un palier." });
       }
-      if (type === "points" && tiers.length > 10) {
+      if (tiers.length > 10) {
         return res.status(400).json({ error: "10 paliers maximum." });
       }
       for (const t of tiers) {
@@ -45,14 +45,27 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: "Décris la récompense de chaque palier." });
         }
       }
+      if (mode !== undefined && mode !== "stamps" && mode !== "points") {
+        return res.status(400).json({ error: "Mécanique de fidélité invalide." });
+      }
+      if (
+        reviewBonusPoints !== undefined &&
+        (!Number.isFinite(Number(reviewBonusPoints)) || Number(reviewBonusPoints) < 0 || Number(reviewBonusPoints) > 50)
+      ) {
+        return res.status(400).json({ error: "Le bonus avis Google doit être entre 0 et 50 points." });
+      }
 
-      const settings = await updateLoyaltySettings({ type, tiers });
+      const settings = await updateLoyaltySettings(merchantId, { tiers, mode, pointsConfig, reviewBonusPoints });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
       // valable côté Fidélions, seul le libellé affiché sur Wallet ne
       // change pas tout de suite.
       try {
-        await patchLoyaltyClassPointsLabel(type === "points" ? "Points" : "Tampons");
+        const merchant = await getMerchantById(merchantId);
+        if (!merchant?.walletClassId) {
+          throw new Error("Classe Google Wallet introuvable pour ce compte.");
+        }
+        await patchLoyaltyClassPointsLabel(merchant.walletClassId, "Points");
       } catch (err) {
         console.error("Libellé Wallet non mis à jour :", err);
       }

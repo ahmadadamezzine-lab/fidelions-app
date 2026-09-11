@@ -1,24 +1,187 @@
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import QRCode from "qrcode";
+import LegalFooter from "../components/LegalFooter";
+import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
+const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
+const CONTACT_WHATSAPP = "33637177314";
+const CONTACT_WHATSAPP_ASSOCIE = "33749749829"; // Yassine
+
+// Lien de paiement hébergé (ex : lien de paiement Revolut Business) vers
+// lequel renvoie le bouton "Activer mon abonnement" de l'étape tarification
+// et de l'onglet Abonnement. Volontairement vide tant qu'Adam n'a pas
+// fourni son vrai lien : en attendant, le bouton ouvre WhatsApp avec un
+// message pré-rempli plutôt que de faire croire à un paiement possible —
+// aucune donnée bancaire n'est jamais collectée ici (voir REVOLUT_PAYMENT_LINK
+// plus bas). Pour activer les vrais paiements, il suffit de coller le lien
+// Revolut ici.
+const REVOLUT_PAYMENT_LINK = "";
+
+// Tarification, couleurs de carte : voir lib/pricing.js (partagé avec la
+// page d'accueil marketing, section "Tarifs").
+
+// "2026-09" -> "septembre 2026", pour l'en-tête du classement mensuel de
+// l'équipe (voir lib/db.js -> getEmployeeLeaderboard).
+function formatMonthLabel(monthKey) {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return "";
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  const label = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+// Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
+// et regroupées ici pour être réutilisées partout dans la page — aucune
+// librairie d'icônes n'est installée (et impossible d'en ajouter une sur
+// cet environnement), donc tout est du SVG inline minimal.
+const ICONS = {
+  home: <><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h5v-5h2v5h5v-9" /></>,
+  share: <><circle cx="6" cy="12" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="18" cy="18" r="2.2" /><path d="M8 10.8 16 7.2M8 13.2l8 3.6" /></>,
+  users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
+  bell: <><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 14 6 10Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
+  card: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M3 10.5h18" /><path d="M6.5 14.5h4" /></>,
+  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3C10 9.3 8.5 8 8.5 6.4 8.5 5.1 9.5 4 10.7 4c1.3 0 1.3 2.3 1.3 5.3Z" /><path d="M12 9.3c2 0 3.5-1.3 3.5-2.9C15.5 5.1 14.5 4 13.3 4c-1.3 0-1.3 2.3-1.3 5.3Z" /></>,
+  badge: <><path d="M12 3.2 18.5 6v5.3c0 4.4-2.9 6.9-6.5 8.5-3.6-1.6-6.5-4.1-6.5-8.5V6Z" /><path d="m9.2 12 1.9 1.9L14.9 10" /></>,
+  mappin: <><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.4" /></>,
+  barchart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
+  building: <><rect x="5" y="3" width="10" height="18" /><path d="M9 21v-4h2v4" /><path d="M8 7h1M8 10h1M8 13h1M11 7h1M11 10h1M11 13h1" /><path d="M15 10h4v11h-4" /></>,
+  star: <path d="M12 3.2 14.6 9l6.2.6-4.7 4.2 1.4 6.2L12 16.9l-5.5 2.9 1.4-6.2-4.7-4.2L9.4 9Z" />,
+  headset: <><path d="M4 13v-1a8 8 0 0 1 16 0v1" /><rect x="3" y="13" width="4" height="6" rx="1.4" /><rect x="17" y="13" width="4" height="6" rx="1.4" /><path d="M19 19v1a3 3 0 0 1-3 3h-3" /></>,
+  gear: <><circle cx="12" cy="12" r="3.1" /><path d="M12 3v2.3M12 18.7V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.3M18.7 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" /></>,
+  chevronLeft: <path d="M14.5 5.5 8 12l6.5 6.5" />,
+  panel: <><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15" /></>,
+  chevronUpDown: <><path d="M8 10l4-4 4 4" /><path d="M8 14l4 4 4-4" /></>,
+  check: <path d="M5 12.5 10 17 19 7" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  warning: <><path d="M12 3.4 21 20H3Z" /><path d="M12 9.4v4.6" /><path d="M12 17h.01" /></>,
+  trash: <><path d="M4 7h16" /><path d="M9 7V4.5h6V7" /><path d="M6.5 7 7.3 20h9.4L18 7" /><path d="M10 11v6M14 11v6" /></>,
+  edit: <path d="M4 20h4l10.5-10.5a2 2 0 0 0-4-4L4 16v4Z" />,
+  lock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
+  unlock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 7.4-2" /></>,
+  download: <><path d="M12 4v11" /><path d="m7.5 11 4.5 4.5L16.5 11" /><path d="M5 19.5h14" /></>,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="1.8" /><path d="M6 15H4.8A1.8 1.8 0 0 1 3 13.2V4.8A1.8 1.8 0 0 1 4.8 3h8.4A1.8 1.8 0 0 1 15 4.8V6" /></>,
+  refresh: <><path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2" /><path d="M18 3v4.5h-4.5" /><path d="M6 21v-4.5h4.5" /></>,
+  save: <><path d="M5 4h11l3 3v13H5Z" /><path d="M8 4v5h8V4" /><path d="M8 14h8v6H8Z" /></>,
+  robot: <><rect x="5" y="8" width="14" height="10" rx="2.3" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1.1" /><circle cx="9" cy="13" r="1.1" /><circle cx="15" cy="13" r="1.1" /><path d="M9 17h6" /></>,
+  paperclip: <path d="M17 7.5 9.3 15.2a3 3 0 1 1-4.2-4.2l8-8a2 2 0 1 1 2.9 2.9l-7.7 7.7a1 1 0 1 1-1.4-1.4l6.9-6.9" />,
+  file: <><path d="M7 3h7l4 4v14H7Z" /><path d="M14 3v4h4" /></>,
+  trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
+  camera: <><rect x="3" y="7" width="18" height="13" rx="2.2" /><path d="M8 7l1.5-2.5h5L16 7" /><circle cx="12" cy="13.5" r="3.4" /></>,
+  sliders: <><path d="M4 6h10" /><circle cx="16.5" cy="6" r="2" /><path d="M4 12h4" /><circle cx="10.5" cy="12" r="2" /><path d="M14.5 12H20" /><path d="M4 18h9" /><circle cx="15.5" cy="18" r="2" /></>,
+  briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
+  whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
+};
+
+function Icon({ name, size = 18, className }) {
+  const d = ICONS[name];
+  if (!d) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {d}
+    </svg>
+  );
+}
+
 // Onglets de l'espace commerçant (patron uniquement — un caissier garde
-// l'ancien écran simple : scanner + recherche, rien d'autre). Organisé en
-// rubriques comme Sydely, mais gardé en onglets défilables plutôt qu'une
-// barre latérale, pour rester cohérent avec la mise en page mobile-first
-// (une colonne, 480px max) déjà utilisée partout ailleurs sur le site.
+// l'ancien écran simple : scanner + recherche, rien d'autre). Rubriques et
+// ordre calqués sur la barre latérale de Sydely (captures envoyées par
+// Adam) : liste principale, puis un groupe "Compte" séparé. "Aperçu" n'est
+// pas dans ces captures mais reste en premier — c'est le tableau de bord
+// (chiffres clés + classement clients), trop utile pour le supprimer, et
+// cohérent avec le fait qu'une appli pro a presque toujours un accueil
+// avant les rubriques métier. Sur mobile, reste en rangée de pastilles
+// défilable (pas de place pour une vraie barre latérale) ; à partir de
+// 900px de large, devient la barre latérale fixée à gauche que Adam a
+// demandée.
 const TABS = [
-  { id: "apercu", label: "Aperçu" },
-  { id: "fidelite", label: "Fidélité" },
-  { id: "stats", label: "Statistiques" },
-  { id: "carte", label: "Ma carte" },
-  { id: "proximite", label: "Proximité" },
-  { id: "equipe", label: "Équipe" },
-  { id: "campagnes", label: "Campagnes" },
-  { id: "clients", label: "Clients" },
-  { id: "aide", label: "Aide" },
+  { id: "apercu", icon: "home", label: "Aperçu" },
+  { id: "partager", icon: "share", label: "Partager" },
+  { id: "clients", icon: "users", label: "Clients" },
+  { id: "campagnes", icon: "bell", label: "Notifications" },
+  { id: "carte", icon: "card", label: "Ma carte" },
+  { id: "fidelite", icon: "gift", label: "Récompenses" },
+  { id: "equipe", icon: "briefcase", label: "Employés" },
+  { id: "proximite", icon: "mappin", label: "Géolocalisation" },
+  { id: "stats", icon: "barchart", label: "Statistiques" },
 ];
+
+// Groupe "Compte" séparé, comme sur les captures. "Support" réutilise la
+// vraie rubrique Aide (FAQ) déjà construite — pas de doublon. Abonnement et
+// Paramètres n'ont pas encore de vrai contenu derrière (pas de
+// facturation, pas de compte à personnaliser au-delà du mot de passe) :
+// plutôt que de faire semblant, ces 2 rubriques affichent honnêtement
+// "bientôt disponible" jusqu'à ce que ça existe pour de vrai. Établissement
+// a, lui, un vrai contenu (voir plus bas).
+const ACCOUNT_TABS = [
+  { id: "etablissement", icon: "building", label: "Établissement" },
+  { id: "abonnement", icon: "star", label: "Abonnement" },
+  { id: "aide", icon: "headset", label: "Support" },
+  { id: "parametres", icon: "sliders", label: "Paramètres" },
+];
+
+// Types d'activité proposés à l'inscription (étape 2 de l'assistant) et
+// réutilisés dans l'onglet Établissement — mêmes identifiants des deux
+// côtés. "autre" révèle un champ texte libre (businessTypeOther).
+const BUSINESS_TYPES = [
+  { id: "coiffeur", label: "Coiffeur" },
+  { id: "beaute", label: "Soins & beauté" },
+  { id: "supermarche", label: "Supermarché / épicerie" },
+  { id: "restaurant", label: "Restaurant" },
+  { id: "snack", label: "Snack / fast-food" },
+  { id: "boulangerie", label: "Boulangerie / pâtisserie" },
+  { id: "cafe", label: "Café / bar" },
+  { id: "autre", label: "Autre" },
+];
+
+// Jours de la semaine pour les horaires d'ouverture (onglet Établissement)
+// — mêmes identifiants que côté serveur (lib/db.js).
+const ESTABLISHMENT_DAYS = [
+  { id: "lundi", label: "Lundi" },
+  { id: "mardi", label: "Mardi" },
+  { id: "mercredi", label: "Mercredi" },
+  { id: "jeudi", label: "Jeudi" },
+  { id: "vendredi", label: "Vendredi" },
+  { id: "samedi", label: "Samedi" },
+  { id: "dimanche", label: "Dimanche" },
+];
+
+// Sélecteur de période pour la courbe "évolution des clients fidélisés"
+// (onglet Statistiques) — mêmes valeurs que EVOLUTION_RANGES côté API.
+const EVOLUTION_RANGES = [
+  { id: "jour", label: "Jour" },
+  { id: "semaine", label: "Semaine" },
+  { id: "mois", label: "Mois" },
+  { id: "annee", label: "Année" },
+  { id: "debut", label: "Depuis le début" },
+];
+
+const DAY_OPTIONS = [
+  { id: "lun", label: "Lun" },
+  { id: "mar", label: "Mar" },
+  { id: "mer", label: "Mer" },
+  { id: "jeu", label: "Jeu" },
+  { id: "ven", label: "Ven" },
+  { id: "sam", label: "Sam" },
+  { id: "dim", label: "Dim" },
+];
+const ALL_DAY_IDS = DAY_OPTIONS.map((d) => d.id);
 
 // Analyse automatique du tableau de bord : pas un vrai modèle d'IA (ça
 // coûterait cher en appels API pour un gain flou), mais des règles
@@ -37,20 +200,20 @@ function computeInsights(clients, rewardThreshold) {
     (c) => now - c.createdAt >= 7 * DAY && now - c.createdAt < 14 * DAY
   ).length;
   if (newThisWeek > 0 && newLastWeek === 0) {
-    insights.push(`📈 ${newThisWeek} nouve${newThisWeek > 1 ? "aux clients" : "au client"} cette semaine.`);
+    insights.push(`${newThisWeek} nouve${newThisWeek > 1 ? "aux clients" : "au client"} cette semaine.`);
   } else if (newLastWeek > 0) {
     const diff = newThisWeek - newLastWeek;
     const pct = Math.round((Math.abs(diff) / newLastWeek) * 100);
     insights.push(
       diff >= 0
-        ? `📈 Inscriptions en hausse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
-        : `📉 Inscriptions en baisse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+        ? `Inscriptions en hausse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
+        : `Inscriptions en baisse de ${pct}% cette semaine (${newThisWeek} vs ${newLastWeek} la semaine passée).`
     );
   }
 
   const top = [...clients].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
   if (top && top.points > 0) {
-    insights.push(`🏆 ${top.prenom} est ton client le plus fidèle avec ${top.points} tampons.`);
+    insights.push(`${top.prenom} est ton client le plus fidèle avec ${top.points} points.`);
   }
 
   const threshold = rewardThreshold || 10;
@@ -62,14 +225,14 @@ function computeInsights(clients, rewardThreshold) {
   }).length;
   if (nearReward > 0) {
     insights.push(
-      `🎯 ${nearReward} client${nearReward > 1 ? "s sont" : " est"} à 1-2 tampons de la récompense — bon moment pour une campagne.`
+      `${nearReward} client${nearReward > 1 ? "s sont" : " est"} à 1-2 points de la récompense — bon moment pour une campagne.`
     );
   }
 
   const inactive = clients.filter((c) => now - (c.lastVisitAt || c.createdAt) > 30 * DAY).length;
   if (inactive > 0) {
     insights.push(
-      `⚠️ ${inactive} client${inactive > 1 ? "s n'ont" : " n'a"} pas visité depuis plus de 30 jours — pense à une campagne de relance.`
+      `${inactive} client${inactive > 1 ? "s n'ont" : " n'a"} pas visité depuis plus de 30 jours — pense à une campagne de relance.`
     );
   }
 
@@ -127,25 +290,25 @@ function analyzeMenu(menuText, rewardLabel, rewardThreshold) {
   const suggestions = [];
 
   suggestions.push(
-    `🍽️ Menu du midi à ${(priceAvg * 0.85).toFixed(2)}€ (prix moyen actuel : ${priceAvg.toFixed(2)}€) — attire les habitués du quartier en semaine.`
+    `Menu du midi à ${(priceAvg * 0.85).toFixed(2)}€ (prix moyen actuel : ${priceAvg.toFixed(2)}€) — attire les habitués du quartier en semaine.`
   );
 
   if (items.length >= 2 && cheapest.name !== priciest.name) {
     suggestions.push(
-      `🤝 Formule duo "${cheapest.name}" + "${priciest.name}" à prix réduit — pousse à commander plus qu'un seul plat.`
+      `Formule duo "${cheapest.name}" + "${priciest.name}" à prix réduit — pousse à commander plus qu'un seul plat.`
     );
   }
 
   suggestions.push(
-    `📅 Offre "lundi tranquille" : -20% sur "${priciest.name}" (ton plat le plus cher) pour remplir la salle en début de semaine.`
+    `Offre "lundi tranquille" : -20% sur "${priciest.name}" (ton plat le plus cher) pour remplir la salle en début de semaine.`
   );
 
   suggestions.push(
-    `🎯 Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} tampons — mets une petite affiche à côté de "${cheapest.name}" pour donner envie de commencer la carte.`
+    `Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} points — mets une petite affiche à côté de "${cheapest.name}" pour donner envie de commencer la carte.`
   );
 
   suggestions.push(
-    `📸 Mets "${priciest.name}" en avant sur tes réseaux — c'est souvent le plat qui donne le plus envie de venir.`
+    `Mets "${priciest.name}" en avant sur tes réseaux — c'est souvent le plat qui donne le plus envie de venir.`
   );
 
   return {
@@ -168,6 +331,159 @@ function readFileAsBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// Recadreur de logo partagé (carré, glisser pour déplacer, molette/curseur
+// pour zoomer) — aucune librairie de crop n'étant installable, tout est
+// fait à la main : un <img> "cover"-fitté dans un cadre fixe de
+// VIEWPORT×VIEWPORT px, un décalage (offset) borné pour ne jamais laisser
+// de zone vide visible, et un rendu final sur un <canvas> hors écran au
+// moment de valider. Utilisé par les 3 sélecteurs de logo de la page (voir
+// cropperTarget dans le composant principal) — un seul modal, jamais
+// dupliqué trois fois.
+const CROP_VIEWPORT = 280;
+const CROP_OUTPUT = 512;
+
+function clampCropOffset(offset, maxX, maxY) {
+  return {
+    x: Math.min(maxX, Math.max(-maxX, offset.x)),
+    y: Math.min(maxY, Math.max(-maxY, offset.y)),
+  };
+}
+
+function LogoCropper({ file, onCancel, onConfirm }) {
+  const [imgUrl, setImgUrl] = useState("");
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const imgRef = useRef(null);
+  const dragRef = useRef(null);
+
+  useEffect(() => {
+    if (!file) return undefined;
+    const url = URL.createObjectURL(file);
+    setImgUrl(url);
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+    const probe = new Image();
+    probe.onload = () => setNatural({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const baseScale = natural.w && natural.h ? Math.max(CROP_VIEWPORT / natural.w, CROP_VIEWPORT / natural.h) : 1;
+  const scale = baseScale * zoom;
+  const scaledW = natural.w * scale;
+  const scaledH = natural.h * scale;
+  const maxOffsetX = Math.max(0, (scaledW - CROP_VIEWPORT) / 2);
+  const maxOffsetY = Math.max(0, (scaledH - CROP_VIEWPORT) / 2);
+
+  // Re-borne le décalage à chaque changement de zoom (ou une fois l'image
+  // chargée) — sans ça, dézoomer après avoir déplacé l'image en bord ferait
+  // apparaître une bande vide.
+  useEffect(() => {
+    setOffset((prev) => clampCropOffset(prev, maxOffsetX, maxOffsetY));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom, natural.w, natural.h]);
+
+  function onPointerDown(e) {
+    if (!natural.w) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore — certains navigateurs mobiles anciens n'ont pas cette API
+    }
+    dragRef.current = { startX: e.clientX, startY: e.clientY, offX: offset.x, offY: offset.y };
+  }
+  function onPointerMove(e) {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setOffset(
+      clampCropOffset({ x: dragRef.current.offX + dx, y: dragRef.current.offY + dy }, maxOffsetX, maxOffsetY)
+    );
+  }
+  function onPointerUp(e) {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    dragRef.current = null;
+  }
+
+  function handleConfirm() {
+    if (!natural.w || !natural.h || !imgRef.current) return;
+    // Portion (en pixels réels de l'image source) qui correspond au cadre
+    // carré actuellement visible, compte tenu du zoom et du glissement —
+    // voir le commentaire au-dessus du composant.
+    const srcW = CROP_VIEWPORT / scale;
+    const srcH = CROP_VIEWPORT / scale;
+    const srcX = (-CROP_VIEWPORT / 2 - offset.x) / scale + natural.w / 2;
+    const srcY = (-CROP_VIEWPORT / 2 - offset.y) / scale + natural.h / 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = CROP_OUTPUT;
+    canvas.height = CROP_OUTPUT;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgRef.current, srcX, srcY, srcW, srcH, 0, 0, CROP_OUTPUT, CROP_OUTPUT);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    const base64 = dataUrl.split(",")[1] || "";
+    onConfirm(base64, "image/jpeg");
+  }
+
+  return (
+    <div className="crop-backdrop" onClick={onCancel}>
+      <div className="crop-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="crop-modal-head">
+          <h3>Recadrer le logo</h3>
+          <button type="button" className="crop-close" onClick={onCancel} aria-label="Fermer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div
+          className="crop-viewport"
+          style={{ width: CROP_VIEWPORT, height: CROP_VIEWPORT }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        >
+          {imgUrl && (
+            <img
+              ref={imgRef}
+              src={imgUrl}
+              alt=""
+              draggable={false}
+              className="crop-img"
+              style={{
+                width: scaledW || undefined,
+                height: scaledH || undefined,
+                transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+              }}
+            />
+          )}
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="3"
+          step="0.01"
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="crop-zoom"
+          disabled={!natural.w}
+        />
+        <div className="crop-actions">
+          <button type="button" className="secondary" onClick={onCancel}>
+            Annuler
+          </button>
+          <button type="button" className="primary" onClick={handleConfirm} disabled={!natural.w}>
+            Valider le recadrage
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Petit graphe en barres, une seule teinte (violet Fidélions) — inutile
@@ -224,6 +540,81 @@ function BarChart({ data }) {
   );
 }
 
+// Courbe cumulative (nombre total de clients fidélisés au fil du temps) —
+// même logique de survol que BarChart (cible plus large que le point visible,
+// tooltip sous le graphe), mais en ligne + aire remplie à faible opacité :
+// c'est une grandeur qui grandit dans le temps, pas des totaux indépendants.
+function LineChart({ data }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  if (!data || data.length === 0) return null;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const stepX = data.length > 1 ? 100 / (data.length - 1) : 0;
+  const step = Math.max(1, Math.ceil(data.length / 8));
+
+  const points = data.map((d, i) => ({
+    x: data.length > 1 ? i * stepX : 50,
+    y: 100 - (d.value / max) * 84,
+  }));
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
+
+  return (
+    <div className="chart">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="chart-svg">
+        <path d={areaPath} fill={PURPLE} opacity={0.12} stroke="none" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke={PURPLE}
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+        />
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={hoverIdx === i ? 2.6 : 1.6}
+            fill="#fff"
+            stroke={PURPLE}
+            strokeWidth={1.4}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {points.map((p, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={p.x - (data.length > 1 ? stepX / 2 : 50)}
+            y={0}
+            width={data.length > 1 ? stepX : 100}
+            height={100}
+            fill="transparent"
+            onMouseEnter={() => setHoverIdx(i)}
+            onMouseLeave={() => setHoverIdx(null)}
+          />
+        ))}
+      </svg>
+      <div className="chart-labels">
+        {data.map((d, i) => (
+          <span key={i} className={hoverIdx === i ? "active" : ""}>
+            {i % step === 0 || hoverIdx === i ? d.label : ""}
+          </span>
+        ))}
+      </div>
+      <div className="chart-tooltip" style={{ visibility: hoverIdx === null ? "hidden" : "visible" }}>
+        {hoverIdx !== null ? (
+          <>
+            {data[hoverIdx].label} : <strong>{data[hoverIdx].value} client{data[hoverIdx].value > 1 ? "s" : ""} fidélisé{data[hoverIdx].value > 1 ? "s" : ""}</strong>
+          </>
+        ) : (
+          "—"
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Delta({ pct }) {
   if (!Number.isFinite(pct) || pct === 0) return <span className="delta neutral">± 0%</span>;
   const up = pct > 0;
@@ -235,18 +626,89 @@ function Delta({ pct }) {
 }
 
 export default function Commercant() {
+  // Permet à la page d'accueil marketing (pages/index.js) de renvoyer
+  // directement vers l'inscription ou la connexion via /commercant?mode=...
+  // plutôt que de repasser par l'écran de choix.
+  const router = useRouter();
+  // `password` garde son nom historique mais contient depuis le passage
+  // aux comptes un JETON DE SESSION (renvoyé par /api/auth-login ou
+  // /api/auth-signup), plus un mot de passe en clair — c'est ce qui
+  // permet à toutes les requêtes déjà écrites plus bas (headers:
+  // {"x-merchant-password": password}) de continuer à fonctionner sans
+  // rien changer d'autre.
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [checking, setChecking] = useState(false);
 
+  // --- Écran de connexion / inscription (avant authentification) ---
+  // "choice" est l'écran de départ : on demande d'abord de choisir entre
+  // créer un compte et se connecter, plutôt que de présenter directement
+  // un formulaire de connexion par défaut.
+  const [authMode, setAuthMode] = useState("choice"); // "choice" | "login" | "signup"
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // La page d'accueil marketing (pages/index.js) pointe ses boutons vers
+  // /commercant?mode=signup ou ?mode=login — une fois la route prête, on
+  // saute directement au bon écran plutôt que d'afficher le choix.
+  useEffect(() => {
+    if (!router.isReady || authed) return;
+    const mode = router.query.mode;
+    if (mode === "signup") {
+      setAuthMode("signup");
+      setSignupStep(1);
+    } else if (mode === "login") {
+      setAuthMode("login");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.mode]);
+
+  // --- Inscription : assistant en 6 étapes (voir handleSignupSubmit) ---
+  // 1. Nom + logo · 2. Mécanique de fidélité + couleur de carte (facultatif)
+  // · 3. Type d'activité · 4. Tarification · 5. Activation de l'abonnement
+  // · 6. Identifiants + téléphone (seule étape qui appelle /api/auth-signup).
+  const [signupStep, setSignupStep] = useState(1);
+  const SIGNUP_STEPS_TOTAL = 6;
+  const [signupRestaurantName, setSignupRestaurantName] = useState("");
+  const [signupLogo, setSignupLogo] = useState(null); // { base64, mimeType, filename } ou null (optionnel)
+  const [signupBusinessType, setSignupBusinessType] = useState("");
+  const [signupBusinessTypeOther, setSignupBusinessTypeOther] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
+  const signupLogoInputRef = useRef(null);
+
+  // --- Inscription, étape "Mécanique de fidélité" : tampons (1 point par
+  // passage, historique) ou points (variable selon le montant dépensé) —
+  // les deux s'appuient sur le même moteur (voir lib/loyalty.js et
+  // lib/db.js/getLoyaltySettings). Couleur de carte facultative : sinon le
+  // violet Fidélions par défaut est gardé (voir CARD_COLOR_PRESETS).
+  const [signupLoyaltyMode, setSignupLoyaltyMode] = useState("stamps"); // "stamps" | "points"
+  const [signupPointsPerAmount, setSignupPointsPerAmount] = useState(1);
+  const [signupAmountUnit, setSignupAmountUnit] = useState(10);
+  const [signupCardColor, setSignupCardColor] = useState("");
+  const [signupCardColorCustom, setSignupCardColorCustom] = useState("");
+
+  // --- Inscription, étape "Tarification" : palier (nombre de points de
+  // vente) + cycle de facturation — voir PRICING_TIERS/BILLING_CYCLES.
+  const [signupPosCount, setSignupPosCount] = useState("1");
+  const [signupBillingCycle, setSignupBillingCycle] = useState("mensuel");
+
+  // --- Identité du restaurant connecté (renvoyée par /api/clients juste
+  // après la connexion) — utilisée pour construire le lien public
+  // /r/[slug] affiché dans l'onglet Partager.
+  const [restaurantName, setRestaurantName] = useState("");
+  const [merchantSlug, setMerchantSlug] = useState("");
+
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
-  const [role, setRole] = useState(null); // "owner" | "cashier"
+  const [role, setRole] = useState(null); // "owner" | "employee"
   const [rewardThreshold, setRewardThreshold] = useState(10);
   const [rewardLabel, setRewardLabel] = useState("Récompense fidélité");
   const [activeTab, setActiveTab] = useState("apercu");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // --- Gestion des fiches client : renommer / bloquer / supprimer ---
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -267,15 +729,26 @@ export default function Commercant() {
   const [offerText, setOfferText] = useState("");
   const [savingOffer, setSavingOffer] = useState(false);
 
-  // --- Fidélité : mode "tampons" (classique) ou "points" (paliers multiples) ---
-  const [loyaltyType, setLoyaltyType] = useState("tampons");
+  // --- Fidélité : paliers de récompense (système unique "points", voir
+  // lib/loyalty.js) — un seul palier = carte classique, plusieurs = étapes.
   const [tiers, setTiers] = useState([{ threshold: 10, label: "Récompense fidélité" }]);
   const [savingLoyalty, setSavingLoyalty] = useState(false);
+  // Mécanique choisie à l'inscription (voir pages/commercant.js, wizard
+  // étape 2), modifiable ensuite ici — "stamps" (+1/passage) ou "points"
+  // (variable selon le montant dépensé, voir lib/db.js/getLoyaltySettings).
+  const [loyaltyMode, setLoyaltyMode] = useState("stamps");
+  const [pointsPerAmount, setPointsPerAmount] = useState(1);
+  const [amountUnit, setAmountUnit] = useState(10);
+  // Bonus (en points) accordé quand un client laisse un avis Google, réglable
+  // par le commerçant — voir lib/db.js/DEFAULT_REVIEW_BONUS_POINTS (défaut 3).
+  const [reviewBonusPoints, setReviewBonusPoints] = useState(3);
 
   // --- Statistiques (tuiles + graphes), chargées seulement à l'ouverture
   // de l'onglet pour ne pas ralentir la connexion.
   const [statsData, setStatsData] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [evolutionRange, setEvolutionRange] = useState("mois");
+  const [loadingEvolution, setLoadingEvolution] = useState(false);
 
   // --- Personnalisation de la carte : couleur + logo + bannière ---
   const [brandHexColor, setBrandHexColor] = useState(PURPLE);
@@ -289,11 +762,87 @@ export default function Commercant() {
   // --- Notifications de proximité ---
   const [geoEnabled, setGeoEnabled] = useState(false);
   const [geoAddress, setGeoAddress] = useState("");
+  const [geoMessage, setGeoMessage] = useState("");
+  const [geoSuggestions, setGeoSuggestions] = useState([]);
   const [savingGeo, setSavingGeo] = useState(false);
+  const geoDebounceRef = useRef(null);
+
+  // --- Fiche établissement (onglet "Établissement") : chargée seulement à
+  // l'ouverture de l'onglet, comme les statistiques.
+  const [establishment, setEstablishment] = useState(null);
+  const [loadingEstablishment, setLoadingEstablishment] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState(null); // { posCount, billingCycle }
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [savingEstablishment, setSavingEstablishment] = useState(false);
+  const [estBusinessType, setEstBusinessType] = useState("");
+  const [estBusinessTypeOther, setEstBusinessTypeOther] = useState("");
+  const [estPhone, setEstPhone] = useState("");
+  const [estWebsite, setEstWebsite] = useState("");
+  const [estInstagram, setEstInstagram] = useState("");
+  const [estFacebook, setEstFacebook] = useState("");
+  const [estGoogleReviewUrl, setEstGoogleReviewUrl] = useState("");
+  const [estDescription, setEstDescription] = useState("");
+  const [estHours, setEstHours] = useState(null);
+  const [estPhotos, setEstPhotos] = useState([]); // URLs déjà enregistrées
+  const [estNewPhotos, setEstNewPhotos] = useState([]); // { base64, mimeType, filename } en attente d'envoi
+  const estPhotoInputRef = useRef(null);
+  const estLogoInputRef = useRef(null);
+  const [savingEstLogo, setSavingEstLogo] = useState(false);
+
+  // --- Recadrage de logo (modal partagé par les 3 sélecteurs de logo :
+  // inscription, "Ma carte", Établissement) — cropperTarget dit quel
+  // sélecteur a ouvert le modal, pour router le résultat vers le bon état.
+  const [cropperFile, setCropperFile] = useState(null); // File brut en attente de recadrage, ou null
+  const [cropperTarget, setCropperTarget] = useState(null); // "signup" | "branding" | "establishment" | null
+
+  // --- Changement de mot de passe (onglet Paramètres) : mot de passe actuel
+  // → code à 4 chiffres envoyé par email → nouveau mot de passe.
+  const [pwStep, setPwStep] = useState("idle"); // "idle" | "form"
+  const [pwCurrentInput, setPwCurrentInput] = useState("");
+  const [pwNewPassword, setPwNewPassword] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+
+  // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
+  // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
+  // attend d'avoir récupéré le slug (voir tryAuth) avant de générer le QR.
+  const [signupQrUrl, setSignupQrUrl] = useState("");
+  useEffect(() => {
+    if (typeof window === "undefined" || !merchantSlug) return;
+    QRCode.toDataURL(`${window.location.origin}/r/${merchantSlug}`, {
+      width: 500,
+      margin: 2,
+      color: { dark: "#1a1a1a" },
+    })
+      .then(setSignupQrUrl)
+      .catch(() => setSignupQrUrl(""));
+  }, [merchantSlug]);
+  function copySignupLink() {
+    if (typeof window === "undefined" || !merchantSlug) return;
+    navigator.clipboard
+      .writeText(`${window.location.origin}/r/${merchantSlug}`)
+      .then(() => setMessage({ type: "success", text: "Lien copié !" }))
+      .catch(() => setMessage({ type: "error", text: "Impossible de copier — copie-le à la main." }));
+  }
 
   // --- Lien employé (scan seul, sans mot de passe à retenir) ---
   const [employeeToken, setEmployeeToken] = useState(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
+
+  // --- Équipe : chaque employé a un prénom + un code à 4 chiffres, des
+  // jours/horaires d'accès, et des permissions par rubrique.
+  const [employees, setEmployees] = useState([]);
+  const [employeeLeaderboard, setEmployeeLeaderboard] = useState([]); // voir getEmployeeLeaderboard (lib/db.js)
+  const [employeeLeaderboardMonth, setEmployeeLeaderboardMonth] = useState(""); // "2026-09" — classement mensuel, remis à zéro chaque mois
+  const [leaderboardSort, setLeaderboardSort] = useState("clients"); // "clients" | "cards" | "revenue" — critère de tri choisi par le patron, purement côté écran (les 4 compteurs sont déjà tous renvoyés par l'API)
+  const [editingEmpId, setEditingEmpId] = useState(null);
+  const [empName, setEmpName] = useState("");
+  const [empPin, setEmpPin] = useState("");
+  const [empDays, setEmpDays] = useState(ALL_DAY_IDS);
+  const [empStart, setEmpStart] = useState("");
+  const [empEnd, setEmpEnd] = useState("");
+  const [empPerms, setEmpPerms] = useState({ clients: false, stats: false, campagnes: false });
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [revealedPinId, setRevealedPinId] = useState(null);
 
   // --- Campagne : notification et/ou email envoyés à tous les clients d'un coup ---
   const [campaignHeader, setCampaignHeader] = useState("");
@@ -364,7 +913,11 @@ export default function Commercant() {
         headers: { "x-merchant-password": pw },
       });
       if (res.status === 401) {
-        setAuthError("Mot de passe incorrect.");
+        // Ce cas ne se produit plus qu'au rechargement automatique avec un
+        // jeton déjà enregistré sur l'appareil (voir plus bas) — la
+        // connexion elle-même passe maintenant par /api/auth-login, qui
+        // renvoie sa propre erreur avant même d'arriver ici.
+        setAuthError("Session expirée — reconnecte-toi.");
         setChecking(false);
         return;
       }
@@ -374,6 +927,8 @@ export default function Commercant() {
       setRole(data.role || "owner");
       if (data.rewardThreshold) setRewardThreshold(data.rewardThreshold);
       if (data.rewardLabel) setRewardLabel(data.rewardLabel);
+      if (data.restaurantName) setRestaurantName(data.restaurantName);
+      if (data.slug) setMerchantSlug(data.slug);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
 
@@ -399,8 +954,13 @@ export default function Commercant() {
           const res2 = await fetch("/api/loyalty-settings", { headers: { "x-merchant-password": pw } });
           const data2 = await res2.json();
           if (res2.ok) {
-            setLoyaltyType(data2.type);
             setTiers(data2.tiers);
+            if (data2.mode) setLoyaltyMode(data2.mode);
+            if (data2.pointsConfig) {
+              setPointsPerAmount(data2.pointsConfig.pointsPerAmount);
+              setAmountUnit(data2.pointsConfig.amountUnit);
+            }
+            if (data2.reviewBonusPoints !== undefined) setReviewBonusPoints(data2.reviewBonusPoints);
           }
         } catch {
           // silencieux
@@ -421,6 +981,7 @@ export default function Commercant() {
           if (res4.ok) {
             setGeoEnabled(data4.enabled);
             setGeoAddress(data4.address);
+            setGeoMessage(data4.message || "");
           }
         } catch {
           // silencieux
@@ -432,11 +993,225 @@ export default function Commercant() {
         } catch {
           // silencieux
         }
+        try {
+          const res6 = await fetch("/api/employees", { headers: { "x-merchant-password": pw } });
+          const data6 = await res6.json();
+          if (res6.ok) {
+            setEmployees(data6.employees || []);
+            setEmployeeLeaderboard(data6.leaderboard || []);
+            setEmployeeLeaderboardMonth(data6.leaderboardMonth || "");
+          }
+        } catch {
+          // silencieux
+        }
       }
     } catch (err) {
       setAuthError(err.message);
     } finally {
       setChecking(false);
+    }
+  }
+
+  // --- Écran de départ : choisir entre créer un compte et se connecter ---
+  function goToChoice() {
+    setAuthMode("choice");
+    setAuthError("");
+  }
+  function goToLogin() {
+    setAuthMode("login");
+    setAuthError("");
+  }
+  function startSignup() {
+    setAuthMode("signup");
+    setSignupStep(1);
+    setAuthError("");
+  }
+
+  // --- Connexion (compte déjà créé) ---
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    setChecking(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Connexion impossible.");
+        setChecking(false);
+        return;
+      }
+      setPassword(data.token);
+      await tryAuth(data.token);
+    } catch (err) {
+      setAuthError("Connexion impossible : " + err.message);
+      setChecking(false);
+    }
+  }
+
+  // --- Inscription (nouveau restaurant) : assistant en 3 étapes ---
+  // Étape 1 : nom + logo (optionnel, gardé en mémoire, pas encore envoyé).
+  // Étape 2 : type d'activité (bulles). Étape 3 : identifiants + téléphone
+  // (optionnel), puis un seul appel à /api/auth-signup avec tout ce qui a
+  // été accumulé — pas d'écran de confirmation intermédiaire, accès direct
+  // au tableau de bord dès le succès, comme avant l'assistant.
+  function handleSignupLogoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAuthError("Le logo doit être une image.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAuthError("Logo trop lourd (8 Mo max).");
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("signup");
+  }
+
+  // --- Étape 1 → 2 (nom/logo → mécanique de fidélité) ---
+  function goSignupStep2() {
+    if (!signupRestaurantName.trim()) {
+      setAuthError("Le nom de ton établissement est obligatoire.");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(2);
+  }
+
+  function goSignupStep1() {
+    setAuthError("");
+    setSignupStep(1);
+  }
+
+  // --- Étape 2 → 3 (mécanique de fidélité + couleur → type d'activité) ---
+  function goSignupStep3() {
+    if (signupLoyaltyMode === "points") {
+      if (!(Number(signupPointsPerAmount) > 0) || !(Number(signupAmountUnit) > 0)) {
+        setAuthError("Vérifie les nombres de la mécanique par points.");
+        return;
+      }
+    }
+    if (signupCardColorCustom && !/^#[0-9a-fA-F]{6}$/.test(signupCardColorCustom.trim())) {
+      setAuthError("Le code couleur doit être au format #RRGGBB (6 chiffres).");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(3);
+  }
+
+  function goSignupStep2Back() {
+    setAuthError("");
+    setSignupStep(2);
+  }
+
+  // --- Étape 3 → 4 (type d'activité → tarification) ---
+  function goSignupStep4() {
+    if (!signupBusinessType) {
+      setAuthError("Choisis le type de ton activité.");
+      return;
+    }
+    if (signupBusinessType === "autre" && !signupBusinessTypeOther.trim()) {
+      setAuthError("Décris ton activité.");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(4);
+  }
+
+  function goSignupStep3Back() {
+    setAuthError("");
+    setSignupStep(3);
+  }
+
+  // --- Étape 4 → 5 (tarification → activation de l'abonnement) ---
+  function goSignupStep5() {
+    setAuthError("");
+    setSignupStep(5);
+  }
+
+  function goSignupStep4Back() {
+    setAuthError("");
+    setSignupStep(4);
+  }
+
+  // --- Étape 5 → 6 (activation → identifiants, dernière étape) ---
+  function goSignupStep6() {
+    setAuthError("");
+    setSignupStep(6);
+  }
+
+  function goSignupStep5Back() {
+    setAuthError("");
+    setSignupStep(5);
+  }
+
+  const selectedCardColor = (signupCardColorCustom.trim() || signupCardColor || "").trim();
+  const selectedPricingTier = PRICING_TIERS.find((t) => t.id === signupPosCount) || PRICING_TIERS[0];
+  const selectedTierPrice = getTierPrice(selectedPricingTier, signupBillingCycle);
+
+  async function handleSignupSubmit(e) {
+    e.preventDefault();
+    if (signupPassword.length < 4) {
+      setAuthError("Le mot de passe doit faire au moins 4 caractères.");
+      return;
+    }
+    setChecking(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupEmail,
+          password: signupPassword,
+          restaurantName: signupRestaurantName,
+          businessType: signupBusinessType,
+          businessTypeOther: signupBusinessType === "autre" ? signupBusinessTypeOther : "",
+          phone: signupPhone,
+          logo: signupLogo,
+          cardColor: selectedCardColor || null,
+          loyaltyMode: signupLoyaltyMode,
+          pointsConfig: {
+            pointsPerAmount: Number(signupPointsPerAmount) || 1,
+            amountUnit: Number(signupAmountUnit) || 10,
+          },
+          posCount: signupPosCount,
+          billingCycle: signupBillingCycle,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Inscription impossible.");
+        setChecking(false);
+        return;
+      }
+      setPassword(data.token);
+      await tryAuth(data.token);
+    } catch (err) {
+      setAuthError("Inscription impossible : " + err.message);
+      setChecking(false);
+    }
+  }
+
+  // --- Déconnexion : clic sur le logo/wordmark Fidélions de la barre
+  // latérale (voir sidebar) — remet l'écran de pré-connexion sur le choix
+  // initial plutôt que de rouvrir directement le formulaire de connexion.
+  function handleLogout() {
+    setAuthed(false);
+    setPassword("");
+    setRole(null);
+    setAuthMode("choice");
+    setAuthError("");
+    try {
+      localStorage.removeItem(PW_STORAGE_KEY);
+    } catch {
+      // ignoré — au pire l'appareil réessaiera l'ancien jeton au prochain chargement
     }
   }
 
@@ -452,8 +1227,26 @@ export default function Commercant() {
     }
   }
 
-  async function addStamp(objectId) {
+  // Mode "points" : le nombre de points dépend du montant dépensé — on le
+  // demande avant d'envoyer (mode "stamps", par défaut : toujours +1, comme
+  // avant cette fonctionnalité). Renvoie `undefined` si annulé pour de bon
+  // (montant vide), ou lève pour un montant invalide.
+  function promptAmountIfNeeded() {
+    if (loyaltyMode !== "points") return { ok: true, amount: undefined };
+    const input = window.prompt("Montant dépensé par le client (en €) :", "");
+    if (input === null) return { ok: false };
+    const amount = Number(String(input).replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage({ type: "error", text: "Montant invalide — l'ajout de point a été annulé." });
+      return { ok: false };
+    }
+    return { ok: true, amount };
+  }
+
+  async function performAddStamp(objectId, { reviewGiven } = {}) {
     setMessage(null);
+    const amountResult = promptAmountIfNeeded();
+    if (!amountResult.ok) return;
     try {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
@@ -461,13 +1254,16 @@ export default function Commercant() {
           "Content-Type": "application/json",
           "x-merchant-password": password,
         },
-        body: JSON.stringify({ objectId }),
+        body: JSON.stringify({ objectId, amount: amountResult.amount, reviewGiven }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       let text = data.rewardReached
-        ? `🎉 ${data.client.prenom} a débloqué sa récompense ! (${data.client.points} ${loyaltyType === "points" ? "points" : "tampons"})`
-        : `+1 pour ${data.client.prenom} (${data.client.points} ${loyaltyType === "points" ? "point" : "tampon"}${data.client.points > 1 ? "s" : ""})`;
+        ? `${data.client.prenom} a débloqué sa récompense ! (${data.client.points} points)`
+        : `+${data.delta || 1} pour ${data.client.prenom} (${data.client.points} point${data.client.points > 1 ? "s" : ""})`;
+      if (data.reviewBonusApplied) {
+        text += " — merci pour l'avis Google, bonus ajouté !";
+      }
       if (data.notificationSent === false) {
         text += " — bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
       }
@@ -478,7 +1274,15 @@ export default function Commercant() {
     }
   }
 
-  // --- Fidélité : type (tampons/points) + paliers ---
+  function addStamp(objectId) {
+    return performAddStamp(objectId);
+  }
+
+  function addStampWithReview(objectId) {
+    return performAddStamp(objectId, { reviewGiven: true });
+  }
+
+  // --- Fidélité : paliers de récompense ---
   function addTier() {
     if (tiers.length >= 10) return;
     const last = tiers[tiers.length - 1];
@@ -507,18 +1311,29 @@ export default function Commercant() {
         return;
       }
     }
+    const rbp = Number(reviewBonusPoints);
+    if (!Number.isFinite(rbp) || rbp < 0 || rbp > 50) {
+      setMessage({ type: "error", text: "Le bonus avis Google doit être entre 0 et 50 points." });
+      return;
+    }
     setSavingLoyalty(true);
     setMessage(null);
     try {
       const res = await fetch("/api/loyalty-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ type: loyaltyType, tiers }),
+        body: JSON.stringify({
+          tiers,
+          mode: loyaltyMode,
+          pointsConfig: { pointsPerAmount: Number(pointsPerAmount) || 1, amountUnit: Number(amountUnit) || 10 },
+          reviewBonusPoints: Number(reviewBonusPoints),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setLoyaltyType(data.type);
       setTiers(data.tiers);
+      if (data.mode) setLoyaltyMode(data.mode);
+      if (data.reviewBonusPoints !== undefined) setReviewBonusPoints(data.reviewBonusPoints);
       setRewardThreshold(data.tiers[0].threshold);
       setRewardLabel(data.tiers[0].label);
       setMessage({ type: "success", text: "Réglages de fidélité enregistrés." });
@@ -768,7 +1583,9 @@ export default function Commercant() {
   async function loadStats() {
     setLoadingStats(true);
     try {
-      const res = await fetch("/api/stats", { headers: { "x-merchant-password": password } });
+      const res = await fetch(`/api/stats?range=${evolutionRange}`, {
+        headers: { "x-merchant-password": password },
+      });
       const data = await res.json();
       if (res.ok) setStatsData(data);
     } catch {
@@ -778,24 +1595,224 @@ export default function Commercant() {
     }
   }
 
+  // Change uniquement la période de la courbe "évolution des clients
+  // fidélisés" — pas besoin de recharger les tuiles/autres graphes.
+  async function changeEvolutionRange(range) {
+    setEvolutionRange(range);
+    setLoadingEvolution(true);
+    try {
+      const res = await fetch(`/api/stats?range=${range}`, {
+        headers: { "x-merchant-password": password },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatsData((prev) => (prev ? { ...prev, evolutionClients: data.evolutionClients } : data));
+      }
+    } catch {
+      // silencieux
+    } finally {
+      setLoadingEvolution(false);
+    }
+  }
+
   function switchTab(tab) {
     setActiveTab(tab);
     if (tab === "stats" && !statsData && !loadingStats) {
       loadStats();
     }
+    if (tab === "etablissement" && !establishment && !loadingEstablishment) {
+      loadEstablishment();
+    }
+    if (tab === "abonnement" && !subscriptionInfo && !loadingSubscription) {
+      loadSubscription();
+    }
   }
 
-  // --- Personnalisation de la carte ---
-  async function handleLogoChange(e) {
+  // --- Abonnement : formule choisie à l'inscription (voir pages/api/subscription.js) ---
+  async function loadSubscription() {
+    setLoadingSubscription(true);
+    try {
+      const res = await fetch("/api/subscription", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) setSubscriptionInfo(data);
+    } catch {
+      // silencieux — l'onglet réessaiera à la prochaine ouverture
+    } finally {
+      setLoadingSubscription(false);
+    }
+  }
+
+  // --- Fiche établissement ---
+  async function loadEstablishment() {
+    setLoadingEstablishment(true);
+    try {
+      const res = await fetch("/api/establishment", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) {
+        setEstablishment(data);
+        setEstBusinessType(data.businessType || "");
+        setEstBusinessTypeOther(data.businessTypeOther || "");
+        setEstPhone(data.phone || "");
+        setEstWebsite(data.website || "");
+        setEstInstagram(data.instagram || "");
+        setEstFacebook(data.facebook || "");
+        setEstGoogleReviewUrl(data.googleReviewUrl || "");
+        setEstDescription(data.description || "");
+        setEstHours(data.hours || null);
+        setEstPhotos(data.photos || []);
+      }
+    } catch {
+      // silencieux — l'onglet réessaiera à la prochaine ouverture
+    } finally {
+      setLoadingEstablishment(false);
+    }
+  }
+
+  function toggleEstDayClosed(dayId) {
+    setEstHours((prev) => ({ ...prev, [dayId]: { ...prev[dayId], closed: !prev[dayId].closed } }));
+  }
+
+  function updateEstDayTime(dayId, field, value) {
+    setEstHours((prev) => ({ ...prev, [dayId]: { ...prev[dayId], [field]: value } }));
+  }
+
+  async function handleEstPhotoChange(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const room = 4 - estPhotos.length - estNewPhotos.length;
+    if (room <= 0) {
+      setMessage({ type: "error", text: "4 photos maximum — retire-en une avant d'en ajouter une nouvelle." });
+      return;
+    }
+    for (const file of files.slice(0, room)) {
+      if (file.size > 4 * 1024 * 1024) continue;
+      const encoded = await readFileAsBase64(file);
+      setEstNewPhotos((prev) => [...prev, encoded]);
+    }
+  }
+
+  function removeEstNewPhoto(i) {
+    setEstNewPhotos((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function removeEstExistingPhoto(url) {
+    setEstPhotos((prev) => prev.filter((u) => u !== url));
+  }
+
+  async function saveEstablishment() {
+    if (estBusinessType === "autre" && !estBusinessTypeOther.trim()) {
+      setMessage({ type: "error", text: "Décris ton activité." });
+      return;
+    }
+    setSavingEstablishment(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/establishment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          businessType: estBusinessType,
+          businessTypeOther: estBusinessType === "autre" ? estBusinessTypeOther : "",
+          phone: estPhone,
+          website: estWebsite,
+          instagram: estInstagram,
+          facebook: estFacebook,
+          googleReviewUrl: estGoogleReviewUrl,
+          description: estDescription,
+          hours: estHours,
+          newPhotos: estNewPhotos,
+          removedPhotoUrls: (establishment?.photos || []).filter((u) => !estPhotos.includes(u)),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEstablishment(data);
+      setEstPhotos(data.photos || []);
+      setEstNewPhotos([]);
+      setMessage({ type: "success", text: "Fiche établissement enregistrée." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEstablishment(false);
+    }
+  }
+
+  // Logo de la fiche établissement : contrairement au reste de l'onglet
+  // (bouton "Enregistrer" unique), le logo est enregistré immédiatement dès
+  // le recadrage validé — c'est la même image que celle de l'onglet "Ma
+  // carte" (voir /api/branding), pas un champ propre à la fiche établissement.
+  function handleEstLogoChange(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Logo trop lourd (4 Mo max)." });
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Le logo doit être une image." });
       return;
     }
-    const encoded = await readFileAsBase64(file);
-    setLogoFile(encoded);
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo trop lourd (8 Mo max)." });
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("establishment");
+  }
+
+  async function saveEstLogo(base64, mimeType) {
+    setSavingEstLogo(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/branding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ logo: { base64, mimeType, filename: "logo.jpg" } }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setBrandingInfo(data);
+      setMessage({ type: "success", text: "Logo mis à jour." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEstLogo(false);
+    }
+  }
+
+  // --- Recadrage de logo : point d'entrée unique du modal partagé (voir
+  // LogoCropper plus haut) — route le résultat vers le bon état selon quel
+  // sélecteur a ouvert le modal.
+  function handleCropConfirm(base64, mimeType) {
+    const target = cropperTarget;
+    setCropperFile(null);
+    setCropperTarget(null);
+    if (target === "signup") {
+      setSignupLogo({ base64, mimeType, filename: "logo.jpg" });
+    } else if (target === "branding") {
+      setLogoFile({ base64, mimeType, filename: "logo.jpg" });
+    } else if (target === "establishment") {
+      saveEstLogo(base64, mimeType);
+    }
+  }
+
+  function handleCropCancel() {
+    setCropperFile(null);
+    setCropperTarget(null);
+  }
+
+  // --- Personnalisation de la carte ---
+  function handleLogoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Le logo doit être une image." });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo trop lourd (8 Mo max)." });
+      return;
+    }
+    setCropperFile(file);
+    setCropperTarget("branding");
   }
 
   async function handleBannerChange(e) {
@@ -835,7 +1852,7 @@ export default function Commercant() {
         type: "success",
         text: data.walletUpdated
           ? "Personnalisation enregistrée — les cartes déjà distribuées seront mises à jour d'ici quelques minutes."
-          : "Personnalisation enregistrée, mais Google Wallet n'a pas pu être mis à jour tout de suite (réessaie plus tard).",
+          : `Personnalisation enregistrée, mais Google Wallet n'a pas pu être mis à jour tout de suite : ${data.walletError || "raison inconnue"} (réessaie plus tard).`,
       });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -844,10 +1861,78 @@ export default function Commercant() {
     }
   }
 
+  // --- Changement de mot de passe (onglet Paramètres) ---
+  function pwStartFlow() {
+    setMessage(null);
+    setPwStep("form");
+  }
+
+  function pwCancelToIdle() {
+    setPwStep("idle");
+    setPwCurrentInput("");
+    setPwNewPassword("");
+  }
+
+  async function pwSubmitChange() {
+    if (!pwCurrentInput) {
+      setMessage({ type: "error", text: "Saisis ton mot de passe actuel." });
+      return;
+    }
+    if (pwNewPassword.length < 4) {
+      setMessage({ type: "error", text: "Le nouveau mot de passe doit faire au moins 4 caractères." });
+      return;
+    }
+    setPwSubmitting(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ currentPassword: pwCurrentInput, newPassword: pwNewPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setMessage({ type: "success", text: "Mot de passe modifié." });
+      pwCancelToIdle();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setPwSubmitting(false);
+    }
+  }
+
   // --- Notifications de proximité ---
+  // Autocomplete d'adresse française : l'API Adresse du gouvernement
+  // (gratuite, sans clé) renvoie des suggestions au fil de la saisie —
+  // debounce de 300ms pour ne pas la spammer à chaque frappe.
+  function handleGeoAddressChange(value) {
+    setGeoAddress(value);
+    if (geoDebounceRef.current) clearTimeout(geoDebounceRef.current);
+    if (!value || value.trim().length < 3) {
+      setGeoSuggestions([]);
+      return;
+    }
+    geoDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(value)}&limit=5`
+        );
+        const data = await res.json();
+        setGeoSuggestions((data.features || []).map((f) => f.properties.label));
+      } catch {
+        setGeoSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function pickGeoSuggestion(label) {
+    setGeoAddress(label);
+    setGeoSuggestions([]);
+  }
+
   async function saveGeo() {
     if (geoEnabled && !geoAddress.trim()) {
-      setMessage({ type: "error", text: "Indique l'adresse du restaurant." });
+      setMessage({ type: "error", text: "Indique l'adresse du commerce." });
       return;
     }
     setSavingGeo(true);
@@ -856,17 +1941,21 @@ export default function Commercant() {
       const res = await fetch("/api/geolocation", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ enabled: geoEnabled, address: geoAddress }),
+        body: JSON.stringify({ enabled: geoEnabled, address: geoAddress, message: geoMessage }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setGeoEnabled(data.enabled);
       setGeoAddress(data.address);
+      setGeoMessage(data.message || "");
+      setGeoSuggestions([]);
+      const base = data.enabled ? "Notifications de proximité activées." : "Notifications de proximité désactivées.";
       setMessage({
-        type: "success",
-        text: data.enabled
-          ? "Notifications de proximité activées."
-          : "Notifications de proximité désactivées.",
+        type: data.walletUpdated === false ? "error" : "success",
+        text:
+          data.walletUpdated === false
+            ? `${base} Réglage enregistré, mais Google Wallet n'a pas pu être mis à jour tout de suite : ${data.walletError || "raison inconnue"} (réessaie plus tard).`
+            : base,
       });
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -903,6 +1992,142 @@ export default function Commercant() {
         () => setMessage({ type: "success", text: "Lien copié !" }),
         () => setMessage({ type: "error", text: "Impossible de copier — sélectionne et copie le lien manuellement." })
       );
+    }
+  }
+
+  // --- Équipe : chaque employé a son propre code, ses jours/horaires
+  // d'accès, et ses permissions par rubrique — le lien ci-dessus reste
+  // commun, c'est le code qui identifie qui l'utilise.
+  function toggleEmpDay(day) {
+    setEmpDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  }
+
+  function startEditEmployee(emp) {
+    setEditingEmpId(emp.id);
+    setEmpName(emp.name);
+    setEmpPin("");
+    setEmpDays(emp.days && emp.days.length > 0 ? emp.days : ALL_DAY_IDS);
+    setEmpStart(emp.startTime || "");
+    setEmpEnd(emp.endTime || "");
+    setEmpPerms({
+      clients: !!emp.permissions?.clients,
+      stats: !!emp.permissions?.stats,
+      campagnes: !!emp.permissions?.campagnes,
+    });
+  }
+
+  function resetEmployeeForm() {
+    setEditingEmpId(null);
+    setEmpName("");
+    setEmpPin("");
+    setEmpDays(ALL_DAY_IDS);
+    setEmpStart("");
+    setEmpEnd("");
+    setEmpPerms({ clients: false, stats: false, campagnes: false });
+  }
+
+  async function saveEmployee() {
+    if (!empName.trim()) {
+      setMessage({ type: "error", text: "Le prénom de l'employé est obligatoire." });
+      return;
+    }
+    if (!editingEmpId && !/^[0-9]{4}$/.test(empPin)) {
+      setMessage({ type: "error", text: "Le code doit faire exactement 4 chiffres." });
+      return;
+    }
+    if (empPin && !/^[0-9]{4}$/.test(empPin)) {
+      setMessage({ type: "error", text: "Le code doit faire exactement 4 chiffres." });
+      return;
+    }
+    if (empStart && empEnd && empStart >= empEnd) {
+      setMessage({ type: "error", text: "L'heure de fin doit être après l'heure de début." });
+      return;
+    }
+    setSavingEmployee(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          id: editingEmpId,
+          name: empName,
+          pin: empPin || undefined,
+          days: empDays,
+          startTime: empStart || null,
+          endTime: empEnd || null,
+          permissions: empPerms,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+      resetEmployeeForm();
+      setMessage({ type: "success", text: "Employé enregistré." });
+      refreshEmployeeLeaderboard();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingEmployee(false);
+    }
+  }
+
+  // Le classement (clients fidélisés + avis obtenus) n'est renvoyé que par
+  // le GET (voir pages/api/employees.js) — un petit rafraîchissement après
+  // chaque modification de l'équipe suffit, pas besoin de le dupliquer dans
+  // chaque réponse POST.
+  async function refreshEmployeeLeaderboard() {
+    try {
+      const res = await fetch("/api/employees", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) {
+        setEmployeeLeaderboard(data.leaderboard || []);
+        setEmployeeLeaderboardMonth(data.leaderboardMonth || "");
+      }
+    } catch {
+      // silencieux
+    }
+  }
+
+  async function toggleEmployeeActive(emp) {
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          id: emp.id,
+          name: emp.name,
+          active: !emp.active,
+          days: emp.days,
+          startTime: emp.startTime,
+          endTime: emp.endTime,
+          permissions: emp.permissions,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    }
+  }
+
+  async function deleteEmployeeRow(emp) {
+    setMessage(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ action: "delete", id: emp.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEmployees(data.employees || []);
+      setMessage({ type: "success", text: `${emp.name} supprimé de l'équipe.` });
+      refreshEmployeeLeaderboard();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
     }
   }
 
@@ -943,7 +2168,7 @@ export default function Commercant() {
       setMessage({
         type: "success",
         text:
-          `Campagne envoyée : ${parts.join(" + ")} 🎉` +
+          `Campagne envoyée : ${parts.join(" + ")}` +
           (failedParts.length > 0 ? ` (échec : ${failedParts.join(", ")})` : ""),
       });
       setCampaignHeader("");
@@ -983,7 +2208,7 @@ export default function Commercant() {
       let text = "Impossible d'accéder à la caméra : " + (err?.message || err);
       if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
         text =
-          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
+          "L'accès à la caméra a été refusé pour ce site. Sur ton téléphone : ouvre les réglages du navigateur (ou appuie sur l'icône cadenas/i à côté de l'adresse du site) → Autorisations → Caméra → Autoriser, puis recharge la page.";
       } else if (err && err.name === "NotFoundError") {
         text = "Aucune caméra détectée sur cet appareil.";
       }
@@ -1047,7 +2272,7 @@ export default function Commercant() {
 
         if (match) {
           setSearch(match.prenom);
-          setCameraStatus(`✅ ${match.prenom} trouvé — clique "+1" ci-dessous pour valider.`);
+          setCameraStatus(`${match.prenom} trouvé — clique "+1" ci-dessous pour valider.`);
         } else {
           setCameraStatus("QR non reconnu — réessaie, ou cherche le client par prénom ci-dessous.");
         }
@@ -1072,7 +2297,7 @@ export default function Commercant() {
   // (non bloqués) — un client bloqué n'entre plus dans aucun calcul.
   const activeClients = clients.filter((c) => !c.blocked);
 
-  const totalTampons = activeClients.reduce((sum, c) => sum + (c.points || 0), 0);
+  const totalPoints = activeClients.reduce((sum, c) => sum + (c.points || 0), 0);
   const safeThreshold = Number(rewardThreshold) > 0 ? Number(rewardThreshold) : 10;
   const totalRecompenses = activeClients.reduce(
     (sum, c) => sum + Math.floor((c.points || 0) / safeThreshold),
@@ -1089,61 +2314,516 @@ export default function Commercant() {
   const insights = computeInsights(activeClients, safeThreshold);
 
   if (!authed) {
-    return (
-      <div className="page">
-        <div className="card">
-          <h1>Espace commerçant</h1>
-          <p className="subtitle">Réservé au restaurant — entrez le mot de passe.</p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              tryAuth(password);
-            }}
-          >
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mot de passe"
-              autoFocus
-            />
-            <button type="submit" disabled={checking}>
-              {checking ? "Vérification…" : "Entrer"}
-            </button>
-          </form>
-          {authError && <p className="error">{authError}</p>}
+    if (authMode === "login") {
+      // Écran de connexion façon "split-screen" : un panneau coloré avec les
+      // bénéfices d'un côté, le formulaire de l'autre (voir les captures
+      // Fidelix envoyées par Adam) — écrans "choice"/"signup" gardent la
+      // carte centrée classique juste en dessous.
+      return (
+        <div className="auth-page">
+          <div className="split-login">
+            <div className="split-panel">
+              <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
+              <h2 className="split-title">Content de te revoir</h2>
+              <ul className="split-benefits">
+                <li>
+                  <Icon name="check" size={15} /> Système de fidélisation clé en main
+                </li>
+                <li>
+                  <Icon name="check" size={15} /> Carte Google Wallet, sans application à installer
+                </li>
+                <li>
+                  <Icon name="check" size={15} /> Statistiques, campagnes et équipe en un seul endroit
+                </li>
+              </ul>
+            </div>
+            <div className="split-form-panel">
+              <h1>Connexion</h1>
+              <p className="subtitle">Connecte-toi à ton compte.</p>
+              <form onSubmit={handleLoginSubmit}>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Email du commerce"
+                  autoFocus
+                  required
+                />
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Mot de passe"
+                  required
+                />
+                <button type="submit" disabled={checking}>
+                  {checking ? "Connexion…" : "Se connecter"}
+                </button>
+              </form>
+              {authError && <p className="error">{authError}</p>}
+              <p className="auth-switch">
+                <button type="button" className="link-btn" onClick={goToChoice}>
+                  Retour
+                </button>
+                {" · "}
+                Pas encore de compte ?{" "}
+                <button type="button" className="link-btn" onClick={startSignup}>
+                  Crée ton établissement sur Fidélions
+                </button>
+              </p>
+            </div>
+          </div>
+          <LegalFooter style={{ marginTop: "auto" }} />
+          <style jsx>{styles}</style>
         </div>
+      );
+    }
+
+    return (
+      <div className="auth-page">
+        <div className="card">
+          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+
+          {authMode === "choice" && (
+            <>
+              <h1>Espace commerçant</h1>
+              <p className="subtitle">Tes clients reviennent, automatiquement, sans que tu y penses.</p>
+              <div className="auth-choice">
+                <button type="button" className="primary" onClick={startSignup}>
+                  Créer un compte
+                </button>
+                <button type="button" className="secondary" onClick={goToLogin}>
+                  Se connecter
+                </button>
+              </div>
+            </>
+          )}
+
+          {authMode === "signup" && (
+            <>
+              <h1>Créer mon compte</h1>
+              <p className="subtitle">Étape {signupStep}/{SIGNUP_STEPS_TOTAL}</p>
+              <div className="step-dots">
+                {Array.from({ length: SIGNUP_STEPS_TOTAL }).map((_, i) => (
+                  <span key={i} className={signupStep >= i + 1 ? "active" : ""} />
+                ))}
+              </div>
+
+              {signupStep === 1 && (
+                <div className="signup-step">
+                  <input
+                    type="text"
+                    value={signupRestaurantName}
+                    onChange={(e) => setSignupRestaurantName(e.target.value)}
+                    placeholder="Nom de ton établissement"
+                    autoFocus
+                    required
+                  />
+                  <div className="signup-logo-row">
+                    {signupLogo && (
+                      <img
+                        className="upload-preview"
+                        src={`data:${signupLogo.mimeType};base64,${signupLogo.base64}`}
+                        alt="Aperçu du logo"
+                      />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={signupLogoInputRef}
+                      style={{ display: "none" }}
+                      onChange={handleSignupLogoChange}
+                    />
+                    <button type="button" className="secondary" onClick={() => signupLogoInputRef.current?.click()}>
+                      <Icon name="paperclip" /> {signupLogo ? "Changer le logo" : "Ajouter un logo (optionnel)"}
+                    </button>
+                  </div>
+                  {authError && <p className="error">{authError}</p>}
+                  <button type="button" className="primary" onClick={goSignupStep2}>
+                    Valider
+                  </button>
+                </div>
+              )}
+
+              {signupStep === 2 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Comment tes clients gagnent des points ?
+                  </p>
+                  <div className="mode-cards">
+                    <button
+                      type="button"
+                      className={`mode-card${signupLoyaltyMode === "stamps" ? " active" : ""}`}
+                      onClick={() => setSignupLoyaltyMode("stamps")}
+                    >
+                      <span className="mode-card-title">Tampons</span>
+                      <span className="mode-card-desc">+1 point à chaque passage, quel que soit le montant.</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`mode-card${signupLoyaltyMode === "points" ? " active" : ""}`}
+                      onClick={() => setSignupLoyaltyMode("points")}
+                    >
+                      <span className="mode-card-title">Points</span>
+                      <span className="mode-card-desc">Le nombre de points dépend du montant dépensé.</span>
+                    </button>
+                  </div>
+
+                  {signupLoyaltyMode === "points" && (
+                    <div className="points-config-row">
+                      <span className="points-config-label">Le client gagne</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={signupPointsPerAmount}
+                        onChange={(e) => setSignupPointsPerAmount(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">point(s) tous les</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={signupAmountUnit}
+                        onChange={(e) => setSignupAmountUnit(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">€ dépensés</span>
+                    </div>
+                  )}
+
+                  <p className="subtitle" style={{ margin: "16px 0 10px" }}>
+                    Couleur de la carte <span style={{ fontWeight: 400 }}>(facultatif)</span>
+                  </p>
+                  <div className="color-swatches">
+                    {CARD_COLOR_PRESETS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`color-swatch${!signupCardColorCustom && signupCardColor === c ? " active" : ""}`}
+                        style={{ background: c }}
+                        aria-label={`Couleur ${c}`}
+                        onClick={() => {
+                          setSignupCardColor(c);
+                          setSignupCardColorCustom("");
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={signupCardColorCustom}
+                    onChange={(e) => setSignupCardColorCustom(e.target.value)}
+                    placeholder="Ou un code couleur personnalisé (ex : #7414F4)"
+                    maxLength={7}
+                  />
+
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep1}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep3}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 3 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Quel type d'activité ?
+                  </p>
+                  <div className="bubble-group">
+                    {BUSINESS_TYPES.map((bt) => (
+                      <button
+                        key={bt.id}
+                        type="button"
+                        className={`bubble-chip${signupBusinessType === bt.id ? " active" : ""}`}
+                        onClick={() => setSignupBusinessType(bt.id)}
+                      >
+                        {bt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {signupBusinessType === "autre" && (
+                    <input
+                      type="text"
+                      value={signupBusinessTypeOther}
+                      onChange={(e) => setSignupBusinessTypeOther(e.target.value)}
+                      placeholder="Décris ton activité"
+                      maxLength={60}
+                      autoFocus
+                    />
+                  )}
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep2Back}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep4}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 4 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Choisis ta formule
+                  </p>
+                  <div className="billing-toggle">
+                    {BILLING_CYCLES.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`billing-option${signupBillingCycle === c.id ? " active" : ""}`}
+                        onClick={() => setSignupBillingCycle(c.id)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pricing-cards">
+                    {PRICING_TIERS.map((tier) => {
+                      const price = getTierPrice(tier, signupBillingCycle);
+                      return (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          className={`pricing-card${signupPosCount === tier.id ? " active" : ""}`}
+                          onClick={() => setSignupPosCount(tier.id)}
+                        >
+                          <span className="pricing-card-head">
+                            <span className="pricing-card-title">{tier.label}</span>
+                            <span className="pricing-card-price">
+                              {price != null
+                                ? `${price} €${BILLING_CYCLES.find((c) => c.id === signupBillingCycle).suffix}`
+                                : "Sur devis"}
+                            </span>
+                          </span>
+                          <span className="pricing-card-desc">{tier.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep3Back}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep5}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 5 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Activer mon abonnement
+                  </p>
+                  <div className="recap-box">
+                    <div className="recap-row">
+                      <span>Système de fidélité</span>
+                      <strong>{signupLoyaltyMode === "points" ? "Points (montant dépensé)" : "Tampons"}</strong>
+                    </div>
+                    <div className="recap-row">
+                      <span>Formule</span>
+                      <strong>{selectedPricingTier.label}</strong>
+                    </div>
+                    <div className="recap-row">
+                      <span>Facturation</span>
+                      <strong>
+                        {selectedTierPrice != null
+                          ? `${selectedTierPrice} €${BILLING_CYCLES.find((c) => c.id === signupBillingCycle).suffix}`
+                          : "Sur devis"}
+                      </strong>
+                    </div>
+                  </div>
+                  <p className="subtitle" style={{ fontSize: 12.5 }}>
+                    {selectedTierPrice != null
+                      ? "Le paiement se fait via un lien sécurisé (Revolut) — aucune donnée bancaire n'est jamais saisie sur Fidélions."
+                      : "Cette formule est sur devis — contacte-nous pour finaliser le tarif avant d'activer l'abonnement."}
+                  </p>
+                  <a
+                    className="primary pay-btn"
+                    href={
+                      REVOLUT_PAYMENT_LINK ||
+                      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                        `Bonjour, je veux activer mon abonnement Fidélions (${selectedPricingTier.label}, ${
+                          BILLING_CYCLES.find((c) => c.id === signupBillingCycle).label
+                        }). Merci de m'envoyer le lien de paiement.`
+                      )}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {REVOLUT_PAYMENT_LINK ? "Payer et activer mon abonnement" : "Recevoir le lien de paiement"}
+                  </a>
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep4Back}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep6}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 6 && (
+                <form className="signup-step" onSubmit={handleSignupSubmit}>
+                  <input
+                    type="email"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    placeholder="Ton email"
+                    autoFocus
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Mot de passe (4 caractères minimum)"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    value={signupPhone}
+                    onChange={(e) => setSignupPhone(e.target.value)}
+                    placeholder="Téléphone (optionnel)"
+                  />
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep5Back}>
+                      Retour
+                    </button>
+                    <button type="submit" className="primary" disabled={checking}>
+                      {checking ? "Création…" : "Créer mon compte"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <p className="auth-switch">
+                Déjà un compte ?{" "}
+                <button type="button" className="link-btn" onClick={goToLogin}>
+                  Connecte-toi
+                </button>
+              </p>
+            </>
+          )}
+        </div>
+
+        <LegalFooter style={{ marginTop: "auto" }} />
+        {cropperFile && cropperTarget && (
+          <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+        )}
         <style jsx>{styles}</style>
       </div>
     );
   }
 
-  const pointLabel = loyaltyType === "points" ? "point" : "tampon";
+  const pointLabel = "point";
 
   return (
     <div className="page">
-      <div className="wrap">
+      <div className={`wrap${sidebarCollapsed && role === "owner" ? " sb-collapsed" : ""}`}>
         <h1>Espace commerçant</h1>
 
         {message && (
           <div className={`banner ${message.type}`}>{message.text}</div>
         )}
 
+      <div className="dashboard">
         {role === "owner" && (
-          <div className="tabs">
-            {TABS.map((t) => (
+          <div className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
+            <button
+              type="button"
+              className="sb-brand"
+              onClick={handleLogout}
+              title="Se déconnecter"
+              aria-label="Fidélions — se déconnecter et revenir à l'accueil"
+            >
+              <img src="/logo.png" alt="Fidélions" className="sb-logo" />
+              <span className="sb-wordmark">Fidélions</span>
+            </button>
+            <div className="sb-topbar">
               <button
-                key={t.id}
                 type="button"
-                className={`tab-btn${activeTab === t.id ? " active" : ""}`}
-                onClick={() => switchTab(t.id)}
+                className="sb-icon-btn"
+                onClick={handleLogout}
+                aria-label="Revenir à l'accueil (déconnexion)"
+                title="Revenir à l'accueil"
               >
-                {t.label}
+                <Icon name="chevronLeft" size={17} />
               </button>
-            ))}
+              <button
+                type="button"
+                className="sb-icon-btn"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                aria-label={sidebarCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+                title={sidebarCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+              >
+                <Icon name="panel" size={17} />
+              </button>
+            </div>
+            <nav className="sb-nav">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`sb-item${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => switchTab(t.id)}
+                  title={t.label}
+                >
+                  <span className="sb-item-icon">
+                    <Icon name={t.icon} />
+                  </span>
+                  <span className="sb-item-label">{t.label}</span>
+                </button>
+              ))}
+              <div className="sb-section-label">Compte</div>
+              {ACCOUNT_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`sb-item${activeTab === t.id ? " active" : ""}`}
+                  onClick={() => switchTab(t.id)}
+                  title={t.label}
+                >
+                  <span className="sb-item-icon">
+                    <Icon name={t.icon} />
+                  </span>
+                  <span className="sb-item-label">{t.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="sb-footer">
+              <div className="sb-avatar">
+                {brandingInfo?.logoUrl ? (
+                  <img src={brandingInfo.logoUrl} alt="" />
+                ) : (
+                  (restaurantName || "F").trim().charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="sb-footer-text">
+                <strong className="sb-footer-name">{restaurantName || "Mon établissement"}</strong>
+                <span className="sb-footer-role">Commerçant</span>
+              </div>
+              <span className="sb-footer-chevron">
+                <Icon name="chevronUpDown" size={16} />
+              </span>
+            </div>
           </div>
         )}
 
+        <div className="dashboard-content">
         {role === "owner" && activeTab === "apercu" && (
           <div className="card">
             <h2>Aperçu</h2>
@@ -1153,8 +2833,8 @@ export default function Commercant() {
                 <div className="stat-label">Clients inscrits</div>
               </div>
               <div className="stat">
-                <div className="stat-value">{totalTampons}</div>
-                <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} distribués</div>
+                <div className="stat-value">{totalPoints}</div>
+                <div className="stat-label">Points distribués</div>
               </div>
               <div className="stat">
                 <div className="stat-value">{visitesAujourdhui}</div>
@@ -1167,8 +2847,8 @@ export default function Commercant() {
             </div>
             {ranking.length > 0 && (
               <>
-                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                  🏆 Classement de fidélité
+                <p className="subtitle icon-heading" style={{ marginTop: 16, marginBottom: 8 }}>
+                  <Icon name="trophy" size={15} /> Classement de fidélité
                 </p>
                 <div className="ranking">
                   {ranking.map((c, i) => (
@@ -1186,8 +2866,8 @@ export default function Commercant() {
             )}
             {insights.length > 0 && (
               <>
-                <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                  🤖 Analyse automatique
+                <p className="subtitle icon-heading" style={{ marginTop: 16, marginBottom: 8 }}>
+                  <Icon name="robot" size={15} /> Analyse automatique
                 </p>
                 <div className="insights">
                   {insights.map((text, i) => (
@@ -1198,94 +2878,160 @@ export default function Commercant() {
                 </div>
               </>
             )}
-            <a className="share-banner" href="/qr" target="_blank" rel="noreferrer">
-              📣 Partager ma carte — voir mon QR code d'inscription
-            </a>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "partager" && (
+          <div className="card">
+            <h2>Partager Fidélions</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Affiche ce QR code en caisse ou sur tes tables : tes clients le
+              scannent avec leur téléphone pour créer leur carte de fidélité
+              en quelques secondes, sans rien installer.
+            </p>
+            {signupQrUrl ? (
+              <div style={{ textAlign: "center" }}>
+                <img
+                  src={signupQrUrl}
+                  alt="QR code d'inscription Fidélions"
+                  style={{ width: 220, height: 220, borderRadius: 12, border: "1.5px solid #e6e2f2" }}
+                />
+                <p style={{ marginTop: 12 }}>
+                  <a href={signupQrUrl} download="qr-fidelions.png" className="link-btn icon-heading">
+                    <Icon name="download" size={14} /> Télécharger l'image à imprimer
+                  </a>
+                </p>
+              </div>
+            ) : (
+              <p className="subtitle">Génération du QR code…</p>
+            )}
+            <p className="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
+              Ou partage directement le lien :
+            </p>
+            <div className="link-box">
+              {typeof window !== "undefined" && merchantSlug
+                ? `${window.location.origin}/r/${merchantSlug}`
+                : ""}
+            </div>
+            <button className="secondary icon-heading" type="button" onClick={copySignupLink}>
+              <Icon name="copy" size={15} /> Copier le lien
+            </button>
           </div>
         )}
 
         {role === "owner" && activeTab === "fidelite" && (
           <div className="card">
             <h2>Programme de fidélité</h2>
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Choisis comment tes clients gagnent leur récompense : une carte à
-              tampons classique (un seul seuil), ou des points cumulés avec
-              plusieurs paliers de récompense — comme chez Sydely.
-            </p>
-            <div className="type-toggle">
+            <p className="subtitle" style={{ marginBottom: 10 }}>Mécanique de fidélité</p>
+            <div className="mode-cards" style={{ marginBottom: 16 }}>
               <button
                 type="button"
-                className={loyaltyType === "tampons" ? "active" : ""}
-                onClick={() => setLoyaltyType("tampons")}
+                className={`mode-card${loyaltyMode === "stamps" ? " active" : ""}`}
+                onClick={() => setLoyaltyMode("stamps")}
               >
-                🎫 Carte à tampons
+                <span className="mode-card-title">Tampons</span>
+                <span className="mode-card-desc">+1 point à chaque passage, quel que soit le montant.</span>
               </button>
               <button
                 type="button"
-                className={loyaltyType === "points" ? "active" : ""}
-                onClick={() => setLoyaltyType("points")}
+                className={`mode-card${loyaltyMode === "points" ? " active" : ""}`}
+                onClick={() => setLoyaltyMode("points")}
               >
-                🏅 Points à paliers
+                <span className="mode-card-title">Points</span>
+                <span className="mode-card-desc">Le nombre de points dépend du montant dépensé.</span>
               </button>
             </div>
-
-            {loyaltyType === "tampons" ? (
-              <>
+            {loyaltyMode === "points" && (
+              <div className="points-config-row" style={{ marginBottom: 16 }}>
+                <span className="points-config-label">Le client gagne</span>
                 <input
                   type="number"
-                  min="1"
-                  max="1000"
-                  placeholder="Nombre de tampons (ex : 10)"
-                  value={tiers[0]?.threshold ?? ""}
-                  onChange={(e) => updateTier(0, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
+                  min={1}
+                  value={pointsPerAmount}
+                  onChange={(e) => setPointsPerAmount(e.target.value)}
+                  style={{ width: 64, marginBottom: 0 }}
                 />
+                <span className="points-config-label">point(s) tous les</span>
                 <input
-                  type="text"
-                  placeholder="Récompense (ex : 1 café offert)"
-                  value={tiers[0]?.label ?? ""}
-                  onChange={(e) => updateTier(0, "label", e.target.value)}
-                  maxLength={80}
+                  type="number"
+                  min={1}
+                  value={amountUnit}
+                  onChange={(e) => setAmountUnit(e.target.value)}
+                  style={{ width: 64, marginBottom: 0 }}
                 />
+                <span className="points-config-label">€ dépensés</span>
+              </div>
+            )}
+
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Écris librement autant de récompenses que tu veux, chacune avec
+              son propre seuil de points — ex : 20 points = une pizza offerte,
+              30 = une pizza + une boisson offertes. Une seule récompense, ça
+              fait cheap : ajoutes-en plusieurs pour donner plusieurs objectifs
+              à tes clients.
+            </p>
+
+            {tiers.map((t, i) => (
+              <div key={i} className="tier-block">
+                <div className="tier-row">
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={t.threshold}
+                    onChange={(e) => updateTier(i, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                  <input
+                    type="text"
+                    placeholder={`Récompense (ex : 1 pizza offerte)`}
+                    value={t.label}
+                    onChange={(e) => updateTier(i, "label", e.target.value)}
+                    maxLength={80}
+                  />
+                  <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
+                    <Icon name="x" size={14} />
+                  </button>
+                </div>
                 <div className="presets">
                   {REWARD_PRESETS.map((p) => (
-                    <button key={p} type="button" className="preset-chip" onClick={() => updateTier(0, "label", p)}>
+                    <button key={p} type="button" className="preset-chip" onClick={() => updateTier(i, "label", p)}>
                       {p}
                     </button>
                   ))}
                 </div>
-                <div className="reward-preview">
-                  🎁 Après <strong>{tiers[0]?.threshold || "?"}</strong> tampon
-                  {Number(tiers[0]?.threshold) > 1 ? "s" : ""} : <strong>{tiers[0]?.label || "…"}</strong>
-                </div>
-              </>
-            ) : (
-              <>
-                {tiers.map((t, i) => (
-                  <div className="tier-row" key={i}>
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={t.threshold}
-                      onChange={(e) => updateTier(i, "threshold", e.target.value === "" ? "" : Number(e.target.value))}
-                    />
-                    <input
-                      type="text"
-                      placeholder={`Récompense au palier ${i + 1} (ex : 1 café offert)`}
-                      value={t.label}
-                      onChange={(e) => updateTier(i, "label", e.target.value)}
-                      maxLength={80}
-                    />
-                    <button type="button" onClick={() => removeTier(i)} disabled={tiers.length <= 1}>
-                      ✖
-                    </button>
+              </div>
+            ))}
+            <button type="button" className="secondary" onClick={addTier} disabled={tiers.length >= 10}>
+              + Ajouter une récompense
+            </button>
+
+            <div className="reward-preview" style={{ marginTop: 12 }}>
+              {tiers
+                .filter((t) => t.threshold && t.label)
+                .sort((a, b) => a.threshold - b.threshold)
+                .map((t, i) => (
+                  <div key={i}>
+                    À <strong>{t.threshold}</strong> point{t.threshold > 1 ? "s" : ""} : <strong>{t.label}</strong>
                   </div>
                 ))}
-                <button type="button" className="secondary" onClick={addTier} disabled={tiers.length >= 10}>
-                  + Ajouter un palier
-                </button>
-              </>
-            )}
+            </div>
+
+            <p className="subtitle" style={{ marginTop: 18, marginBottom: 6 }}>Bonus avis Google</p>
+            <div className="points-config-row" style={{ marginBottom: 4 }}>
+              <span className="points-config-label">Le client gagne</span>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={reviewBonusPoints}
+                onChange={(e) => setReviewBonusPoints(e.target.value)}
+                style={{ width: 64, marginBottom: 0 }}
+              />
+              <span className="points-config-label">point(s) bonus quand il laisse un avis Google</span>
+            </div>
+            <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
+              Attribué manuellement en caisse (case « Avis Google laissé » lors du scan), une seule fois par client.
+            </p>
 
             <button className="primary" style={{ marginTop: 14 }} onClick={saveLoyalty} disabled={savingLoyalty}>
               {savingLoyalty ? "Enregistrement…" : "Enregistrer"}
@@ -1302,7 +3048,7 @@ export default function Commercant() {
                 <div className="tiles-row">
                   <div className="stat">
                     <div className="stat-value">{statsData.tiles.pointsThisWeek}</div>
-                    <div className="stat-label">{loyaltyType === "points" ? "Points" : "Tampons"} cette semaine</div>
+                    <div className="stat-label">Points cette semaine</div>
                     <Delta pct={statsData.tiles.pointsChangePct} />
                   </div>
                   <div className="stat">
@@ -1316,7 +3062,29 @@ export default function Commercant() {
                   </div>
                 </div>
 
-                <p className="chart-title">{loyaltyType === "points" ? "Points" : "Tampons"} distribués par jour (14 derniers jours)</p>
+                <p className="chart-title" style={{ marginTop: 6 }}>Évolution du nombre de clients fidélisés</p>
+                <div className="range-selector">
+                  {EVOLUTION_RANGES.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={evolutionRange === r.id ? "active" : ""}
+                      onClick={() => changeEvolutionRange(r.id)}
+                      disabled={loadingEvolution}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {loadingEvolution && <p className="subtitle" style={{ marginBottom: 8 }}>Chargement…</p>}
+                {!loadingEvolution && statsData.evolutionClients && statsData.evolutionClients.length > 0 && (
+                  <LineChart data={statsData.evolutionClients} />
+                )}
+                {!loadingEvolution && (!statsData.evolutionClients || statsData.evolutionClients.length === 0) && (
+                  <p className="subtitle">Pas encore de client fidélisé sur cette période.</p>
+                )}
+
+                <p className="chart-title">Points distribués par jour (14 derniers jours)</p>
                 <BarChart data={statsData.pointsParJour} />
 
                 <p className="chart-title">Heures de pointe</p>
@@ -1330,7 +3098,7 @@ export default function Commercant() {
               </>
             )}
             {!loadingStats && !statsData && (
-              <p className="subtitle">Pas encore de données — reviens après quelques tampons/points ajoutés.</p>
+              <p className="subtitle">Pas encore de données — reviens après quelques points ajoutés.</p>
             )}
 
             <h2 style={{ marginTop: 28 }}>Analyse du menu & suggestions (IA)</h2>
@@ -1369,8 +3137,8 @@ export default function Commercant() {
               tabIndex={0}
             >
               {menuFile ? (
-                <p className="subtitle" style={{ margin: 0 }}>
-                  📎 {menuFile.name} prêt à analyser —{" "}
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à analyser —{" "}
                   <button
                     type="button"
                     className="link-btn"
@@ -1383,17 +3151,17 @@ export default function Commercant() {
                   </button>
                 </p>
               ) : (
-                <p className="subtitle" style={{ margin: 0 }}>
-                  📄 Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="file" size={14} /> Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
                 </p>
               )}
             </div>
             <div className="menu-actions">
-              <button className="secondary" type="button" onClick={saveMenu} disabled={savingMenu}>
-                {savingMenu ? "Enregistrement…" : "💾 Enregistrer le menu"}
+              <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
+                {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
               </button>
-              <button className="primary" type="button" onClick={analyzeWithAI} disabled={analyzing}>
-                {analyzing ? "Analyse en cours…" : "🤖 Analyser avec l'IA"}
+              <button className="primary icon-heading" type="button" onClick={analyzeWithAI} disabled={analyzing}>
+                {analyzing ? "Analyse en cours…" : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
               </button>
             </div>
             {aiResult && aiResult.items && aiResult.items.length > 0 && (
@@ -1413,8 +3181,8 @@ export default function Commercant() {
                   ))}
                 </div>
                 <div className="menu-actions" style={{ marginTop: 10 }}>
-                  <button className="secondary" type="button" onClick={useAiSuggestions}>
-                    ⬇️ Utiliser ces suggestions dans mon offre
+                  <button className="secondary icon-heading" type="button" onClick={useAiSuggestions}>
+                    <Icon name="download" size={15} /> Utiliser ces suggestions dans mon offre
                   </button>
                 </div>
               </>
@@ -1435,8 +3203,8 @@ export default function Commercant() {
               rows={5}
             />
             <div className="menu-actions">
-              <button className="primary" type="button" onClick={saveOffer} disabled={savingOffer}>
-                {savingOffer ? "Enregistrement…" : "💾 Enregistrer mon offre"}
+              <button className="primary icon-heading" type="button" onClick={saveOffer} disabled={savingOffer}>
+                {savingOffer ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer mon offre</>)}
               </button>
             </div>
           </div>
@@ -1472,8 +3240,8 @@ export default function Commercant() {
                 />
               )}
               <input type="file" accept="image/*" ref={logoInputRef} style={{ display: "none" }} onChange={handleLogoChange} />
-              <button type="button" className="secondary" onClick={() => logoInputRef.current?.click()}>
-                📎 Choisir un logo
+              <button type="button" className="secondary icon-heading" onClick={() => logoInputRef.current?.click()}>
+                <Icon name="paperclip" size={15} /> Choisir un logo
               </button>
             </div>
 
@@ -1487,8 +3255,8 @@ export default function Commercant() {
                 />
               )}
               <input type="file" accept="image/*" ref={bannerInputRef} style={{ display: "none" }} onChange={handleBannerChange} />
-              <button type="button" className="secondary" onClick={() => bannerInputRef.current?.click()}>
-                📎 Choisir une bannière
+              <button type="button" className="secondary icon-heading" onClick={() => bannerInputRef.current?.click()}>
+                <Icon name="paperclip" size={15} /> Choisir une bannière
               </button>
             </div>
 
@@ -1502,7 +3270,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Notifications de proximité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Indique l'adresse de ton restaurant : Google Wallet avertit alors
+              Indique l'adresse de ton commerce : Google Wallet avertit alors
               automatiquement, avec une vraie notification sur le téléphone,
               tout client équipé qui passe à proximité — aucune app ni réglage
               supplémentaire de ton côté.
@@ -1511,13 +3279,41 @@ export default function Commercant() {
               <input type="checkbox" checked={geoEnabled} onChange={(e) => setGeoEnabled(e.target.checked)} />
               Activer les notifications de proximité
             </label>
-            <input
-              type="text"
-              placeholder="Adresse du restaurant (ex : 12 rue de Metz, 31000 Toulouse)"
-              value={geoAddress}
-              onChange={(e) => setGeoAddress(e.target.value)}
-              disabled={!geoEnabled}
+            <div className="suggest-wrap">
+              <input
+                type="text"
+                placeholder="Commence à taper ton adresse (ex : 12 rue de Metz, Toulouse)"
+                value={geoAddress}
+                onChange={(e) => handleGeoAddressChange(e.target.value)}
+                disabled={!geoEnabled}
+                autoComplete="off"
+              />
+              {geoSuggestions.length > 0 && (
+                <div className="suggest-list">
+                  {geoSuggestions.map((label, i) => (
+                    <button key={i} type="button" className="icon-heading" onClick={() => pickGeoSuggestion(label)}>
+                      <Icon name="mappin" size={14} /> {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <p className="subtitle" style={{ marginTop: 4, marginBottom: 6 }}>
+              Message affiché en permanence sur la carte de tes clients (pas
+              seulement quand ils sont à proximité — le popup natif de
+              proximité, lui, est généré par Google et n'a pas de texte
+              personnalisable, c'est une limite de leur API, pas de Fidélions).
+            </p>
+            <textarea
+              className="menu-textarea"
+              placeholder="Ex : On a hâte de vous voir ! Passez nous dire bonjour."
+              value={geoMessage}
+              onChange={(e) => setGeoMessage(e.target.value)}
+              maxLength={200}
+              rows={3}
             />
+
             <button className="primary" onClick={saveGeo} disabled={savingGeo}>
               {savingGeo ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -1528,11 +3324,11 @@ export default function Commercant() {
           <div className="card">
             <h2>Lien employé</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Envoie ce lien à un employé (SMS, WhatsApp…) : il peut scanner la
-              carte d'un client pour ajouter un {pointLabel}, sans mot de
-              passe et sans jamais voir la liste de tes clients ni tes
-              statistiques. Régénère le lien à tout moment pour couper l'accès
-              d'un ancien employé.
+              Envoie ce lien à toute ton équipe (SMS, WhatsApp…) : chaque
+              employé s'identifie ensuite avec son propre code à 4 chiffres
+              (onglet "Équipe" juste après) et peut ajouter un {pointLabel},
+              plus les rubriques que tu lui as ouvertes. Régénère le lien à
+              tout moment pour couper l'accès à toute l'équipe d'un coup.
             </p>
             {employeeToken ? (
               <div className="link-box">
@@ -1542,13 +3338,231 @@ export default function Commercant() {
               <p className="subtitle">Chargement du lien…</p>
             )}
             <div className="menu-actions">
-              <button className="secondary" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
-                📋 Copier le lien
+              <button className="secondary icon-heading" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
+                <Icon name="copy" size={15} /> Copier le lien
               </button>
-              <button className="primary" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
-                {regeneratingToken ? "…" : "🔄 Régénérer le lien"}
+              <button className="primary icon-heading" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
+                {regeneratingToken ? "…" : (<><Icon name="refresh" size={15} /> Régénérer le lien</>)}
               </button>
             </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "equipe" && employeeLeaderboard.length > 0 && (
+          <div className="card">
+            <h2 className="icon-heading">
+              <Icon name="trophy" size={18} /> Classement de l'équipe
+              {employeeLeaderboardMonth ? ` — ${formatMonthLabel(employeeLeaderboardMonth)}` : ""}
+            </h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Compétition mensuelle depuis le 1er du mois, alimentée automatiquement par les scans
+              faits depuis le lien employé — choisis le critère de classement, le classement repart
+              à zéro chaque mois.
+            </p>
+            <div className="mode-cards" style={{ marginBottom: 14 }}>
+              <button
+                type="button"
+                className={`bubble-chip${leaderboardSort === "clients" ? " active" : ""}`}
+                onClick={() => setLeaderboardSort("clients")}
+              >
+                Clients fidélisés
+              </button>
+              <button
+                type="button"
+                className={`bubble-chip${leaderboardSort === "cards" ? " active" : ""}`}
+                onClick={() => setLeaderboardSort("cards")}
+              >
+                Cartes créées
+              </button>
+              {loyaltyMode === "points" && (
+                <button
+                  type="button"
+                  className={`bubble-chip${leaderboardSort === "revenue" ? " active" : ""}`}
+                  onClick={() => setLeaderboardSort("revenue")}
+                >
+                  CA généré
+                </button>
+              )}
+            </div>
+            <div className="list">
+              {[...employeeLeaderboard]
+                .sort((a, b) => {
+                  if (leaderboardSort === "cards") return b.cardsCount - a.cardsCount || b.clientsCount - a.clientsCount;
+                  if (leaderboardSort === "revenue") return b.revenueTotal - a.revenueTotal || b.clientsCount - a.clientsCount;
+                  return b.clientsCount - a.clientsCount || b.reviewsCount - a.reviewsCount;
+                })
+                .map((row, i) => {
+                  const rankValue =
+                    leaderboardSort === "cards" ? row.cardsCount : leaderboardSort === "revenue" ? row.revenueTotal : row.clientsCount;
+                  return (
+                    <div className="row" key={row.id}>
+                      <span className={`rank-badge${i < 3 && rankValue > 0 ? " top" : ""}`}>{i + 1}</span>
+                      <div className="row-info">
+                        <strong>
+                          {row.name}
+                          {!row.active ? " (inactif)" : ""}
+                        </strong>
+                        <div className="meta">
+                          {row.clientsCount} client{row.clientsCount > 1 ? "s" : ""} fidélisé{row.clientsCount > 1 ? "s" : ""} ·{" "}
+                          {row.cardsCount} carte{row.cardsCount > 1 ? "s" : ""} créée{row.cardsCount > 1 ? "s" : ""}
+                          {loyaltyMode === "points" ? ` · ${row.revenueTotal.toLocaleString("fr-FR")} € de CA` : ""} ·{" "}
+                          {row.reviewsCount} avis Google
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "equipe" && (
+          <div className="card">
+            <h2>{editingEmpId ? "Modifier l'employé" : "Ajouter un employé"}</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Chaque employé a son propre code à 4 chiffres pour s'identifier
+              sur le lien ci-dessus, des jours/horaires d'accès, et des
+              permissions par rubrique — certains employés peuvent n'avoir
+              que le scan, d'autres plus de responsabilités.
+            </p>
+            <input
+              type="text"
+              placeholder="Son prénom"
+              value={empName}
+              onChange={(e) => setEmpName(e.target.value)}
+              maxLength={40}
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder={editingEmpId ? "Nouveau code à 4 chiffres (laisser vide pour garder l'ancien)" : "Son code à 4 chiffres"}
+              value={empPin}
+              onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              maxLength={4}
+            />
+            <p className="subtitle" style={{ marginBottom: 6 }}>
+              Jours d'accès — clique pour activer/désactiver un jour
+            </p>
+            <div className="day-chips">
+              {DAY_OPTIONS.map((d) => {
+                const on = empDays.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={on ? "active" : ""}
+                    onClick={() => toggleEmpDay(d.id)}
+                    aria-pressed={on}
+                    title={on ? `${d.label} : accès activé` : `${d.label} : accès désactivé`}
+                  >
+                    <span className="day-chip-mark"><Icon name={on ? "check" : "x"} size={12} /></span> {d.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="day-chips-summary icon-heading">
+              {empDays.length === 0 ? (
+                <>
+                  <Icon name="warning" size={14} /> Aucun jour activé — l'employé ne pourra jamais se connecter.
+                </>
+              ) : empDays.length === 7 ? (
+                "Accès activé tous les jours."
+              ) : (
+                `Accès activé ${empDays.length} jour${empDays.length > 1 ? "s" : ""} sur 7 : ${DAY_OPTIONS.filter((d) => empDays.includes(d.id)).map((d) => d.label).join(", ")}.`
+              )}
+            </p>
+            <p className="subtitle" style={{ marginBottom: 6 }}>
+              Plage horaire (optionnel — laisse vide pour un accès à toute heure les jours cochés)
+            </p>
+            <div className="time-row">
+              <input type="time" value={empStart} onChange={(e) => setEmpStart(e.target.value)} />
+              <span>à</span>
+              <input type="time" value={empEnd} onChange={(e) => setEmpEnd(e.target.value)} />
+            </div>
+            <p className="subtitle" style={{ marginBottom: 6 }}>Accès en plus du scan</p>
+            <label className="channel">
+              <input
+                type="checkbox"
+                checked={empPerms.clients}
+                onChange={(e) => setEmpPerms({ ...empPerms, clients: e.target.checked })}
+              />
+              Voir la liste des clients
+            </label>
+            <label className="channel">
+              <input
+                type="checkbox"
+                checked={empPerms.stats}
+                onChange={(e) => setEmpPerms({ ...empPerms, stats: e.target.checked })}
+              />
+              Voir les statistiques
+            </label>
+            <label className="channel" style={{ marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                checked={empPerms.campagnes}
+                onChange={(e) => setEmpPerms({ ...empPerms, campagnes: e.target.checked })}
+              />
+              Envoyer des campagnes
+            </label>
+            <div className="menu-actions">
+              <button className="primary" type="button" onClick={saveEmployee} disabled={savingEmployee}>
+                {savingEmployee ? "Enregistrement…" : editingEmpId ? "Enregistrer les modifications" : "Ajouter cet employé"}
+              </button>
+              {editingEmpId && (
+                <button className="secondary" type="button" onClick={resetEmployeeForm}>
+                  Annuler
+                </button>
+              )}
+            </div>
+
+            {employees.length > 0 && (
+              <>
+                <h2 style={{ marginTop: 28 }}>Ton équipe</h2>
+                <div className="list">
+                  {employees.map((emp) => (
+                    <div className={`emp-row${emp.active ? "" : " blocked"}`} key={emp.id}>
+                      <div className="row-info">
+                        <strong>
+                          {emp.name}
+                          {!emp.active ? " (désactivé)" : ""}
+                        </strong>
+                        <div className="meta">
+                          Code : {revealedPinId === emp.id ? emp.pin : "••••"}{" "}
+                          <button
+                            type="button"
+                            className="link-btn"
+                            onClick={() => setRevealedPinId(revealedPinId === emp.id ? null : emp.id)}
+                          >
+                            {revealedPinId === emp.id ? "masquer" : "afficher"}
+                          </button>
+                        </div>
+                        <div className="meta">
+                          {emp.days && emp.days.length === 7 ? "Tous les jours" : (emp.days || []).join(", ")}
+                          {emp.startTime && emp.endTime ? ` · ${emp.startTime}-${emp.endTime}` : ""}
+                        </div>
+                        <div className="perm-badges">
+                          <span className="perm-badge">Scan</span>
+                          {emp.permissions?.clients && <span className="perm-badge">Clients</span>}
+                          {emp.permissions?.stats && <span className="perm-badge">Stats</span>}
+                          {emp.permissions?.campagnes && <span className="perm-badge">Campagnes</span>}
+                        </div>
+                      </div>
+                      <div className="row-actions" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                        <button className="secondary small" type="button" onClick={() => toggleEmployeeActive(emp)}>
+                          {emp.active ? "Désactiver" : "Activer"}
+                        </button>
+                        <button className="secondary small" type="button" onClick={() => startEditEmployee(emp)}>
+                          Modifier
+                        </button>
+                        <button className="secondary small danger-btn" type="button" onClick={() => deleteEmployeeRow(emp)}>
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1671,14 +3685,14 @@ export default function Commercant() {
                           autoFocus
                         />
                         <button className="primary small" type="button" onClick={() => confirmRename(c)}>
-                          ✔
+                          <Icon name="check" size={14} />
                         </button>
                         <button
                           className="secondary small"
                           type="button"
                           onClick={() => setRenamingId(null)}
                         >
-                          ✖
+                          <Icon name="x" size={14} />
                         </button>
                       </div>
                     ) : (
@@ -1696,9 +3710,20 @@ export default function Commercant() {
                   </div>
                   <div className="row-actions">
                     {!c.blocked ? (
-                      <button className="primary small" onClick={() => addStamp(c.objectId)}>
-                        +1
-                      </button>
+                      <>
+                        <button className="primary small" onClick={() => addStamp(c.objectId)}>
+                          {loyaltyMode === "points" ? "+ points" : "+1"}
+                        </button>
+                        {!c.reviewLeft && (
+                          <button
+                            className="secondary small"
+                            title="Marquer qu'un avis Google vient d'être laissé (bonus de points)"
+                            onClick={() => addStampWithReview(c.objectId)}
+                          >
+                            <Icon name="star" size={13} />
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <span className="blocked-label">Bloqué</span>
                     )}
@@ -1714,23 +3739,23 @@ export default function Commercant() {
                       </button>
                       {openMenuId === c.objectId && (
                         <div className="row-menu">
-                          <button type="button" onClick={() => startRename(c)}>
-                            ✏️ Renommer
+                          <button type="button" className="icon-heading" onClick={() => startRename(c)}>
+                            <Icon name="edit" size={14} /> Renommer
                           </button>
-                          <button type="button" onClick={() => toggleBlock(c)}>
-                            {c.blocked ? "🔓 Débloquer" : "🔒 Bloquer"}
+                          <button type="button" className="icon-heading" onClick={() => toggleBlock(c)}>
+                            <Icon name={c.blocked ? "unlock" : "lock"} size={14} /> {c.blocked ? "Débloquer" : "Bloquer"}
                           </button>
                           {confirmDeleteId === c.objectId ? (
-                            <button type="button" className="danger" onClick={() => doDelete(c)}>
-                              ⚠️ Confirmer la suppression
+                            <button type="button" className="danger icon-heading" onClick={() => doDelete(c)}>
+                              <Icon name="warning" size={14} /> Confirmer la suppression
                             </button>
                           ) : (
                             <button
                               type="button"
-                              className="danger"
+                              className="danger icon-heading"
                               onClick={() => setConfirmDeleteId(c.objectId)}
                             >
-                              🗑️ Supprimer
+                              <Icon name="trash" size={14} /> Supprimer
                             </button>
                           )}
                         </div>
@@ -1743,9 +3768,291 @@ export default function Commercant() {
           </div>
         )}
 
+        {role === "owner" && activeTab === "etablissement" && (
+          <div className="card">
+            <div className="est-header">
+              <div className="est-logo-col">
+                {brandingInfo?.logoUrl ? (
+                  <img className="est-logo-preview" src={brandingInfo.logoUrl} alt="Logo actuel" />
+                ) : (
+                  <div className="est-logo-placeholder">
+                    {(restaurantName || "F").trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={estLogoInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleEstLogoChange}
+                />
+                <button
+                  type="button"
+                  className="secondary icon-heading est-logo-btn"
+                  onClick={() => estLogoInputRef.current?.click()}
+                  disabled={savingEstLogo}
+                >
+                  <Icon name="paperclip" size={13} />{" "}
+                  {savingEstLogo ? "Enregistrement…" : "Changer le logo"}
+                </button>
+              </div>
+              <div className="est-header-text">
+                <p className="est-eyebrow">Établissement</p>
+                <h2 className="est-name">{restaurantName || "Mon établissement"}</h2>
+                <p className="subtitle">
+                  Ces informations aident tes clients à te connaître avant de
+                  venir. L'adresse utilisée pour les notifications de proximité
+                  se règle, elle, dans son propre onglet "Géolocalisation".
+                </p>
+              </div>
+            </div>
+            {loadingEstablishment && <p className="subtitle">Chargement…</p>}
+            {!loadingEstablishment && estHours && (
+              <>
+                <p className="subtitle" style={{ marginBottom: 6, marginTop: 4 }}>Type d'activité</p>
+                <div className="bubble-group">
+                  {BUSINESS_TYPES.map((bt) => (
+                    <button
+                      key={bt.id}
+                      type="button"
+                      className={`bubble-chip${estBusinessType === bt.id ? " active" : ""}`}
+                      onClick={() => setEstBusinessType(bt.id)}
+                    >
+                      {bt.label}
+                    </button>
+                  ))}
+                </div>
+                {estBusinessType === "autre" && (
+                  <input
+                    type="text"
+                    value={estBusinessTypeOther}
+                    onChange={(e) => setEstBusinessTypeOther(e.target.value)}
+                    placeholder="Décris ton activité"
+                    maxLength={60}
+                  />
+                )}
+
+                <p className="subtitle" style={{ marginTop: 6, marginBottom: 6 }}>Coordonnées</p>
+                <input type="tel" value={estPhone} onChange={(e) => setEstPhone(e.target.value)} placeholder="Téléphone" />
+                <input
+                  type="url"
+                  value={estWebsite}
+                  onChange={(e) => setEstWebsite(e.target.value)}
+                  placeholder="Site web (https://...)"
+                />
+                <input
+                  type="text"
+                  value={estInstagram}
+                  onChange={(e) => setEstInstagram(e.target.value)}
+                  placeholder="Instagram (lien ou @pseudo)"
+                />
+                <input
+                  type="text"
+                  value={estFacebook}
+                  onChange={(e) => setEstFacebook(e.target.value)}
+                  placeholder="Facebook (lien)"
+                />
+
+                <p className="subtitle" style={{ marginTop: 6, marginBottom: 6 }}>Avis Google</p>
+                <input
+                  type="url"
+                  value={estGoogleReviewUrl}
+                  onChange={(e) => setEstGoogleReviewUrl(e.target.value)}
+                  placeholder="Lien « laisser un avis » de ta fiche Google (ex : https://g.page/r/.../review)"
+                />
+                <p className="subtitle" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>
+                  Affiché sur la carte Wallet de tes clients et sur ta page d'inscription, avec le
+                  bonus de points — retrouve ton lien sur ta fiche Google Business Profile, bouton
+                  « Obtenir plus d'avis ».
+                </p>
+
+                <p className="subtitle" style={{ marginBottom: 6 }}>À propos</p>
+                <textarea
+                  className="menu-textarea"
+                  value={estDescription}
+                  onChange={(e) => setEstDescription(e.target.value)}
+                  placeholder="Quelques phrases pour te présenter à tes clients…"
+                  maxLength={600}
+                  rows={4}
+                />
+
+                <p className="subtitle" style={{ marginBottom: 6 }}>Horaires d'ouverture</p>
+                <div className="hours-table">
+                  {ESTABLISHMENT_DAYS.map((d) => {
+                    const day = estHours[d.id] || { closed: false, start: "09:00", end: "19:00" };
+                    return (
+                      <div className="hours-row" key={d.id}>
+                        <span className="hours-day">{d.label}</span>
+                        <label className="channel hours-closed-toggle">
+                          <input type="checkbox" checked={!!day.closed} onChange={() => toggleEstDayClosed(d.id)} />
+                          Fermé
+                        </label>
+                        {!day.closed && (
+                          <div className="time-row hours-time-row">
+                            <input
+                              type="time"
+                              value={day.start}
+                              onChange={(e) => updateEstDayTime(d.id, "start", e.target.value)}
+                            />
+                            <span>à</span>
+                            <input
+                              type="time"
+                              value={day.end}
+                              onChange={(e) => updateEstDayTime(d.id, "end", e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="subtitle" style={{ marginTop: 14, marginBottom: 6 }}>Photos (4 maximum)</p>
+                <div className="photo-grid">
+                  {estPhotos.map((url) => (
+                    <div className="photo-thumb" key={url}>
+                      <img src={url} alt="" />
+                      <button type="button" className="photo-remove" onClick={() => removeEstExistingPhoto(url)}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {estNewPhotos.map((p, i) => (
+                    <div className="photo-thumb" key={`new-${i}`}>
+                      <img src={`data:${p.mimeType};base64,${p.base64}`} alt="" />
+                      <button type="button" className="photo-remove" onClick={() => removeEstNewPhoto(i)}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {estPhotos.length + estNewPhotos.length < 4 && (
+                    <button type="button" className="photo-add" onClick={() => estPhotoInputRef.current?.click()}>
+                      <Icon name="paperclip" size={17} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  ref={estPhotoInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleEstPhotoChange}
+                />
+
+                <button className="primary" style={{ marginTop: 14 }} onClick={saveEstablishment} disabled={savingEstablishment}>
+                  {savingEstablishment ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "abonnement" && (
+          <div className="card">
+            <h2>Abonnement</h2>
+            {(() => {
+              const tier = PRICING_TIERS.find((t) => t.id === (subscriptionInfo?.posCount || "1")) || PRICING_TIERS[0];
+              const cycle = subscriptionInfo?.billingCycle || "mensuel";
+              const price = getTierPrice(tier, cycle);
+              const cycleLabel = BILLING_CYCLES.find((c) => c.id === cycle);
+              return (
+                <div className="recap-box" style={{ marginBottom: 16 }}>
+                  <div className="recap-row">
+                    <span>Formule</span>
+                    <strong>{tier.label}</strong>
+                  </div>
+                  <div className="recap-row">
+                    <span>Facturation</span>
+                    <strong>{price != null ? `${price} €${cycleLabel.suffix}` : "Sur devis"}</strong>
+                  </div>
+                </div>
+              );
+            })()}
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Sans engagement de durée sur la formule mensuelle — résiliable à tout moment. Le
+              règlement se fait via un lien de paiement sécurisé, aucune donnée bancaire n'est
+              collectée directement par Fidélions. Pour changer de formule ou recevoir ton lien de
+              paiement, contacte-nous :
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <a
+                className="primary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="whatsapp" size={15} /> WhatsApp — Adam
+              </a>
+              <a
+                className="secondary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`https://wa.me/${CONTACT_WHATSAPP_ASSOCIE}?text=${encodeURIComponent(
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="whatsapp" size={15} /> WhatsApp — Yassine
+              </a>
+              <a
+                className="secondary icon-heading"
+                style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
+                href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidélions")}`}
+              >
+                <Icon name="mail" size={15} /> Nous contacter par email
+              </a>
+            </div>
+          </div>
+        )}
+
+        {role === "owner" && activeTab === "parametres" && (
+          <div className="card">
+            <h2>Paramètres</h2>
+
+            {pwStep === "idle" && (
+              <>
+                <p className="subtitle">Change le mot de passe de ton compte.</p>
+                <button type="button" className="primary small" onClick={pwStartFlow}>
+                  Changer le mot de passe
+                </button>
+              </>
+            )}
+
+            {pwStep === "form" && (
+              <div className="pw-flow">
+                <input
+                  type="password"
+                  value={pwCurrentInput}
+                  onChange={(e) => setPwCurrentInput(e.target.value)}
+                  placeholder="Mot de passe actuel"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  value={pwNewPassword}
+                  onChange={(e) => setPwNewPassword(e.target.value)}
+                  placeholder="Nouveau mot de passe (4 caractères minimum)"
+                />
+                <div className="pw-flow-actions">
+                  <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwSubmitting}>
+                    Annuler
+                  </button>
+                  <button type="button" className="primary" onClick={pwSubmitChange} disabled={pwSubmitting}>
+                    {pwSubmitting ? "Modification…" : "Valider"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {role === "owner" && activeTab === "aide" && (
           <div className="card">
-            <h2>Aide</h2>
+            <h2>Support</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Les réponses aux blocages les plus fréquents. Pas de chat en
               ligne ici : personne ne serait derrière pour répondre à temps —
@@ -1766,7 +4073,7 @@ export default function Commercant() {
               <summary>La caméra reste noire ou refuse de s'activer</summary>
               <p>
                 L'autorisation caméra du site a été refusée. Sur le téléphone :
-                appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le
+                appuie sur l'icône cadenas/i à côté de l'adresse du site dans le
                 navigateur → Autorisations (ou Paramètres du site) → Caméra →
                 Autoriser, puis recharge la page.
               </p>
@@ -1794,16 +4101,25 @@ export default function Commercant() {
             <details className="faq-item">
               <summary>Comment donner accès à un employé sans lui donner le mot de passe ?</summary>
               <p>
-                Utilise l'onglet "Équipe" : il génère un lien à envoyer par
-                SMS/WhatsApp, qui ne permet que de scanner une carte pour
-                ajouter un {pointLabel} — jamais d'accès à la liste de tes
-                clients ni à tes statistiques. Régénère-le à tout moment pour
-                couper l'accès d'un ancien employé.
+                Utilise l'onglet "Équipe" : un lien commun (SMS/WhatsApp) plus
+                un code personnel à 4 chiffres par employé. Chacun peut au
+                minimum scanner une carte pour ajouter un {pointLabel} ; tu
+                choisis en plus, pour chaque employé, s'il voit la liste des
+                clients, les statistiques, et/ou peut envoyer des campagnes.
+                Désactive ou supprime un employé à tout moment pour couper son
+                accès, sans toucher à celui des autres.
               </p>
             </details>
           </div>
         )}
+
+        <LegalFooter style={{ marginTop: 28 }} />
+        </div>
       </div>
+      </div>
+      {cropperFile && cropperTarget && (
+        <LogoCropper file={cropperFile} onCancel={handleCropCancel} onConfirm={handleCropConfirm} />
+      )}
       <style jsx>{styles}</style>
     </div>
   );
@@ -2040,46 +4356,146 @@ const styles = `
     margin-top: 4px;
     min-height: 16px;
   }
-  .tabs {
+  .range-selector {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    overflow-x: auto;
-    margin-bottom: 16px;
-    padding-bottom: 4px;
+    margin-bottom: 12px;
   }
-  .tab-btn {
-    flex: none;
+  .range-selector button {
+    width: auto;
     background: #fff;
     color: #595959;
-    border: 1.5px solid #e6e2f2;
-    border-radius: 99px;
-    padding: 8px 14px;
+    border: 1.5px solid #e0e0e0;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 20px;
+  }
+  .range-selector button.active {
+    background: ${PURPLE};
+    color: #fff;
+    border-color: ${PURPLE};
+  }
+  .range-selector button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  /* --- Barre latérale (voir aussi la media query 900px+ en bas de ce
+     fichier pour la version "vraie barre latérale fixe") --- */
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+  }
+  .dashboard-content {
+    min-width: 0;
+  }
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .sb-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sb-brand:hover {
+    background: #faf9fd;
+  }
+  .sb-logo {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    flex: none;
+  }
+  .sb-wordmark {
+    font-size: 15px;
+    font-weight: 800;
+    color: ${PURPLE};
+    letter-spacing: -0.01em;
+  }
+  .sb-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px 10px;
+    border-bottom: 1px solid #ece9f5;
+  }
+  .sb-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: none;
+    border: none;
+    color: #8a8a8a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .sb-icon-btn:hover {
+    background: #f5f4fb;
+    color: ${PURPLE};
+  }
+  .sb-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 10px;
+  }
+  .sb-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: none;
+    border: none;
+    color: #595959;
     font-size: 12.5px;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
+    flex: none;
   }
-  .tab-btn.active {
-    background: ${PURPLE};
-    border-color: ${PURPLE};
-    color: #fff;
+  .sb-item:hover {
+    background: #faf9fd;
   }
-  .type-toggle {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .type-toggle button {
-    flex: 1;
-    width: auto;
-    background: #f3f0fa;
+  .sb-item.active {
+    background: #f0eef8;
     color: ${PURPLE};
-    padding: 10px;
-    font-size: 13px;
   }
-  .type-toggle button.active {
-    background: ${PURPLE};
-    color: #fff;
+  .sb-item-icon {
+    display: flex;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .sb-section-label {
+    display: none;
+  }
+  .sb-footer {
+    display: none;
+  }
+  .icon-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .tier-row {
     display: flex;
@@ -2103,6 +4519,119 @@ const styles = `
     color: #a12b2b;
     padding: 8px 10px;
     font-size: 12px;
+  }
+  .tier-block {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0eef7;
+  }
+  .suggest-wrap {
+    position: relative;
+  }
+  .suggest-list {
+    position: absolute;
+    top: calc(100% - 8px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+    z-index: 6;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .suggest-list button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1a1a;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .suggest-list button:hover {
+    background: #f5f4fb;
+  }
+  .day-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .day-chips button {
+    width: auto;
+    background: #fff;
+    color: #a3a3a3;
+    border: 1.5px solid #e0e0e0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    opacity: 0.75;
+  }
+  .day-chips button.active {
+    background: ${PURPLE};
+    color: #fff;
+    border-color: ${PURPLE};
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(116, 20, 244, 0.35);
+  }
+  .day-chip-mark {
+    display: inline-block;
+  }
+  .day-chips-summary {
+    font-size: 12.5px;
+    color: #595959;
+    margin-bottom: 14px;
+  }
+  .time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .time-row input {
+    margin: 0;
+    flex: 1;
+  }
+  .time-row span {
+    color: #8a8a8a;
+    font-size: 13px;
+  }
+  .emp-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px;
+    background: #faf9fd;
+    border-radius: 10px;
+    gap: 10px;
+  }
+  .emp-row.blocked {
+    opacity: 0.55;
+  }
+  .perm-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .perm-badge {
+    background: #e9e4f8;
+    color: ${PURPLE};
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 99px;
+  }
+  .danger-btn {
+    background: #fde8e8 !important;
+    color: #a12b2b !important;
   }
   .color-row {
     display: flex;
@@ -2179,6 +4708,84 @@ const styles = `
     padding: 24px;
     display: flex;
     justify-content: center;
+  }
+  .auth-page {
+    min-height: 100vh;
+    background: #f5f4fb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .auth-page .card {
+    width: 100%;
+    max-width: 480px;
+  }
+  .split-login {
+    width: 100%;
+    max-width: 940px;
+    background: #fff;
+    border-radius: 22px;
+    overflow: hidden;
+    display: flex;
+    min-height: 520px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  }
+  .split-panel {
+    flex: 1;
+    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    color: #fff;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .split-logo {
+    width: 64px;
+    height: 80px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+  }
+  .split-title {
+    font-size: 24px;
+    margin: 0 0 20px;
+    color: #fff;
+  }
+  .split-benefits {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .split-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: #f0eaff;
+    line-height: 1.4;
+  }
+  .split-form-panel {
+    flex: 1.1;
+    padding: 48px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  @media (max-width: 760px) {
+    .split-login {
+      flex-direction: column;
+      min-height: 0;
+    }
+    .split-panel {
+      padding: 32px 26px;
+    }
+    .split-form-panel {
+      padding: 32px 26px;
+    }
   }
   .wrap {
     width: 100%;
@@ -2382,5 +4989,622 @@ const styles = `
   .banner.error {
     background: #fdecea;
     color: #c0392b;
+  }
+  .auth-logo {
+    width: 108px;
+    height: 135px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+  .auth-switch {
+    margin-top: 16px;
+    font-size: 13px;
+    color: #595959;
+    text-align: center;
+  }
+  .auth-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .auth-choice button {
+    margin-top: 0;
+  }
+  .step-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .step-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e0dcee;
+  }
+  .step-dots span.active {
+    background: ${PURPLE};
+  }
+  .signup-step {
+    display: flex;
+    flex-direction: column;
+  }
+  .signup-logo-row {
+    margin-bottom: 6px;
+  }
+  .signup-nav-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .signup-nav-row button {
+    width: auto;
+    flex: 1;
+    margin-top: 0;
+  }
+  .bubble-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .bubble-chip {
+    width: auto;
+    background: #f3f0fa;
+    color: ${PURPLE};
+    border: 1.5px solid transparent;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bubble-chip.active {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .mode-card {
+    width: 100%;
+    text-align: left;
+    background: #faf9fd;
+    border: 1.5px solid #e6e2f5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mode-card.active {
+    border-color: ${PURPLE};
+    background: #f3ecff;
+  }
+  .mode-card-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1a1a1a;
+  }
+  .mode-card-desc {
+    font-size: 12px;
+    color: #8a8a8a;
+  }
+  .points-config-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .points-config-label {
+    font-size: 12.5px;
+    color: #595959;
+  }
+  .color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+  }
+  .color-swatch.active {
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 2px #fff inset;
+  }
+  .billing-toggle {
+    display: flex;
+    gap: 6px;
+    background: #f3f0fa;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 14px;
+  }
+  .billing-option {
+    flex: 1;
+    background: none;
+    color: #595959;
+    padding: 8px 6px;
+    font-size: 12.5px;
+    border-radius: 8px;
+  }
+  .billing-option.active {
+    background: #fff;
+    color: ${PURPLE};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .pricing-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .pricing-card {
+    width: 100%;
+    text-align: left;
+    background: #faf9fd;
+    border: 1.5px solid #e6e2f5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pricing-card.active {
+    border-color: ${PURPLE};
+    background: #f3ecff;
+  }
+  .pricing-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .pricing-card-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #1a1a1a;
+  }
+  .pricing-card-price {
+    font-weight: 800;
+    font-size: 13px;
+    color: ${PURPLE};
+    white-space: nowrap;
+  }
+  .pricing-card-desc {
+    font-size: 11.5px;
+    color: #8a8a8a;
+  }
+  .recap-box {
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .recap-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #595959;
+  }
+  .recap-row strong {
+    color: #1a1a1a;
+  }
+  .rank-badge {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #eee;
+    color: #595959;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-badge.top {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .pay-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    margin-bottom: 14px;
+  }
+  .hours-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .hours-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #faf9fd;
+    border-radius: 10px;
+  }
+  .hours-day {
+    width: 78px;
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .hours-closed-toggle {
+    flex: none;
+    font-size: 12px;
+    margin-bottom: 0;
+  }
+  .hours-time-row {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 150px;
+  }
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .photo-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #faf9fd;
+  }
+  .photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+  }
+  .photo-add {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 1.5px dashed #c9c2dd;
+    background: #faf9fd;
+    color: ${PURPLE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 0;
+  }
+
+  /* En-tête de la fiche établissement (onglet Établissement) : logo à
+     gauche, nom de l'établissement à droite. */
+  .est-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .est-logo-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+  .est-logo-preview {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    object-fit: cover;
+    background: #faf9fd;
+    flex: none;
+  }
+  .est-logo-placeholder {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    background: ${PURPLE};
+    color: #fff;
+    font-size: 26px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .est-logo-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .est-header-text {
+    flex: 1;
+    min-width: 200px;
+  }
+  .est-eyebrow {
+    margin: 0 0 2px;
+    color: #8a8a8a;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .est-name {
+    margin: 0 0 8px;
+  }
+
+  /* Recadreur de logo (modal partagé — voir LogoCropper) */
+  .crop-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 10, 35, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  .crop-modal {
+    background: #fff;
+    border-radius: 18px;
+    padding: 20px;
+    width: 100%;
+    max-width: 340px;
+    box-sizing: border-box;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  }
+  .crop-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .crop-modal-head h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1a1a1a;
+  }
+  .crop-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    color: #888;
+    display: flex;
+    cursor: pointer;
+  }
+  .crop-viewport {
+    position: relative;
+    width: 280px;
+    max-width: 100%;
+    height: 280px;
+    margin: 0 auto;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f0eef7;
+    cursor: grab;
+    touch-action: none;
+  }
+  .crop-viewport:active {
+    cursor: grabbing;
+  }
+  .crop-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    max-width: none;
+    user-select: none;
+    pointer-events: none;
+  }
+  .crop-zoom {
+    width: 100%;
+    margin: 16px 0 4px;
+  }
+  .crop-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .crop-actions button {
+    flex: 1;
+    width: auto;
+    margin-top: 0;
+  }
+
+  /* Changement de mot de passe (onglet Paramètres) */
+  .pw-flow-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .pw-flow-actions button {
+    width: auto;
+    flex: 1;
+    margin-top: 0;
+  }
+
+  /* Barre latérale + pleine largeur à partir de 900px : placé tout à la
+     fin du fichier de styles exprès — ".page"/".wrap" ont aussi des
+     règles de base plus haut avec la même spécificité (juste ".page"/
+     ".wrap"), et en CSS c'est la règle la plus BASSE dans le fichier qui
+     gagne à spécificité égale, peu importe qu'elle soit dans un @media ou
+     non. Avant ce déplacement, les règles de base plus bas dans le
+     fichier écrasaient silencieusement cette media query : la barre
+     latérale semblait correcte (fixe, aucune règle de base ne la
+     contredit) mais le contenu retombait sur la mise en page mobile
+     (colonne centrée à 480px) même en grand écran. */
+  @media (min-width: 900px) {
+    .page {
+      display: block;
+      padding: 0;
+    }
+    .wrap {
+      max-width: none;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 32px 40px 60px 276px;
+    }
+    .dashboard {
+      display: block;
+    }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 236px;
+      margin-bottom: 0;
+      border-radius: 0;
+      border-right: 1px solid #ece9f5;
+      box-shadow: none;
+      z-index: 6;
+      transition: width 0.15s ease;
+    }
+    .sidebar.collapsed {
+      width: 68px;
+    }
+    .wrap.sb-collapsed {
+      padding-left: 108px;
+    }
+    .sb-brand {
+      padding: 14px 16px;
+    }
+    .sb-topbar {
+      padding: 4px 12px 12px;
+    }
+    .sidebar.collapsed .sb-topbar {
+      justify-content: center;
+      gap: 4px;
+    }
+    .sidebar.collapsed .sb-brand .sb-wordmark,
+    .sidebar.collapsed .sb-topbar .sb-icon-btn:first-child {
+      display: none;
+    }
+    .sb-nav {
+      flex: 1;
+      flex-direction: column;
+      align-items: stretch;
+      overflow-x: visible;
+      overflow-y: auto;
+      padding: 12px;
+      gap: 2px;
+    }
+    .sb-item {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+    .sidebar.collapsed .sb-item {
+      justify-content: center;
+      padding: 10px;
+    }
+    .sidebar.collapsed .sb-item-label,
+    .sidebar.collapsed .sb-section-label,
+    .sidebar.collapsed .sb-footer-text,
+    .sidebar.collapsed .sb-footer-chevron {
+      display: none;
+    }
+    .sb-section-label {
+      display: block;
+      margin: 18px 10px 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #a79fc4;
+      text-transform: uppercase;
+    }
+    .sb-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #ece9f5;
+    }
+    .sidebar.collapsed .sb-footer {
+      justify-content: center;
+      padding: 14px 8px;
+    }
+    .sb-avatar {
+      width: 30px;
+      height: 30px;
+      flex: none;
+      border-radius: 50%;
+      background: ${PURPLE};
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .sb-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .sb-footer-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .sb-footer-name {
+      font-size: 12.5px;
+      color: #1a1a1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sb-footer-role {
+      font-size: 11px;
+      color: #a3a3a3;
+    }
+    .sb-footer-chevron {
+      flex: none;
+      color: #a3a3a3;
+      display: flex;
+    }
+    .dashboard-content {
+      width: 100%;
+      max-width: 1200px;
+    }
+    .card {
+      width: 100%;
+      box-sizing: border-box;
+    }
   }
 `;
