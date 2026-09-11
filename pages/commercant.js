@@ -25,6 +25,16 @@ const REVOLUT_PAYMENT_LINK = "";
 // Tarification, couleurs de carte : voir lib/pricing.js (partagé avec la
 // page d'accueil marketing, section "Tarifs").
 
+// "2026-09" -> "septembre 2026", pour l'en-tête du classement mensuel de
+// l'équipe (voir lib/db.js -> getEmployeeLeaderboard).
+function formatMonthLabel(monthKey) {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return "";
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  const label = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 // Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
 // et regroupées ici pour être réutilisées partout dans la page — aucune
 // librairie d'icônes n'est installée (et impossible d'en ajouter une sur
@@ -818,6 +828,7 @@ export default function Commercant() {
   // jours/horaires d'accès, et des permissions par rubrique.
   const [employees, setEmployees] = useState([]);
   const [employeeLeaderboard, setEmployeeLeaderboard] = useState([]); // voir getEmployeeLeaderboard (lib/db.js)
+  const [employeeLeaderboardMonth, setEmployeeLeaderboardMonth] = useState(""); // "2026-09" — classement mensuel, remis à zéro chaque mois
   const [editingEmpId, setEditingEmpId] = useState(null);
   const [empName, setEmpName] = useState("");
   const [empPin, setEmpPin] = useState("");
@@ -982,6 +993,7 @@ export default function Commercant() {
           if (res6.ok) {
             setEmployees(data6.employees || []);
             setEmployeeLeaderboard(data6.leaderboard || []);
+            setEmployeeLeaderboardMonth(data6.leaderboardMonth || "");
           }
         } catch {
           // silencieux
@@ -2053,7 +2065,10 @@ export default function Commercant() {
     try {
       const res = await fetch("/api/employees", { headers: { "x-merchant-password": password } });
       const data = await res.json();
-      if (res.ok) setEmployeeLeaderboard(data.leaderboard || []);
+      if (res.ok) {
+        setEmployeeLeaderboard(data.leaderboard || []);
+        setEmployeeLeaderboardMonth(data.leaderboardMonth || "");
+      }
     } catch {
       // silencieux
     }
@@ -3305,10 +3320,12 @@ export default function Commercant() {
           <div className="card">
             <h2 className="icon-heading">
               <Icon name="trophy" size={18} /> Classement de l'équipe
+              {employeeLeaderboardMonth ? ` — ${formatMonthLabel(employeeLeaderboardMonth)}` : ""}
             </h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Nombre de clients fidélisés (points ajoutés) et d'avis Google obtenus, par employé —
-              alimenté automatiquement par les scans faits depuis le lien employé.
+              Compétition mensuelle : nombre de clients fidélisés (points ajoutés) et d'avis Google
+              obtenus depuis le 1er du mois, par employé — alimenté automatiquement par les scans
+              faits depuis le lien employé. Le classement repart à zéro chaque mois.
             </p>
             <div className="list">
               {employeeLeaderboard.map((row, i) => (

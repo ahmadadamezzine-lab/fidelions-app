@@ -21,10 +21,12 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const employees = await getEmployees(merchantId);
-      // Classement (clients fidélisés + avis obtenus) calculé à chaque
-      // chargement de l'onglet Équipe — voir getEmployeeLeaderboard.
-      const leaderboard = await getEmployeeLeaderboard(merchantId);
-      return res.status(200).json({ employees, leaderboard });
+      // Classement DU MOIS EN COURS (clients fidélisés + avis obtenus),
+      // recalculé à chaque chargement de l'onglet Équipe — voir
+      // getEmployeeLeaderboard (compétition mensuelle, remise à zéro
+      // automatique chaque mois).
+      const { rows: leaderboard, monthKey: leaderboardMonth } = await getEmployeeLeaderboard(merchantId);
+      return res.status(200).json({ employees, leaderboard, leaderboardMonth });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message || "Erreur serveur" });
