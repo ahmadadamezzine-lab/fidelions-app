@@ -259,7 +259,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Clients par jour</span>
+                  <span>Nombre de clients par jour</span>
                   <strong>{clientsParJour}</strong>
                 </div>
                 <input
@@ -273,7 +273,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Panier moyen</span>
+                  <span>Panier moyen par client</span>
                   <strong>{panierMoyen} €</strong>
                 </div>
                 <input
@@ -287,7 +287,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Jours d'ouverture / mois</span>
+                  <span>Jours d'ouverture par mois</span>
                   <strong>{joursOuverture}</strong>
                 </div>
                 <input
@@ -301,7 +301,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Gain de fréquentation estimé</span>
+                  <span>Gain de fréquentation grâce à la fidélité</span>
                   <strong>{gainPct} %</strong>
                 </div>
                 <input
@@ -440,8 +440,7 @@ export default function Home() {
             })}
           </div>
           <p className="pricing-footnote">
-            Support de caisse premium avec ton QR code (chevalet ou sticker, au choix) : 20 €, en
-            paiement unique — optionnel.
+            Support de caisse premium avec ton QR code : 20 €, en paiement unique.
           </p>
         </div>
       </section>
@@ -471,6 +470,17 @@ export default function Home() {
             </a>
           </div>
           <LegalFooter />
+        </div>
+        <div className="footer-trust">
+          <div className="section-inner footer-trust-inner">
+            <span className="footer-payments-label">Paiement de l'abonnement sécurisé via Revolut</span>
+            <div className="payment-badges">
+              <span className="payment-badge">Revolut</span>
+              <span className="payment-badge">Apple Pay</span>
+              <span className="payment-badge">Carte bancaire</span>
+            </div>
+            <p className="footer-copyright">© {new Date().getFullYear()} Fidélions. Tous droits réservés.</p>
+          </div>
         </div>
       </footer>
 
@@ -1215,6 +1225,10 @@ const styles = `
   }
   .billing-option {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     background: none;
     border: none;
     color: #595959;
@@ -1338,6 +1352,42 @@ const styles = `
     color: ${PURPLE};
     text-decoration: none;
     font-weight: 600;
+  }
+
+  .footer-trust {
+    background: #14101f;
+    padding: 24px 0;
+  }
+  .footer-trust-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+  }
+  .footer-payments-label {
+    font-size: 11.5px;
+    color: #8f86ab;
+  }
+  .payment-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .payment-badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #cfc6e8;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    padding: 5px 12px;
+    border-radius: 999px;
+  }
+  .footer-copyright {
+    font-size: 11px;
+    color: #6b6280;
+    margin: 4px 0 0;
   }
 
   @media (max-width: 900px) {
