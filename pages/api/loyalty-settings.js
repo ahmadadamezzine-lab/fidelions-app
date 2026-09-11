@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { tiers, mode, pointsConfig } = req.body || {};
+      const { tiers, mode, pointsConfig, reviewBonusPoints } = req.body || {};
       if (!Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({ error: "Ajoute au moins un palier." });
       }
@@ -48,8 +48,14 @@ export default async function handler(req, res) {
       if (mode !== undefined && mode !== "stamps" && mode !== "points") {
         return res.status(400).json({ error: "Mécanique de fidélité invalide." });
       }
+      if (
+        reviewBonusPoints !== undefined &&
+        (!Number.isFinite(Number(reviewBonusPoints)) || Number(reviewBonusPoints) < 0 || Number(reviewBonusPoints) > 50)
+      ) {
+        return res.status(400).json({ error: "Le bonus avis Google doit être entre 0 et 50 points." });
+      }
 
-      const settings = await updateLoyaltySettings(merchantId, { tiers, mode, pointsConfig });
+      const settings = await updateLoyaltySettings(merchantId, { tiers, mode, pointsConfig, reviewBonusPoints });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
       // valable côté Fidélions, seul le libellé affiché sur Wallet ne

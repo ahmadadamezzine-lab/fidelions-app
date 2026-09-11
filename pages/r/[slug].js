@@ -222,6 +222,24 @@ export default function RestaurantSignup() {
                     </button>
                   </div>
                 </div>
+
+                {merchant?.googleReviewUrl && (
+                  <div className="reviewBox">
+                    <p className="referralTitle">★ Donnez votre avis Google, gagnez des points</p>
+                    <p className="referralText">
+                      Laissez un avis sur notre fiche Google, puis montrez-le en caisse lors de
+                      votre prochain passage pour recevoir vos points bonus.
+                    </p>
+                    <a
+                      className="reviewLinkBtn"
+                      href={merchant.googleReviewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Laisser un avis
+                    </a>
+                  </div>
+                )}
               </>
             )}
 
@@ -347,6 +365,23 @@ export default function RestaurantSignup() {
           border-radius: 14px;
           padding: 18px;
           text-align: left;
+        }
+        .reviewBox {
+          background: #fff8e6;
+          border-radius: 14px;
+          padding: 18px;
+          text-align: left;
+          margin-top: 12px;
+        }
+        .reviewLinkBtn {
+          display: inline-block;
+          background: #f5a623;
+          color: #fff;
+          border-radius: 10px;
+          padding: 10px 16px;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
         }
         .referralTitle {
           font-weight: 700;

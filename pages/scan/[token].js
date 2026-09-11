@@ -343,6 +343,17 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
   const [amountInput, setAmountInput] = useState("");
   const [reviewGiven, setReviewGiven] = useState(false);
 
+  // --- Nouveau client (carte créée EN CAISSE par l'employé) -------------
+  // Compte pour le classement "cartes créées" de l'onglet Équipe (voir
+  // recordEmployeeCardCreated, lib/db.js) — contrairement à l'inscription
+  // que le client fait lui-même via le lien public /r/[slug], jamais
+  // attribuée à un employé.
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newPrenom, setNewPrenom] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientResult, setNewClientResult] = useState(null); // { url, prenom }
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -533,9 +544,88 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
     }
   }
 
+  async function createNewClient(e) {
+    e.preventDefault();
+    if (!newPrenom.trim() || !newEmail.trim()) return;
+    setCreatingClient(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/create-pass", {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ prenom: newPrenom, email: newEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur lors de la création.");
+      setNewClientResult({ url: data.url, prenom: newPrenom.trim() });
+      setNewPrenom("");
+      setNewEmail("");
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setCreatingClient(false);
+    }
+  }
+
+  function resetNewClient() {
+    setShowNewClient(false);
+    setNewClientResult(null);
+    setNewPrenom("");
+    setNewEmail("");
+  }
+
   return (
     <>
       <div className="card">
+        {!cameraOn && !found && (
+          <button
+            type="button"
+            className="secondary small"
+            style={{ marginBottom: 12 }}
+            onClick={() => setShowNewClient((v) => !v)}
+          >
+            {showNewClient ? "Annuler" : "+ Nouveau client (pas encore de carte)"}
+          </button>
+        )}
+
+        {showNewClient && (
+          <div className="new-client-box">
+            {newClientResult ? (
+              <>
+                <p className="subtitle" style={{ marginBottom: 10 }}>
+                  Carte créée pour {newClientResult.prenom} — fais-lui ajouter sa carte depuis ce téléphone :
+                </p>
+                <a className="walletLinkBtn" href={newClientResult.url}>
+                  Ajouter à Google Wallet
+                </a>
+                <button type="button" className="secondary small" style={{ marginTop: 8 }} onClick={resetNewClient}>
+                  Terminé
+                </button>
+              </>
+            ) : (
+              <form onSubmit={createNewClient}>
+                <input
+                  type="text"
+                  value={newPrenom}
+                  onChange={(e) => setNewPrenom(e.target.value)}
+                  placeholder="Prénom du client"
+                  required
+                />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Email du client"
+                  required
+                />
+                <button className="primary" type="submit" disabled={creatingClient}>
+                  {creatingClient ? "Création…" : "Créer sa carte"}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
         <video
           ref={videoRef}
           playsInline
@@ -877,6 +967,33 @@ const styles = `
     padding: 10px 14px;
     width: 100%;
     margin-top: 10px;
+  }
+  button.secondary.small {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-top: 0;
+  }
+  .new-client-box {
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    text-align: left;
+  }
+  .new-client-box input {
+    margin-bottom: 10px;
+  }
+  .walletLinkBtn {
+    display: block;
+    background: ${PURPLE};
+    color: #fff;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
   }
   .link-btn {
     background: none;

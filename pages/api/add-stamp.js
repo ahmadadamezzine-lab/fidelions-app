@@ -15,15 +15,18 @@ import {
   markClientReview,
   recordEmployeeStamp,
   recordEmployeeReview,
+  recordEmployeeRevenue,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
 import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
 
-// Bonus (en points) accordé une seule fois par client quand un avis Google
-// est déclaré en caisse (case "Avis Google laissé" côté scan) — pas d'appel
-// à une API Google, c'est une déclaration de l'employé/commerçant.
-const REVIEW_BONUS_POINTS = 3;
+// Le bonus (en points) accordé une seule fois par client quand un avis
+// Google est déclaré en caisse (case "Avis Google laissé" côté scan) — pas
+// d'appel à une API Google, c'est une déclaration de l'employé/commerçant —
+// est désormais réglable par le commerçant (onglet Fidélité, voir
+// getLoyaltySettings/updateLoyaltySettings dans lib/db.js). Plus de
+// constante fixe ici.
 
 // Garde-fous serveur pour le mode "points" : le montant vient du
 // formulaire (employé ou patron), donc jamais fiable à 100% — un montant
@@ -64,18 +67,22 @@ export default async function handler(req, res) {
         .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un point." });
     }
 
-    const { tiers, mode, pointsConfig } = await getLoyaltySettings(merchantId);
+    const { tiers, mode, pointsConfig, reviewBonusPoints } = await getLoyaltySettings(merchantId);
 
     // Mode "points" (montant dépensé) : le delta dépend de l'addition ;
     // mode "stamps" (par défaut) ou montant non renseigné : comportement
-    // historique, toujours +1 par passage.
+    // historique, toujours +1 par passage. `spentAmount` est gardé à part
+    // (hors du calcul de `delta`) pour alimenter le classement "CA généré"
+    // de l'onglet Équipe (voir recordEmployeeRevenue plus bas).
     let delta = 1;
+    let spentAmount = null;
     if (mode === "points") {
       const amt = Number(amount);
       if (Number.isFinite(amt) && amt > 0 && amt <= MAX_AMOUNT) {
         const unit = pointsConfig.amountUnit || 10;
         const perAmount = pointsConfig.pointsPerAmount || 1;
         delta = Math.max(1, Math.round((amt / unit) * perAmount));
+        spentAmount = amt;
       } else if (Number.isFinite(amt) && amt > MAX_AMOUNT) {
         return res.status(400).json({ error: `Montant trop élevé (maximum ${MAX_AMOUNT} €).` });
       }
@@ -85,7 +92,7 @@ export default async function handler(req, res) {
     // pour ne déclencher qu'UNE notification/mise à jour de solde.
     const reviewBonusApplied = !!reviewGiven && !existing.reviewLeft;
     if (reviewBonusApplied) {
-      delta += REVIEW_BONUS_POINTS;
+      delta += reviewBonusPoints;
     }
 
     // Garde-fou final, quel que soit le mode.
@@ -126,7 +133,7 @@ export default async function handler(req, res) {
 
     if (reviewBonusApplied) {
       await markClientReview(merchantId, objectId);
-      notifBody = `Merci pour votre avis Google (+${REVIEW_BONUS_POINTS} points) ! ${notifBody}`;
+      notifBody = `Merci pour votre avis Google (+${reviewBonusPoints} points) ! ${notifBody}`;
     }
 
     // Attribution à l'employé qui a fait le scan (uniquement si l'action
@@ -137,6 +144,7 @@ export default async function handler(req, res) {
       try {
         await recordEmployeeStamp(merchantId, auth.employeeId, objectId);
         if (reviewBonusApplied) await recordEmployeeReview(merchantId, auth.employeeId);
+        if (spentAmount) await recordEmployeeRevenue(merchantId, auth.employeeId, spentAmount);
       } catch (err) {
         console.error("Statistiques employé non mises à jour :", err);
       }

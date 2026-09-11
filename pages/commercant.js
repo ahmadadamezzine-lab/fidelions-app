@@ -739,6 +739,9 @@ export default function Commercant() {
   const [loyaltyMode, setLoyaltyMode] = useState("stamps");
   const [pointsPerAmount, setPointsPerAmount] = useState(1);
   const [amountUnit, setAmountUnit] = useState(10);
+  // Bonus (en points) accordé quand un client laisse un avis Google, réglable
+  // par le commerçant — voir lib/db.js/DEFAULT_REVIEW_BONUS_POINTS (défaut 3).
+  const [reviewBonusPoints, setReviewBonusPoints] = useState(3);
 
   // --- Statistiques (tuiles + graphes), chargées seulement à l'ouverture
   // de l'onglet pour ne pas ralentir la connexion.
@@ -777,6 +780,7 @@ export default function Commercant() {
   const [estWebsite, setEstWebsite] = useState("");
   const [estInstagram, setEstInstagram] = useState("");
   const [estFacebook, setEstFacebook] = useState("");
+  const [estGoogleReviewUrl, setEstGoogleReviewUrl] = useState("");
   const [estDescription, setEstDescription] = useState("");
   const [estHours, setEstHours] = useState(null);
   const [estPhotos, setEstPhotos] = useState([]); // URLs déjà enregistrées
@@ -829,6 +833,7 @@ export default function Commercant() {
   const [employees, setEmployees] = useState([]);
   const [employeeLeaderboard, setEmployeeLeaderboard] = useState([]); // voir getEmployeeLeaderboard (lib/db.js)
   const [employeeLeaderboardMonth, setEmployeeLeaderboardMonth] = useState(""); // "2026-09" — classement mensuel, remis à zéro chaque mois
+  const [leaderboardSort, setLeaderboardSort] = useState("clients"); // "clients" | "cards" | "revenue" — critère de tri choisi par le patron, purement côté écran (les 4 compteurs sont déjà tous renvoyés par l'API)
   const [editingEmpId, setEditingEmpId] = useState(null);
   const [empName, setEmpName] = useState("");
   const [empPin, setEmpPin] = useState("");
@@ -955,6 +960,7 @@ export default function Commercant() {
               setPointsPerAmount(data2.pointsConfig.pointsPerAmount);
               setAmountUnit(data2.pointsConfig.amountUnit);
             }
+            if (data2.reviewBonusPoints !== undefined) setReviewBonusPoints(data2.reviewBonusPoints);
           }
         } catch {
           // silencieux
@@ -1305,6 +1311,11 @@ export default function Commercant() {
         return;
       }
     }
+    const rbp = Number(reviewBonusPoints);
+    if (!Number.isFinite(rbp) || rbp < 0 || rbp > 50) {
+      setMessage({ type: "error", text: "Le bonus avis Google doit être entre 0 et 50 points." });
+      return;
+    }
     setSavingLoyalty(true);
     setMessage(null);
     try {
@@ -1315,12 +1326,14 @@ export default function Commercant() {
           tiers,
           mode: loyaltyMode,
           pointsConfig: { pointsPerAmount: Number(pointsPerAmount) || 1, amountUnit: Number(amountUnit) || 10 },
+          reviewBonusPoints: Number(reviewBonusPoints),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setTiers(data.tiers);
       if (data.mode) setLoyaltyMode(data.mode);
+      if (data.reviewBonusPoints !== undefined) setReviewBonusPoints(data.reviewBonusPoints);
       setRewardThreshold(data.tiers[0].threshold);
       setRewardLabel(data.tiers[0].label);
       setMessage({ type: "success", text: "Réglages de fidélité enregistrés." });
@@ -1643,6 +1656,7 @@ export default function Commercant() {
         setEstWebsite(data.website || "");
         setEstInstagram(data.instagram || "");
         setEstFacebook(data.facebook || "");
+        setEstGoogleReviewUrl(data.googleReviewUrl || "");
         setEstDescription(data.description || "");
         setEstHours(data.hours || null);
         setEstPhotos(data.photos || []);
@@ -1703,6 +1717,7 @@ export default function Commercant() {
           website: estWebsite,
           instagram: estInstagram,
           facebook: estFacebook,
+          googleReviewUrl: estGoogleReviewUrl,
           description: estDescription,
           hours: estHours,
           newPhotos: estNewPhotos,
@@ -3001,6 +3016,23 @@ export default function Commercant() {
                 ))}
             </div>
 
+            <p className="subtitle" style={{ marginTop: 18, marginBottom: 6 }}>Bonus avis Google</p>
+            <div className="points-config-row" style={{ marginBottom: 4 }}>
+              <span className="points-config-label">Le client gagne</span>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={reviewBonusPoints}
+                onChange={(e) => setReviewBonusPoints(e.target.value)}
+                style={{ width: 64, marginBottom: 0 }}
+              />
+              <span className="points-config-label">point(s) bonus quand il laisse un avis Google</span>
+            </div>
+            <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
+              Attribué manuellement en caisse (case « Avis Google laissé » lors du scan), une seule fois par client.
+            </p>
+
             <button className="primary" style={{ marginTop: 14 }} onClick={saveLoyalty} disabled={savingLoyalty}>
               {savingLoyalty ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -3323,26 +3355,63 @@ export default function Commercant() {
               {employeeLeaderboardMonth ? ` — ${formatMonthLabel(employeeLeaderboardMonth)}` : ""}
             </h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Compétition mensuelle : nombre de clients fidélisés (points ajoutés) et d'avis Google
-              obtenus depuis le 1er du mois, par employé — alimenté automatiquement par les scans
-              faits depuis le lien employé. Le classement repart à zéro chaque mois.
+              Compétition mensuelle depuis le 1er du mois, alimentée automatiquement par les scans
+              faits depuis le lien employé — choisis le critère de classement, le classement repart
+              à zéro chaque mois.
             </p>
+            <div className="mode-cards" style={{ marginBottom: 14 }}>
+              <button
+                type="button"
+                className={`bubble-chip${leaderboardSort === "clients" ? " active" : ""}`}
+                onClick={() => setLeaderboardSort("clients")}
+              >
+                Clients fidélisés
+              </button>
+              <button
+                type="button"
+                className={`bubble-chip${leaderboardSort === "cards" ? " active" : ""}`}
+                onClick={() => setLeaderboardSort("cards")}
+              >
+                Cartes créées
+              </button>
+              {loyaltyMode === "points" && (
+                <button
+                  type="button"
+                  className={`bubble-chip${leaderboardSort === "revenue" ? " active" : ""}`}
+                  onClick={() => setLeaderboardSort("revenue")}
+                >
+                  CA généré
+                </button>
+              )}
+            </div>
             <div className="list">
-              {employeeLeaderboard.map((row, i) => (
-                <div className="row" key={row.id}>
-                  <span className={`rank-badge${i < 3 && row.clientsCount > 0 ? " top" : ""}`}>{i + 1}</span>
-                  <div className="row-info">
-                    <strong>
-                      {row.name}
-                      {!row.active ? " (inactif)" : ""}
-                    </strong>
-                    <div className="meta">
-                      {row.clientsCount} client{row.clientsCount > 1 ? "s" : ""} fidélisé{row.clientsCount > 1 ? "s" : ""} ·{" "}
-                      {row.reviewsCount} avis Google
+              {[...employeeLeaderboard]
+                .sort((a, b) => {
+                  if (leaderboardSort === "cards") return b.cardsCount - a.cardsCount || b.clientsCount - a.clientsCount;
+                  if (leaderboardSort === "revenue") return b.revenueTotal - a.revenueTotal || b.clientsCount - a.clientsCount;
+                  return b.clientsCount - a.clientsCount || b.reviewsCount - a.reviewsCount;
+                })
+                .map((row, i) => {
+                  const rankValue =
+                    leaderboardSort === "cards" ? row.cardsCount : leaderboardSort === "revenue" ? row.revenueTotal : row.clientsCount;
+                  return (
+                    <div className="row" key={row.id}>
+                      <span className={`rank-badge${i < 3 && rankValue > 0 ? " top" : ""}`}>{i + 1}</span>
+                      <div className="row-info">
+                        <strong>
+                          {row.name}
+                          {!row.active ? " (inactif)" : ""}
+                        </strong>
+                        <div className="meta">
+                          {row.clientsCount} client{row.clientsCount > 1 ? "s" : ""} fidélisé{row.clientsCount > 1 ? "s" : ""} ·{" "}
+                          {row.cardsCount} carte{row.cardsCount > 1 ? "s" : ""} créée{row.cardsCount > 1 ? "s" : ""}
+                          {loyaltyMode === "points" ? ` · ${row.revenueTotal.toLocaleString("fr-FR")} € de CA` : ""} ·{" "}
+                          {row.reviewsCount} avis Google
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
         )}
@@ -3783,6 +3852,19 @@ export default function Commercant() {
                   onChange={(e) => setEstFacebook(e.target.value)}
                   placeholder="Facebook (lien)"
                 />
+
+                <p className="subtitle" style={{ marginTop: 6, marginBottom: 6 }}>Avis Google</p>
+                <input
+                  type="url"
+                  value={estGoogleReviewUrl}
+                  onChange={(e) => setEstGoogleReviewUrl(e.target.value)}
+                  placeholder="Lien « laisser un avis » de ta fiche Google (ex : https://g.page/r/.../review)"
+                />
+                <p className="subtitle" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>
+                  Affiché sur la carte Wallet de tes clients et sur ta page d'inscription, avec le
+                  bonus de points — retrouve ton lien sur ta fiche Google Business Profile, bouton
+                  « Obtenir plus d'avis ».
+                </p>
 
                 <p className="subtitle" style={{ marginBottom: 6 }}>À propos</p>
                 <textarea

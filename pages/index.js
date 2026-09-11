@@ -65,7 +65,7 @@ const FEATURES = [
     ],
   },
   { icon: "gift", title: "Points ou tampons", desc: "Choisis la mécanique de fidélité qui correspond à ton commerce, avec des paliers de récompense sur mesure." },
-  { icon: "star", title: "Bonus avis Google", desc: "Récompense automatiquement les clients qui laissent un avis en caisse.", badge: "Nouveau" },
+  { icon: "star", title: "Donnez votre avis, gagnez des points", desc: "Un bouton \"avis Google\" directement sur la carte de tes clients, avec un bonus de points à la clé — tu récoltes plus d'avis, ils sont récompensés.", badge: "Nouveau" },
   { icon: "wifi", title: "Mode sans connexion", desc: "L'écran de scan employé continue de fonctionner même sans réseau, et se synchronise ensuite.", badge: "Nouveau" },
   { icon: "palette", title: "Personnalisation complète", desc: "Logo, couleur, bannière : ta carte à tes couleurs, en quelques clics." },
   { icon: "mappin", title: "Notifications de proximité", desc: "Une notification native envoyée quand un client passe près de chez toi." },
@@ -77,14 +77,14 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "1", title: "Crée ton compte", desc: "Nom, logo, mécanique de fidélité : ton espace est prêt en moins de 3 minutes." },
+  { n: "1", title: "Crée ton compte", desc: "Nom, logo, mécanique de fidélité : ton espace est prêt en 2 minutes." },
   { n: "2", title: "Personnalise ta carte", desc: "Couleurs, récompenses, notifications : configure ton programme comme tu le souhaites." },
   { n: "3", title: "Partage ton lien", desc: "QR code ou lien direct : tes clients ajoutent leur carte et reviennent, automatiquement." },
 ];
 
 const PRODUCT_FACTS = [
-  { value: "< 3 min", label: "pour créer ta carte de fidélité" },
-  { value: "0 €", label: "de matériel supplémentaire à acheter" },
+  { value: "2 min", label: "pour créer ta carte de fidélité" },
+  { value: "+3 pts", label: "offerts automatiquement pour un avis Google laissé" },
   { value: "0 appli", label: "à faire installer à tes clients" },
   { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
@@ -1310,6 +1310,12 @@ const styles = `
   .price-suffix {
     font-size: 11px;
     color: #8a8a8a;
+  }
+  .price-card .btn {
+    /* La carte "Sur devis" n'a qu'une ligne de prix (pas de "/mois"), donc
+       sans ça son bouton remonte et casse l'alignement avec les 3 autres
+       cartes — on colle toujours le bouton en bas de la carte. */
+    margin-top: auto;
   }
 
   .cta-banner {

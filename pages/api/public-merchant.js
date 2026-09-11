@@ -7,7 +7,7 @@
 // elle-même) — jamais l'email, le mot de passe ou l'identifiant interne
 // du commerçant.
 
-import { getMerchantBySlug, getBranding } from "../../lib/db";
+import { getMerchantBySlug, getBranding, getEstablishmentInfo } from "../../lib/db";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -23,12 +23,17 @@ export default async function handler(req, res) {
     }
 
     const branding = await getBranding(merchant.id);
+    // Lien "Laisser un avis Google" du commerce, facultatif (voir onglet
+    // Établissement) — déjà public en soi (une fiche Google), donc sans
+    // risque à renvoyer ici pour l'afficher sur la page d'inscription.
+    const { googleReviewUrl } = await getEstablishmentInfo(merchant.id);
 
     return res.status(200).json({
       restaurantName: merchant.restaurantName,
       slug: merchant.slug,
       hexColor: branding.hexColor,
       logoUrl: branding.logoUrl,
+      googleReviewUrl,
     });
   } catch (err) {
     console.error(err);
