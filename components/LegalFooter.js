@@ -5,6 +5,8 @@ import Link from "next/link";
 export default function LegalFooter({ style }) {
   return (
     <p className="legal-footer" style={style}>
+      <Link href="/mentions-legales">Mentions légales</Link>
+      <span> · </span>
       <Link href="/cgv">CGV</Link>
       <span> · </span>
       <Link href="/confidentialite">Confidentialité</Link>

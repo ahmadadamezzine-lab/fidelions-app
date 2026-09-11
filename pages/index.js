@@ -18,7 +18,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import LegalFooter from "../components/LegalFooter";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
 
 const PURPLE = "#7414F4";
@@ -456,30 +455,54 @@ export default function Home() {
       </section>
 
       <footer className="footer">
-        <div className="section-inner footer-inner">
-          <div className="footer-brand">
-            <img src="/logo.png" alt="Fidélions" />
-            <span>Fidélions</span>
+        <div className="section-inner footer-top">
+          <div className="footer-brand-col">
+            <div className="footer-brand">
+              <img src="/logo.png" alt="Fidélions" />
+              <span>Fidélions</span>
+            </div>
+            <p className="footer-tagline">
+              Le système de fidélisation clé en main pour les commerces qui veulent que leurs
+              clients reviennent.
+            </p>
+            <div className="footer-contact">
+              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+              <span> · </span>
+              <a href={`https://wa.me/${CONTACT_WHATSAPP}`} target="_blank" rel="noopener noreferrer">
+                WhatsApp
+              </a>
+            </div>
           </div>
-          <p className="footer-tagline">Le système de fidélisation clé en main pour les commerces.</p>
-          <div className="footer-contact">
-            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-            <span> · </span>
-            <a href={`https://wa.me/${CONTACT_WHATSAPP}`} target="_blank" rel="noopener noreferrer">
-              WhatsApp
-            </a>
+
+          <div className="footer-nav-col">
+            <span className="footer-col-title">Produit</span>
+            <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#tarifs">Tarifs</a>
+            <a href="#comment-ca-marche">Comment ça marche</a>
           </div>
-          <LegalFooter />
+
+          <div className="footer-nav-col">
+            <span className="footer-col-title">Légal</span>
+            <Link href="/mentions-legales">Mentions légales</Link>
+            <Link href="/cgv">CGV</Link>
+            <Link href="/confidentialite">Confidentialité</Link>
+          </div>
         </div>
-        <div className="footer-trust">
-          <div className="section-inner footer-trust-inner">
+
+        <div className="footer-divider" />
+
+        <div className="section-inner footer-bottom">
+          <div className="footer-payments">
             <span className="footer-payments-label">Paiement de l'abonnement sécurisé via Revolut</span>
             <div className="payment-badges">
               <span className="payment-badge">Revolut</span>
               <span className="payment-badge">Apple Pay</span>
               <span className="payment-badge">Carte bancaire</span>
             </div>
+          </div>
+          <div className="footer-bottom-row">
             <p className="footer-copyright">© {new Date().getFullYear()} Fidélions. Tous droits réservés.</p>
+            <span className="footer-madein">Fait en France</span>
           </div>
         </div>
       </footer>
@@ -1316,23 +1339,27 @@ const styles = `
   }
 
   .footer {
-    background: #faf9fd;
-    padding: 40px 0;
+    background: #0d0a15;
+    padding: 56px 0 0;
   }
-  .footer-inner {
+  .footer-top {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 40px;
+    padding-bottom: 40px;
+  }
+  .footer-brand-col {
+    flex: 1.4;
+    min-width: 220px;
   }
   .footer-brand {
     display: flex;
     align-items: center;
     gap: 8px;
     font-weight: 800;
-    color: ${PURPLE};
+    color: #fff;
     font-size: 15px;
+    margin-bottom: 12px;
   }
   .footer-brand img {
     width: 26px;
@@ -1340,30 +1367,59 @@ const styles = `
     border-radius: 7px;
   }
   .footer-tagline {
-    color: #8a8a8a;
+    color: #948bb0;
     font-size: 13px;
-    margin: 0;
+    line-height: 1.6;
+    margin: 0 0 12px;
+    max-width: 300px;
   }
   .footer-contact {
     font-size: 12.5px;
-    margin-top: 4px;
   }
   .footer-contact a {
-    color: ${PURPLE};
+    color: #cfc6e8;
     text-decoration: none;
     font-weight: 600;
   }
-
-  .footer-trust {
-    background: #14101f;
-    padding: 24px 0;
+  .footer-nav-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 140px;
   }
-  .footer-trust-inner {
+  .footer-col-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b6280;
+    margin-bottom: 4px;
+  }
+  .footer-nav-col :global(a) {
+    color: #b8aee0;
+    text-decoration: none;
+    font-size: 13.5px;
+  }
+  .footer-nav-col :global(a:hover) {
+    color: #fff;
+  }
+
+  .footer-divider {
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .footer-bottom {
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-align: center;
-    gap: 12px;
+    gap: 16px;
+    padding: 24px 0 28px;
+  }
+  .footer-payments {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
   .footer-payments-label {
     font-size: 11.5px;
@@ -1384,10 +1440,21 @@ const styles = `
     padding: 5px 12px;
     border-radius: 999px;
   }
+  .footer-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
   .footer-copyright {
-    font-size: 11px;
+    font-size: 11.5px;
     color: #6b6280;
-    margin: 4px 0 0;
+    margin: 0;
+  }
+  .footer-madein {
+    font-size: 11.5px;
+    color: #6b6280;
   }
 
   @media (max-width: 900px) {
@@ -1401,6 +1468,8 @@ const styles = `
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }
     .calc-box { grid-template-columns: 1fr; }
+    .footer-top { flex-direction: column; gap: 28px; }
+    .footer-bottom-row { flex-direction: column; text-align: center; }
   }
   @media (max-width: 560px) {
     .features-grid { grid-template-columns: 1fr; }

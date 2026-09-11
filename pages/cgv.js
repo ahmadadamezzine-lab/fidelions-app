@@ -16,7 +16,7 @@ export default function CGV() {
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : 10 septembre 2026</p>
+        <p className="subtitle">Fidélions — dernière mise à jour : 11 septembre 2026</p>
 
         <h2>Article 1 — Objet</h2>
         <p>
@@ -90,7 +90,7 @@ export default function CGV() {
         <ul>
           <li>mettre en œuvre les moyens raisonnables pour assurer la disponibilité et le bon fonctionnement du Service ;</li>
           <li>assurer un support en cas de dysfonctionnement signalé par le Client, dans un délai raisonnable ;</li>
-          <li>traiter les données personnelles des clients finaux de l'Établissement conformément à sa Politique de confidentialité et à la réglementation applicable (voir article 9).</li>
+          <li>traiter les données personnelles des clients finaux de l'Établissement conformément à sa Politique de confidentialité et à la réglementation applicable (voir article 10).</li>
         </ul>
         <p>Le Prestataire ne garantit pas une disponibilité continue et ininterrompue du Service, notamment en cas de maintenance, de panne d'un prestataire tiers (hébergeur, Google Wallet, etc.) ou de force majeure.</p>
 
@@ -103,7 +103,30 @@ export default function CGV() {
           <li>payer le prix convenu aux échéances prévues.</li>
         </ul>
 
-        <h2>Article 9 — Protection des données personnelles</h2>
+        <h2>Article 9 — Utilisation par les clients finaux (titulaires d'une carte de fidélité)</h2>
+        <p>
+          La création d'une carte de fidélité auprès d'un Établissement utilisant Fidélions est
+          gratuite pour le titulaire de la carte (« le Client final ») et réservée aux personnes
+          âgées d'au moins 15 ans, ou disposant de l'accord préalable de leur représentant légal.
+        </p>
+        <p>
+          La carte est rattachée à l'Établissement auprès duquel le Client final s'est inscrit. Les
+          points ou tampons accumulés n'ont aucune valeur monétaire, ne peuvent être ni vendus ni
+          échangés contre de l'argent, et ne sont pas transférables d'un établissement à un autre.
+        </p>
+        <p>
+          L'Établissement peut faire évoluer son catalogue de récompenses à tout moment ; les points
+          déjà acquis par le Client final restent utilisables selon les conditions en vigueur au
+          moment de leur utilisation.
+        </p>
+        <p>
+          Il est interdit d'obtenir des points ou des récompenses par un moyen détourné, d'utiliser
+          la carte d'un tiers sans son accord, ou de perturber le fonctionnement du Service. Le
+          Prestataire ou l'Établissement peuvent suspendre une carte en cas d'usage manifestement
+          frauduleux ou abusif.
+        </p>
+
+        <h2>Article 10 — Protection des données personnelles</h2>
         <p>
           Dans le cadre de l'utilisation du Service, le Prestataire est amené à traiter, pour le
           compte du Client, des données à caractère personnel relatives aux clients finaux de
@@ -118,19 +141,19 @@ export default function CGV() {
         </ul>
         <p>Les données propres au compte du Client (identité du commerce, moyens de contact, employés qu'il enregistre) sont quant à elles traitées par le Prestataire en qualité de responsable de traitement, dans les conditions décrites dans sa Politique de confidentialité.</p>
 
-        <h2>Article 10 — Propriété intellectuelle</h2>
+        <h2>Article 11 — Propriété intellectuelle</h2>
         <p>Le Prestataire demeure titulaire de l'ensemble des droits de propriété intellectuelle attachés au Service (logiciel, interface, marque « Fidélions », etc.). Le Client bénéficie d'un droit d'usage personnel, non exclusif et non cessible, pour la durée du contrat.</p>
         <p>Les contenus fournis par le Client (logo, textes, visuels de la carte) restent sa propriété ; il garantit disposer des droits nécessaires à leur utilisation et en autorise l'usage par le Prestataire aux seules fins de fourniture du Service.</p>
 
-        <h2>Article 11 — Responsabilité</h2>
+        <h2>Article 12 — Responsabilité</h2>
         <p>Le Prestataire ne saurait être tenu responsable des dommages indirects subis par le Client (perte de chiffre d'affaires, perte de clientèle, préjudice d'image, etc.).</p>
         <p>Sa responsabilité, si elle est retenue, est limitée au montant des sommes effectivement versées par le Client au titre du Service au cours des 12 derniers mois précédant le fait générateur.</p>
         <p>Le Prestataire n'est pas responsable des dysfonctionnements imputables à des services tiers indépendants de sa volonté (Google Wallet, hébergeur, opérateurs de télécommunication, etc.).</p>
 
-        <h2>Article 12 — Force majeure</h2>
+        <h2>Article 13 — Force majeure</h2>
         <p>Aucune des parties ne pourra être tenue responsable envers l'autre en cas d'inexécution de ses obligations résultant d'un cas de force majeure au sens de l'article 1218 du Code civil.</p>
 
-        <h2>Article 13 — Droit applicable et litiges</h2>
+        <h2>Article 14 — Droit applicable et litiges</h2>
         <p>
           Les présentes CGV sont soumises au droit français. En cas de litige, les parties
           s'efforceront de trouver une solution amiable avant toute action judiciaire. À défaut, les
@@ -138,7 +161,7 @@ export default function CGV() {
           disposition légale impérative contraire.
         </p>
 
-        <h2>Article 14 — Contact</h2>
+        <h2>Article 15 — Contact</h2>
         <p>Pour toute question relative aux présentes CGV : ahmadadamezzine@gmail.com.</p>
       </div>
 

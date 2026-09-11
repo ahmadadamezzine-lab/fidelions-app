@@ -13,7 +13,7 @@ export default function Confidentialite() {
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Politique de Confidentialité</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : 10 septembre 2026</p>
+        <p className="subtitle">Fidélions — dernière mise à jour : 11 septembre 2026</p>
 
         <h2>1. Qui sommes-nous</h2>
         <p>
@@ -61,7 +61,7 @@ export default function Confidentialite() {
           <li>Resend — États-Unis — envoi des emails (création de carte, campagnes) ;</li>
           <li>l'API Adresse du gouvernement français (api-adresse.data.gouv.fr) — recherche d'adresse de l'Établissement (aucune donnée personnelle d'un Client final n'y est transmise).</li>
         </ul>
-        <p>Ces prestataires n'utilisent vos données que pour exécuter les services demandés et ne sont pas autorisés à les exploiter à d'autres fins.</p>
+        <p>Ces prestataires n'utilisent vos données que pour exécuter les services demandés et ne sont pas autorisés à les exploiter à d'autres fins. Vos données ne sont ni vendues, ni cédées, ni échangées à des fins publicitaires.</p>
 
         <h2>5. Transferts hors Union européenne</h2>
         <p>
@@ -92,20 +92,40 @@ export default function Confidentialite() {
         </p>
         <p>Vous disposez également du droit d'introduire une réclamation auprès de la Commission nationale de l'informatique et des libertés (CNIL) — www.cnil.fr.</p>
 
-        <h2>8. Sécurité</h2>
-        <p>Le Prestataire met en œuvre des mesures techniques raisonnables pour protéger vos données : connexion chiffrée (HTTPS), accès protégés par mot de passe ou code personnel, hébergement chez des prestataires reconnus.</p>
-
-        <h2>9. Cookies et traceurs</h2>
+        <h2>8. Mineurs</h2>
         <p>
-          Le site utilise uniquement des dispositifs techniques nécessaires au fonctionnement du
-          Service (par exemple, la mémorisation locale du mot de passe du compte Établissement sur son
-          propre appareil), sans finalité publicitaire ni traceur tiers de mesure d'audience à ce jour.
+          La création d'une carte de fidélité Fidélions est réservée aux personnes âgées d'au moins
+          15 ans (âge à partir duquel la loi française permet de consentir seul au traitement de ses
+          données en ligne). En deçà, elle suppose l'accord préalable d'un parent ou du représentant
+          légal.
+        </p>
+        <p>
+          Si vous constatez qu'un mineur s'est inscrit sans cet accord, écrivez à
+          ahmadadamezzine@gmail.com : les données seront supprimées.
         </p>
 
-        <h2>10. Délégué à la protection des données</h2>
+        <h2>9. Sécurité</h2>
+        <p>Le Prestataire met en œuvre des mesures techniques raisonnables pour protéger vos données : connexion chiffrée (HTTPS), accès protégés par mot de passe ou code personnel, hébergement chez des prestataires reconnus.</p>
+
+        <h2>10. Cookies et traceurs</h2>
+        <p>
+          Fidélions n'utilise aucun outil de mesure d'audience, aucun traceur publicitaire et aucun
+          cookie de suivi.
+        </p>
+        <p>
+          Le site utilise uniquement des dispositifs techniques strictement nécessaires au
+          fonctionnement du Service : la mémorisation locale du mot de passe du compte Établissement
+          sur son propre appareil, et, sur l'écran de scan employé, la mémorisation locale des points
+          en attente lorsque l'appareil est temporairement hors connexion (mode hors-ligne), le temps
+          de leur synchronisation. Ces informations restent sur l'appareil et ne sont jamais utilisées
+          à des fins de suivi ou de mesure d'audience.
+        </p>
+        <p>Aucun consentement préalable n'étant requis pour ces usages, aucun bandeau de cookies n'est affiché.</p>
+
+        <h2>11. Délégué à la protection des données</h2>
         <p>Compte tenu de la taille et de l'activité de Fidélions, la désignation d'un délégué à la protection des données (DPO) n'est pas obligatoire à ce stade. Toute question peut être adressée au contact indiqué à la section 1.</p>
 
-        <h2>11. Modification de cette politique</h2>
+        <h2>12. Modification de cette politique</h2>
         <p>Cette politique peut être mise à jour ; la version en vigueur est celle publiée sur cette page, avec sa date de dernière mise à jour ci-dessus.</p>
       </div>
 
