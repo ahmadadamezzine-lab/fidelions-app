@@ -8,7 +8,7 @@
 // mais ce n'est qu'un confort visuel anti-regard-par-dessus-l'épaule, pas
 // une restriction de l'API elle-même.
 
-import { getEmployees, upsertEmployee, deleteEmployee } from "../../lib/db";
+import { getEmployees, upsertEmployee, deleteEmployee, getEmployeeLeaderboard } from "../../lib/db";
 import { getRole, getMerchantId } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -21,7 +21,10 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const employees = await getEmployees(merchantId);
-      return res.status(200).json({ employees });
+      // Classement (clients fidélisés + avis obtenus) calculé à chaque
+      // chargement de l'onglet Équipe — voir getEmployeeLeaderboard.
+      const leaderboard = await getEmployeeLeaderboard(merchantId);
+      return res.status(200).json({ employees, leaderboard });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message || "Erreur serveur" });

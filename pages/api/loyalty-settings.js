@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { tiers } = req.body || {};
+      const { tiers, mode, pointsConfig } = req.body || {};
       if (!Array.isArray(tiers) || tiers.length === 0) {
         return res.status(400).json({ error: "Ajoute au moins un palier." });
       }
@@ -45,8 +45,11 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: "Décris la récompense de chaque palier." });
         }
       }
+      if (mode !== undefined && mode !== "stamps" && mode !== "points") {
+        return res.status(400).json({ error: "Mécanique de fidélité invalide." });
+      }
 
-      const settings = await updateLoyaltySettings(merchantId, { tiers });
+      const settings = await updateLoyaltySettings(merchantId, { tiers, mode, pointsConfig });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
       // valable côté Fidélions, seul le libellé affiché sur Wallet ne

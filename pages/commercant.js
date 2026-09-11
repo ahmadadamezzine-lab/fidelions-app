@@ -1,18 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import QRCode from "qrcode";
 import LegalFooter from "../components/LegalFooter";
+import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
 
 const PURPLE = "#7414F4";
 const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
-// Tarif affiché sur l'onglet Abonnement — pas de facturation automatique
-// (paiement par virement bancaire géré à la main), donc juste un prix et
-// un contact ici. Modifiable à tout moment.
-const SUBSCRIPTION_PRICE = 39;
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 const CONTACT_WHATSAPP_ASSOCIE = "33749749829"; // Yassine
+
+// Lien de paiement hébergé (ex : lien de paiement Revolut Business) vers
+// lequel renvoie le bouton "Activer mon abonnement" de l'étape tarification
+// et de l'onglet Abonnement. Volontairement vide tant qu'Adam n'a pas
+// fourni son vrai lien : en attendant, le bouton ouvre WhatsApp avec un
+// message pré-rempli plutôt que de faire croire à un paiement possible —
+// aucune donnée bancaire n'est jamais collectée ici (voir REVOLUT_PAYMENT_LINK
+// plus bas). Pour activer les vrais paiements, il suffit de coller le lien
+// Revolut ici.
+const REVOLUT_PAYMENT_LINK = "";
+
+// Tarification, couleurs de carte : voir lib/pricing.js (partagé avec la
+// page d'accueil marketing, section "Tarifs").
 
 // Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
 // et regroupées ici pour être réutilisées partout dans la page — aucune
@@ -605,6 +616,10 @@ function Delta({ pct }) {
 }
 
 export default function Commercant() {
+  // Permet à la page d'accueil marketing (pages/index.js) de renvoyer
+  // directement vers l'inscription ou la connexion via /commercant?mode=...
+  // plutôt que de repasser par l'écran de choix.
+  const router = useRouter();
   // `password` garde son nom historique mais contient depuis le passage
   // aux comptes un JETON DE SESSION (renvoyé par /api/auth-login ou
   // /api/auth-signup), plus un mot de passe en clair — c'est ce qui
@@ -624,8 +639,27 @@ export default function Commercant() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // --- Inscription : assistant en 3 étapes (voir handleSignupSubmit) ---
+  // La page d'accueil marketing (pages/index.js) pointe ses boutons vers
+  // /commercant?mode=signup ou ?mode=login — une fois la route prête, on
+  // saute directement au bon écran plutôt que d'afficher le choix.
+  useEffect(() => {
+    if (!router.isReady || authed) return;
+    const mode = router.query.mode;
+    if (mode === "signup") {
+      setAuthMode("signup");
+      setSignupStep(1);
+    } else if (mode === "login") {
+      setAuthMode("login");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.mode]);
+
+  // --- Inscription : assistant en 6 étapes (voir handleSignupSubmit) ---
+  // 1. Nom + logo · 2. Mécanique de fidélité + couleur de carte (facultatif)
+  // · 3. Type d'activité · 4. Tarification · 5. Activation de l'abonnement
+  // · 6. Identifiants + téléphone (seule étape qui appelle /api/auth-signup).
   const [signupStep, setSignupStep] = useState(1);
+  const SIGNUP_STEPS_TOTAL = 6;
   const [signupRestaurantName, setSignupRestaurantName] = useState("");
   const [signupLogo, setSignupLogo] = useState(null); // { base64, mimeType, filename } ou null (optionnel)
   const [signupBusinessType, setSignupBusinessType] = useState("");
@@ -634,6 +668,22 @@ export default function Commercant() {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const signupLogoInputRef = useRef(null);
+
+  // --- Inscription, étape "Mécanique de fidélité" : tampons (1 point par
+  // passage, historique) ou points (variable selon le montant dépensé) —
+  // les deux s'appuient sur le même moteur (voir lib/loyalty.js et
+  // lib/db.js/getLoyaltySettings). Couleur de carte facultative : sinon le
+  // violet Fidélions par défaut est gardé (voir CARD_COLOR_PRESETS).
+  const [signupLoyaltyMode, setSignupLoyaltyMode] = useState("stamps"); // "stamps" | "points"
+  const [signupPointsPerAmount, setSignupPointsPerAmount] = useState(1);
+  const [signupAmountUnit, setSignupAmountUnit] = useState(10);
+  const [signupCardColor, setSignupCardColor] = useState("");
+  const [signupCardColorCustom, setSignupCardColorCustom] = useState("");
+
+  // --- Inscription, étape "Tarification" : palier (nombre de points de
+  // vente) + cycle de facturation — voir PRICING_TIERS/BILLING_CYCLES.
+  const [signupPosCount, setSignupPosCount] = useState("1");
+  const [signupBillingCycle, setSignupBillingCycle] = useState("mensuel");
 
   // --- Identité du restaurant connecté (renvoyée par /api/clients juste
   // après la connexion) — utilisée pour construire le lien public
@@ -673,6 +723,12 @@ export default function Commercant() {
   // lib/loyalty.js) — un seul palier = carte classique, plusieurs = étapes.
   const [tiers, setTiers] = useState([{ threshold: 10, label: "Récompense fidélité" }]);
   const [savingLoyalty, setSavingLoyalty] = useState(false);
+  // Mécanique choisie à l'inscription (voir pages/commercant.js, wizard
+  // étape 2), modifiable ensuite ici — "stamps" (+1/passage) ou "points"
+  // (variable selon le montant dépensé, voir lib/db.js/getLoyaltySettings).
+  const [loyaltyMode, setLoyaltyMode] = useState("stamps");
+  const [pointsPerAmount, setPointsPerAmount] = useState(1);
+  const [amountUnit, setAmountUnit] = useState(10);
 
   // --- Statistiques (tuiles + graphes), chargées seulement à l'ouverture
   // de l'onglet pour ne pas ralentir la connexion.
@@ -702,6 +758,8 @@ export default function Commercant() {
   // l'ouverture de l'onglet, comme les statistiques.
   const [establishment, setEstablishment] = useState(null);
   const [loadingEstablishment, setLoadingEstablishment] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState(null); // { posCount, billingCycle }
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [savingEstablishment, setSavingEstablishment] = useState(false);
   const [estBusinessType, setEstBusinessType] = useState("");
   const [estBusinessTypeOther, setEstBusinessTypeOther] = useState("");
@@ -759,6 +817,7 @@ export default function Commercant() {
   // --- Équipe : chaque employé a un prénom + un code à 4 chiffres, des
   // jours/horaires d'accès, et des permissions par rubrique.
   const [employees, setEmployees] = useState([]);
+  const [employeeLeaderboard, setEmployeeLeaderboard] = useState([]); // voir getEmployeeLeaderboard (lib/db.js)
   const [editingEmpId, setEditingEmpId] = useState(null);
   const [empName, setEmpName] = useState("");
   const [empPin, setEmpPin] = useState("");
@@ -880,6 +939,11 @@ export default function Commercant() {
           const data2 = await res2.json();
           if (res2.ok) {
             setTiers(data2.tiers);
+            if (data2.mode) setLoyaltyMode(data2.mode);
+            if (data2.pointsConfig) {
+              setPointsPerAmount(data2.pointsConfig.pointsPerAmount);
+              setAmountUnit(data2.pointsConfig.amountUnit);
+            }
           }
         } catch {
           // silencieux
@@ -915,7 +979,10 @@ export default function Commercant() {
         try {
           const res6 = await fetch("/api/employees", { headers: { "x-merchant-password": pw } });
           const data6 = await res6.json();
-          if (res6.ok) setEmployees(data6.employees || []);
+          if (res6.ok) {
+            setEmployees(data6.employees || []);
+            setEmployeeLeaderboard(data6.leaderboard || []);
+          }
         } catch {
           // silencieux
         }
@@ -989,6 +1056,7 @@ export default function Commercant() {
     setCropperTarget("signup");
   }
 
+  // --- Étape 1 → 2 (nom/logo → mécanique de fidélité) ---
   function goSignupStep2() {
     if (!signupRestaurantName.trim()) {
       setAuthError("Le nom de ton établissement est obligatoire.");
@@ -1003,13 +1071,16 @@ export default function Commercant() {
     setSignupStep(1);
   }
 
+  // --- Étape 2 → 3 (mécanique de fidélité + couleur → type d'activité) ---
   function goSignupStep3() {
-    if (!signupBusinessType) {
-      setAuthError("Choisis le type de ton activité.");
-      return;
+    if (signupLoyaltyMode === "points") {
+      if (!(Number(signupPointsPerAmount) > 0) || !(Number(signupAmountUnit) > 0)) {
+        setAuthError("Vérifie les nombres de la mécanique par points.");
+        return;
+      }
     }
-    if (signupBusinessType === "autre" && !signupBusinessTypeOther.trim()) {
-      setAuthError("Décris ton activité.");
+    if (signupCardColorCustom && !/^#[0-9a-fA-F]{6}$/.test(signupCardColorCustom.trim())) {
+      setAuthError("Le code couleur doit être au format #RRGGBB (6 chiffres).");
       return;
     }
     setAuthError("");
@@ -1020,6 +1091,51 @@ export default function Commercant() {
     setAuthError("");
     setSignupStep(2);
   }
+
+  // --- Étape 3 → 4 (type d'activité → tarification) ---
+  function goSignupStep4() {
+    if (!signupBusinessType) {
+      setAuthError("Choisis le type de ton activité.");
+      return;
+    }
+    if (signupBusinessType === "autre" && !signupBusinessTypeOther.trim()) {
+      setAuthError("Décris ton activité.");
+      return;
+    }
+    setAuthError("");
+    setSignupStep(4);
+  }
+
+  function goSignupStep3Back() {
+    setAuthError("");
+    setSignupStep(3);
+  }
+
+  // --- Étape 4 → 5 (tarification → activation de l'abonnement) ---
+  function goSignupStep5() {
+    setAuthError("");
+    setSignupStep(5);
+  }
+
+  function goSignupStep4Back() {
+    setAuthError("");
+    setSignupStep(4);
+  }
+
+  // --- Étape 5 → 6 (activation → identifiants, dernière étape) ---
+  function goSignupStep6() {
+    setAuthError("");
+    setSignupStep(6);
+  }
+
+  function goSignupStep5Back() {
+    setAuthError("");
+    setSignupStep(5);
+  }
+
+  const selectedCardColor = (signupCardColorCustom.trim() || signupCardColor || "").trim();
+  const selectedPricingTier = PRICING_TIERS.find((t) => t.id === signupPosCount) || PRICING_TIERS[0];
+  const selectedTierPrice = getTierPrice(selectedPricingTier, signupBillingCycle);
 
   async function handleSignupSubmit(e) {
     e.preventDefault();
@@ -1041,6 +1157,14 @@ export default function Commercant() {
           businessTypeOther: signupBusinessType === "autre" ? signupBusinessTypeOther : "",
           phone: signupPhone,
           logo: signupLogo,
+          cardColor: selectedCardColor || null,
+          loyaltyMode: signupLoyaltyMode,
+          pointsConfig: {
+            pointsPerAmount: Number(signupPointsPerAmount) || 1,
+            amountUnit: Number(signupAmountUnit) || 10,
+          },
+          posCount: signupPosCount,
+          billingCycle: signupBillingCycle,
         }),
       });
       const data = await res.json();
@@ -1085,8 +1209,26 @@ export default function Commercant() {
     }
   }
 
-  async function addStamp(objectId) {
+  // Mode "points" : le nombre de points dépend du montant dépensé — on le
+  // demande avant d'envoyer (mode "stamps", par défaut : toujours +1, comme
+  // avant cette fonctionnalité). Renvoie `undefined` si annulé pour de bon
+  // (montant vide), ou lève pour un montant invalide.
+  function promptAmountIfNeeded() {
+    if (loyaltyMode !== "points") return { ok: true, amount: undefined };
+    const input = window.prompt("Montant dépensé par le client (en €) :", "");
+    if (input === null) return { ok: false };
+    const amount = Number(String(input).replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage({ type: "error", text: "Montant invalide — l'ajout de point a été annulé." });
+      return { ok: false };
+    }
+    return { ok: true, amount };
+  }
+
+  async function performAddStamp(objectId, { reviewGiven } = {}) {
     setMessage(null);
+    const amountResult = promptAmountIfNeeded();
+    if (!amountResult.ok) return;
     try {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
@@ -1094,13 +1236,16 @@ export default function Commercant() {
           "Content-Type": "application/json",
           "x-merchant-password": password,
         },
-        body: JSON.stringify({ objectId }),
+        body: JSON.stringify({ objectId, amount: amountResult.amount, reviewGiven }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       let text = data.rewardReached
         ? `${data.client.prenom} a débloqué sa récompense ! (${data.client.points} points)`
-        : `+1 pour ${data.client.prenom} (${data.client.points} point${data.client.points > 1 ? "s" : ""})`;
+        : `+${data.delta || 1} pour ${data.client.prenom} (${data.client.points} point${data.client.points > 1 ? "s" : ""})`;
+      if (data.reviewBonusApplied) {
+        text += " — merci pour l'avis Google, bonus ajouté !";
+      }
       if (data.notificationSent === false) {
         text += " — bien ajouté, mais la notification n'a pas pu partir (trop de notifications déjà envoyées à cette carte aujourd'hui).";
       }
@@ -1109,6 +1254,14 @@ export default function Commercant() {
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     }
+  }
+
+  function addStamp(objectId) {
+    return performAddStamp(objectId);
+  }
+
+  function addStampWithReview(objectId) {
+    return performAddStamp(objectId, { reviewGiven: true });
   }
 
   // --- Fidélité : paliers de récompense ---
@@ -1146,11 +1299,16 @@ export default function Commercant() {
       const res = await fetch("/api/loyalty-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({ tiers }),
+        body: JSON.stringify({
+          tiers,
+          mode: loyaltyMode,
+          pointsConfig: { pointsPerAmount: Number(pointsPerAmount) || 1, amountUnit: Number(amountUnit) || 10 },
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setTiers(data.tiers);
+      if (data.mode) setLoyaltyMode(data.mode);
       setRewardThreshold(data.tiers[0].threshold);
       setRewardLabel(data.tiers[0].label);
       setMessage({ type: "success", text: "Réglages de fidélité enregistrés." });
@@ -1439,6 +1597,23 @@ export default function Commercant() {
     }
     if (tab === "etablissement" && !establishment && !loadingEstablishment) {
       loadEstablishment();
+    }
+    if (tab === "abonnement" && !subscriptionInfo && !loadingSubscription) {
+      loadSubscription();
+    }
+  }
+
+  // --- Abonnement : formule choisie à l'inscription (voir pages/api/subscription.js) ---
+  async function loadSubscription() {
+    setLoadingSubscription(true);
+    try {
+      const res = await fetch("/api/subscription", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) setSubscriptionInfo(data);
+    } catch {
+      // silencieux — l'onglet réessaiera à la prochaine ouverture
+    } finally {
+      setLoadingSubscription(false);
     }
   }
 
@@ -1862,10 +2037,25 @@ export default function Commercant() {
       setEmployees(data.employees || []);
       resetEmployeeForm();
       setMessage({ type: "success", text: "Employé enregistré." });
+      refreshEmployeeLeaderboard();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     } finally {
       setSavingEmployee(false);
+    }
+  }
+
+  // Le classement (clients fidélisés + avis obtenus) n'est renvoyé que par
+  // le GET (voir pages/api/employees.js) — un petit rafraîchissement après
+  // chaque modification de l'équipe suffit, pas besoin de le dupliquer dans
+  // chaque réponse POST.
+  async function refreshEmployeeLeaderboard() {
+    try {
+      const res = await fetch("/api/employees", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) setEmployeeLeaderboard(data.leaderboard || []);
+    } catch {
+      // silencieux
     }
   }
 
@@ -1905,6 +2095,7 @@ export default function Commercant() {
       if (!res.ok) throw new Error(data.error || "Erreur");
       setEmployees(data.employees || []);
       setMessage({ type: "success", text: `${emp.name} supprimé de l'équipe.` });
+      refreshEmployeeLeaderboard();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     }
@@ -2093,29 +2284,31 @@ export default function Commercant() {
   const insights = computeInsights(activeClients, safeThreshold);
 
   if (!authed) {
-    return (
-      <div className="auth-page">
-        <div className="card">
-          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
-
-          {authMode === "choice" && (
-            <>
-              <h1>Espace commerçant</h1>
-              <p className="subtitle">Tes clients reviennent, automatiquement, sans que tu y penses.</p>
-              <div className="auth-choice">
-                <button type="button" className="primary" onClick={startSignup}>
-                  Créer un compte
-                </button>
-                <button type="button" className="secondary" onClick={goToLogin}>
-                  Se connecter
-                </button>
-              </div>
-            </>
-          )}
-
-          {authMode === "login" && (
-            <>
-              <h1>Espace commerçant</h1>
+    if (authMode === "login") {
+      // Écran de connexion façon "split-screen" : un panneau coloré avec les
+      // bénéfices d'un côté, le formulaire de l'autre (voir les captures
+      // Fidelix envoyées par Adam) — écrans "choice"/"signup" gardent la
+      // carte centrée classique juste en dessous.
+      return (
+        <div className="auth-page">
+          <div className="split-login">
+            <div className="split-panel">
+              <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
+              <h2 className="split-title">Content de te revoir</h2>
+              <ul className="split-benefits">
+                <li>
+                  <Icon name="check" size={15} /> Système de fidélisation clé en main
+                </li>
+                <li>
+                  <Icon name="check" size={15} /> Carte Google Wallet, sans application à installer
+                </li>
+                <li>
+                  <Icon name="check" size={15} /> Statistiques, campagnes et équipe en un seul endroit
+                </li>
+              </ul>
+            </div>
+            <div className="split-form-panel">
+              <h1>Connexion</h1>
               <p className="subtitle">Connecte-toi à ton compte.</p>
               <form onSubmit={handleLoginSubmit}>
                 <input
@@ -2148,17 +2341,42 @@ export default function Commercant() {
                   Crée ton établissement sur Fidélions
                 </button>
               </p>
+            </div>
+          </div>
+          <LegalFooter style={{ marginTop: "auto" }} />
+          <style jsx>{styles}</style>
+        </div>
+      );
+    }
+
+    return (
+      <div className="auth-page">
+        <div className="card">
+          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+
+          {authMode === "choice" && (
+            <>
+              <h1>Espace commerçant</h1>
+              <p className="subtitle">Tes clients reviennent, automatiquement, sans que tu y penses.</p>
+              <div className="auth-choice">
+                <button type="button" className="primary" onClick={startSignup}>
+                  Créer un compte
+                </button>
+                <button type="button" className="secondary" onClick={goToLogin}>
+                  Se connecter
+                </button>
+              </div>
             </>
           )}
 
           {authMode === "signup" && (
             <>
               <h1>Créer mon compte</h1>
-              <p className="subtitle">Étape {signupStep}/3</p>
+              <p className="subtitle">Étape {signupStep}/{SIGNUP_STEPS_TOTAL}</p>
               <div className="step-dots">
-                <span className={signupStep >= 1 ? "active" : ""} />
-                <span className={signupStep >= 2 ? "active" : ""} />
-                <span className={signupStep >= 3 ? "active" : ""} />
+                {Array.from({ length: SIGNUP_STEPS_TOTAL }).map((_, i) => (
+                  <span key={i} className={signupStep >= i + 1 ? "active" : ""} />
+                ))}
               </div>
 
               {signupStep === 1 && (
@@ -2200,6 +2418,90 @@ export default function Commercant() {
               {signupStep === 2 && (
                 <div className="signup-step">
                   <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Comment tes clients gagnent des points ?
+                  </p>
+                  <div className="mode-cards">
+                    <button
+                      type="button"
+                      className={`mode-card${signupLoyaltyMode === "stamps" ? " active" : ""}`}
+                      onClick={() => setSignupLoyaltyMode("stamps")}
+                    >
+                      <span className="mode-card-title">Tampons</span>
+                      <span className="mode-card-desc">+1 point à chaque passage, quel que soit le montant.</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`mode-card${signupLoyaltyMode === "points" ? " active" : ""}`}
+                      onClick={() => setSignupLoyaltyMode("points")}
+                    >
+                      <span className="mode-card-title">Points</span>
+                      <span className="mode-card-desc">Le nombre de points dépend du montant dépensé.</span>
+                    </button>
+                  </div>
+
+                  {signupLoyaltyMode === "points" && (
+                    <div className="points-config-row">
+                      <span className="points-config-label">Le client gagne</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={signupPointsPerAmount}
+                        onChange={(e) => setSignupPointsPerAmount(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">point(s) tous les</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={signupAmountUnit}
+                        onChange={(e) => setSignupAmountUnit(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">€ dépensés</span>
+                    </div>
+                  )}
+
+                  <p className="subtitle" style={{ margin: "16px 0 10px" }}>
+                    Couleur de la carte <span style={{ fontWeight: 400 }}>(facultatif)</span>
+                  </p>
+                  <div className="color-swatches">
+                    {CARD_COLOR_PRESETS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`color-swatch${!signupCardColorCustom && signupCardColor === c ? " active" : ""}`}
+                        style={{ background: c }}
+                        aria-label={`Couleur ${c}`}
+                        onClick={() => {
+                          setSignupCardColor(c);
+                          setSignupCardColorCustom("");
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={signupCardColorCustom}
+                    onChange={(e) => setSignupCardColorCustom(e.target.value)}
+                    placeholder="Ou un code couleur personnalisé (ex : #7414F4)"
+                    maxLength={7}
+                  />
+
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep1}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep3}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 3 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
                     Quel type d'activité ?
                   </p>
                   <div className="bubble-group">
@@ -2226,17 +2528,124 @@ export default function Commercant() {
                   )}
                   {authError && <p className="error">{authError}</p>}
                   <div className="signup-nav-row">
-                    <button type="button" className="secondary" onClick={goSignupStep1}>
+                    <button type="button" className="secondary" onClick={goSignupStep2Back}>
                       Retour
                     </button>
-                    <button type="button" className="primary" onClick={goSignupStep3}>
+                    <button type="button" className="primary" onClick={goSignupStep4}>
                       Continuer
                     </button>
                   </div>
                 </div>
               )}
 
-              {signupStep === 3 && (
+              {signupStep === 4 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Choisis ta formule
+                  </p>
+                  <div className="billing-toggle">
+                    {BILLING_CYCLES.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`billing-option${signupBillingCycle === c.id ? " active" : ""}`}
+                        onClick={() => setSignupBillingCycle(c.id)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pricing-cards">
+                    {PRICING_TIERS.map((tier) => {
+                      const price = getTierPrice(tier, signupBillingCycle);
+                      return (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          className={`pricing-card${signupPosCount === tier.id ? " active" : ""}`}
+                          onClick={() => setSignupPosCount(tier.id)}
+                        >
+                          <span className="pricing-card-head">
+                            <span className="pricing-card-title">{tier.label}</span>
+                            <span className="pricing-card-price">
+                              {price != null
+                                ? `${price} €${BILLING_CYCLES.find((c) => c.id === signupBillingCycle).suffix}`
+                                : "Sur devis"}
+                            </span>
+                          </span>
+                          <span className="pricing-card-desc">{tier.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep3Back}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep5}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 5 && (
+                <div className="signup-step">
+                  <p className="subtitle" style={{ marginBottom: 10 }}>
+                    Activer mon abonnement
+                  </p>
+                  <div className="recap-box">
+                    <div className="recap-row">
+                      <span>Système de fidélité</span>
+                      <strong>{signupLoyaltyMode === "points" ? "Points (montant dépensé)" : "Tampons"}</strong>
+                    </div>
+                    <div className="recap-row">
+                      <span>Formule</span>
+                      <strong>{selectedPricingTier.label}</strong>
+                    </div>
+                    <div className="recap-row">
+                      <span>Facturation</span>
+                      <strong>
+                        {selectedTierPrice != null
+                          ? `${selectedTierPrice} €${BILLING_CYCLES.find((c) => c.id === signupBillingCycle).suffix}`
+                          : "Sur devis"}
+                      </strong>
+                    </div>
+                  </div>
+                  <p className="subtitle" style={{ fontSize: 12.5 }}>
+                    {selectedTierPrice != null
+                      ? "Le paiement se fait via un lien sécurisé (Revolut) — aucune donnée bancaire n'est jamais saisie sur Fidélions."
+                      : "Cette formule est sur devis — contacte-nous pour finaliser le tarif avant d'activer l'abonnement."}
+                  </p>
+                  <a
+                    className="primary pay-btn"
+                    href={
+                      REVOLUT_PAYMENT_LINK ||
+                      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                        `Bonjour, je veux activer mon abonnement Fidélions (${selectedPricingTier.label}, ${
+                          BILLING_CYCLES.find((c) => c.id === signupBillingCycle).label
+                        }). Merci de m'envoyer le lien de paiement.`
+                      )}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {REVOLUT_PAYMENT_LINK ? "Payer et activer mon abonnement" : "Recevoir le lien de paiement"}
+                  </a>
+                  {authError && <p className="error">{authError}</p>}
+                  <div className="signup-nav-row">
+                    <button type="button" className="secondary" onClick={goSignupStep4Back}>
+                      Retour
+                    </button>
+                    <button type="button" className="primary" onClick={goSignupStep6}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signupStep === 6 && (
                 <form className="signup-step" onSubmit={handleSignupSubmit}>
                   <input
                     type="email"
@@ -2261,7 +2670,7 @@ export default function Commercant() {
                   />
                   {authError && <p className="error">{authError}</p>}
                   <div className="signup-nav-row">
-                    <button type="button" className="secondary" onClick={goSignupStep2Back}>
+                    <button type="button" className="secondary" onClick={goSignupStep5Back}>
                       Retour
                     </button>
                     <button type="submit" className="primary" disabled={checking}>
@@ -2483,6 +2892,47 @@ export default function Commercant() {
         {role === "owner" && activeTab === "fidelite" && (
           <div className="card">
             <h2>Programme de fidélité</h2>
+            <p className="subtitle" style={{ marginBottom: 10 }}>Mécanique de fidélité</p>
+            <div className="mode-cards" style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                className={`mode-card${loyaltyMode === "stamps" ? " active" : ""}`}
+                onClick={() => setLoyaltyMode("stamps")}
+              >
+                <span className="mode-card-title">Tampons</span>
+                <span className="mode-card-desc">+1 point à chaque passage, quel que soit le montant.</span>
+              </button>
+              <button
+                type="button"
+                className={`mode-card${loyaltyMode === "points" ? " active" : ""}`}
+                onClick={() => setLoyaltyMode("points")}
+              >
+                <span className="mode-card-title">Points</span>
+                <span className="mode-card-desc">Le nombre de points dépend du montant dépensé.</span>
+              </button>
+            </div>
+            {loyaltyMode === "points" && (
+              <div className="points-config-row" style={{ marginBottom: 16 }}>
+                <span className="points-config-label">Le client gagne</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={pointsPerAmount}
+                  onChange={(e) => setPointsPerAmount(e.target.value)}
+                  style={{ width: 64, marginBottom: 0 }}
+                />
+                <span className="points-config-label">point(s) tous les</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={amountUnit}
+                  onChange={(e) => setAmountUnit(e.target.value)}
+                  style={{ width: 64, marginBottom: 0 }}
+                />
+                <span className="points-config-label">€ dépensés</span>
+              </div>
+            )}
+
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Écris librement autant de récompenses que tu veux, chacune avec
               son propre seuil de points — ex : 20 points = une pizza offerte,
@@ -2851,6 +3301,35 @@ export default function Commercant() {
           </div>
         )}
 
+        {role === "owner" && activeTab === "equipe" && employeeLeaderboard.length > 0 && (
+          <div className="card">
+            <h2 className="icon-heading">
+              <Icon name="trophy" size={18} /> Classement de l'équipe
+            </h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Nombre de clients fidélisés (points ajoutés) et d'avis Google obtenus, par employé —
+              alimenté automatiquement par les scans faits depuis le lien employé.
+            </p>
+            <div className="list">
+              {employeeLeaderboard.map((row, i) => (
+                <div className="row" key={row.id}>
+                  <span className={`rank-badge${i < 3 && row.clientsCount > 0 ? " top" : ""}`}>{i + 1}</span>
+                  <div className="row-info">
+                    <strong>
+                      {row.name}
+                      {!row.active ? " (inactif)" : ""}
+                    </strong>
+                    <div className="meta">
+                      {row.clientsCount} client{row.clientsCount > 1 ? "s" : ""} fidélisé{row.clientsCount > 1 ? "s" : ""} ·{" "}
+                      {row.reviewsCount} avis Google
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {role === "owner" && activeTab === "equipe" && (
           <div className="card">
             <h2>{editingEmpId ? "Modifier l'employé" : "Ajouter un employé"}</h2>
@@ -3145,9 +3624,20 @@ export default function Commercant() {
                   </div>
                   <div className="row-actions">
                     {!c.blocked ? (
-                      <button className="primary small" onClick={() => addStamp(c.objectId)}>
-                        +1
-                      </button>
+                      <>
+                        <button className="primary small" onClick={() => addStamp(c.objectId)}>
+                          {loyaltyMode === "points" ? "+ points" : "+1"}
+                        </button>
+                        {!c.reviewLeft && (
+                          <button
+                            className="secondary small"
+                            title="Marquer qu'un avis Google vient d'être laissé (bonus de points)"
+                            onClick={() => addStampWithReview(c.objectId)}
+                          >
+                            <Icon name="star" size={13} />
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <span className="blocked-label">Bloqué</span>
                     )}
@@ -3362,13 +3852,29 @@ export default function Commercant() {
         {role === "owner" && activeTab === "abonnement" && (
           <div className="card">
             <h2>Abonnement</h2>
-            <p className="subtitle">
-              Fidélions coûte {SUBSCRIPTION_PRICE}&nbsp;€/mois, sans
-              engagement — résiliable à tout moment.
-            </p>
+            {(() => {
+              const tier = PRICING_TIERS.find((t) => t.id === (subscriptionInfo?.posCount || "1")) || PRICING_TIERS[0];
+              const cycle = subscriptionInfo?.billingCycle || "mensuel";
+              const price = getTierPrice(tier, cycle);
+              const cycleLabel = BILLING_CYCLES.find((c) => c.id === cycle);
+              return (
+                <div className="recap-box" style={{ marginBottom: 16 }}>
+                  <div className="recap-row">
+                    <span>Formule</span>
+                    <strong>{tier.label}</strong>
+                  </div>
+                  <div className="recap-row">
+                    <span>Facturation</span>
+                    <strong>{price != null ? `${price} €${cycleLabel.suffix}` : "Sur devis"}</strong>
+                  </div>
+                </div>
+              );
+            })()}
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Le règlement se fait par virement bancaire chaque mois.
-              Contacte-nous pour recevoir le RIB et la référence à indiquer.
+              Sans engagement de durée sur la formule mensuelle — résiliable à tout moment. Le
+              règlement se fait via un lien de paiement sécurisé, aucune donnée bancaire n'est
+              collectée directement par Fidélions. Pour changer de formule ou recevoir ton lien de
+              paiement, contacte-nous :
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <a
@@ -4117,6 +4623,71 @@ const styles = `
     width: 100%;
     max-width: 480px;
   }
+  .split-login {
+    width: 100%;
+    max-width: 940px;
+    background: #fff;
+    border-radius: 22px;
+    overflow: hidden;
+    display: flex;
+    min-height: 520px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  }
+  .split-panel {
+    flex: 1;
+    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    color: #fff;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .split-logo {
+    width: 64px;
+    height: 80px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+  }
+  .split-title {
+    font-size: 24px;
+    margin: 0 0 20px;
+    color: #fff;
+  }
+  .split-benefits {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .split-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: #f0eaff;
+    line-height: 1.4;
+  }
+  .split-form-panel {
+    flex: 1.1;
+    padding: 48px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  @media (max-width: 760px) {
+    .split-login {
+      flex-direction: column;
+      min-height: 0;
+    }
+    .split-panel {
+      padding: 32px 26px;
+    }
+    .split-form-panel {
+      padding: 32px 26px;
+    }
+  }
   .wrap {
     width: 100%;
     max-width: 480px;
@@ -4393,6 +4964,168 @@ const styles = `
   .bubble-chip.active {
     background: ${PURPLE};
     color: #fff;
+  }
+  .mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .mode-card {
+    width: 100%;
+    text-align: left;
+    background: #faf9fd;
+    border: 1.5px solid #e6e2f5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mode-card.active {
+    border-color: ${PURPLE};
+    background: #f3ecff;
+  }
+  .mode-card-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1a1a1a;
+  }
+  .mode-card-desc {
+    font-size: 12px;
+    color: #8a8a8a;
+  }
+  .points-config-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .points-config-label {
+    font-size: 12.5px;
+    color: #595959;
+  }
+  .color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+  }
+  .color-swatch.active {
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 2px #fff inset;
+  }
+  .billing-toggle {
+    display: flex;
+    gap: 6px;
+    background: #f3f0fa;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 14px;
+  }
+  .billing-option {
+    flex: 1;
+    background: none;
+    color: #595959;
+    padding: 8px 6px;
+    font-size: 12.5px;
+    border-radius: 8px;
+  }
+  .billing-option.active {
+    background: #fff;
+    color: ${PURPLE};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .pricing-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .pricing-card {
+    width: 100%;
+    text-align: left;
+    background: #faf9fd;
+    border: 1.5px solid #e6e2f5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pricing-card.active {
+    border-color: ${PURPLE};
+    background: #f3ecff;
+  }
+  .pricing-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .pricing-card-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #1a1a1a;
+  }
+  .pricing-card-price {
+    font-weight: 800;
+    font-size: 13px;
+    color: ${PURPLE};
+    white-space: nowrap;
+  }
+  .pricing-card-desc {
+    font-size: 11.5px;
+    color: #8a8a8a;
+  }
+  .recap-box {
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .recap-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #595959;
+  }
+  .recap-row strong {
+    color: #1a1a1a;
+  }
+  .rank-badge {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #eee;
+    color: #595959;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-badge.top {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .pay-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    margin-bottom: 14px;
   }
   .hours-table {
     display: flex;

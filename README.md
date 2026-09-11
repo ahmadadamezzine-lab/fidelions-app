@@ -140,12 +140,24 @@ Toutes tes anciennes données (clients, réglages, équipe, personnalisation) so
 
 ## Étape 5 — Tester
 
-1. Ouvre l'URL donnée par Vercel (ex. `fidelions-app.vercel.app`) — elle redirige vers `/commercant`.
+1. Ouvre l'URL donnée par Vercel (ex. `fidelions-app.vercel.app`) — c'est maintenant la page d'accueil marketing ; clique `Créer mon compte` (ou va directement sur `/commercant`).
 2. Crée un compte restaurant (ou connecte-toi si tu as fait la migration ci-dessus).
 3. Une fois connecté, ouvre l'onglet **Partager** : c'est là qu'est le QR code et le lien à donner aux clients.
 4. Ouvre ce lien dans un autre onglet/navigateur (comme le ferait un client), entre un prénom, clique `Créer ma carte`, puis `Ajouter à Google Wallet`.
 5. Une page Google doit s'ouvrir proposant d'ajouter la carte, avec un QR code dessus.
 6. Retourne sur `/commercant`, clique `Activer la caméra` (accepte l'autorisation caméra demandée par le navigateur) et vise le QR de la carte que tu viens de créer. (Tu peux aussi juste taper le prénom du client.) Puis clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
+
+## Nouveautés (page d'accueil, tarification, points/avis Google, hors-ligne, équipe)
+
+Cette version ajoute plusieurs éléments inspirés d'un concurrent (Fidelix) : une vraie page d'accueil marketing (`/`, avec calculateur de retour sur investissement et grille de fonctionnalités), un assistant d'inscription étendu (choix tampons/points + couleur de carte juste après le nom de l'établissement, puis tarification par palier et écran d'activation d'abonnement), un écran de connexion façon "split-screen", un bonus de points pour les avis Google laissés en caisse, un mode basique de fonctionnement hors connexion pour l'écran de scan employé, et un classement de l'équipe (clients fidélisés + avis obtenus) dans l'onglet Employés.
+
+Trois choses restent à faire de ton côté avant que tout soit 100 % actif :
+
+1. **Lien de paiement (abonnement)** — le paiement de l'abonnement se fait maintenant via un lien externe plutôt que par virement/RIB (aucune donnée bancaire n'est collectée par Fidélions). Tant que tu n'as pas fourni ton vrai lien, le bouton "Payer" ouvre WhatsApp avec un message pré-rempli à la place. Pour l'activer : crée un lien de paiement sur ton compte Revolut Business, puis colle-le dans `pages/commercant.js`, à la ligne `const REVOLUT_PAYMENT_LINK = "";` (remplace les guillemets vides par ton lien).
+2. **Apple Wallet** — la structure est prête (`lib/appleWallet.js`, bouton "bientôt disponible" affiché aux clients) mais Apple exige un compte Apple Developer Program (~99 $/an) et un certificat de type de pass, que le site n'a pas. Une fois ces éléments obtenus, renseigne `APPLE_TEAM_ID`, `APPLE_PASS_TYPE_ID`, `APPLE_PASS_CERT_BASE64` et `APPLE_PASS_CERT_PASSWORD` dans Vercel (voir les commentaires de `lib/appleWallet.js` pour le détail) ; le bouton se réactivera automatiquement.
+3. **Avis Google** — pas d'appel à l'API Google Business Profile ici (coûterait cher à mettre en place pour un seul restaurant) : c'est l'employé/le commerçant qui coche "avis Google laissé" en caisse au moment d'ajouter un point, ce qui déclenche un bonus de points. C'est une déclaration de confiance, pas une vérification automatique — à mentionner à l'équipe.
+
+Le mode hors-ligne du lien employé (`/scan/[token]`) reste volontairement basique : le scan et l'ajout de points continuent de fonctionner sans réseau (avec synchronisation automatique au retour de la connexion), et la page se recharge hors-ligne une fois qu'elle a déjà été ouverte au moins une fois avec du réseau sur cet appareil — ce n'est pas une vraie synchronisation en arrière-plan façon application native.
 
 ## Si ça ne marche pas
 

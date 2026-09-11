@@ -51,15 +51,17 @@ export default function CGV() {
 
         <h2>Article 4 — Tarifs et modalités de paiement</h2>
         <p>
-          Le Service est proposé au tarif de 39 € par mois, sans engagement de durée et sans
-          commission sur les ventes du Client, sauf offre commerciale particulière convenue par
-          écrit entre les parties.
+          Le Service est proposé à partir de 39 € par mois pour un point de vente, selon un tarif
+          croissant avec le nombre de points de vente gérés par le Client ; la grille tarifaire
+          complète est communiquée au Client lors de la souscription. Le tarif choisi n'implique
+          aucun engagement de durée sur la formule mensuelle et aucune commission sur les ventes du
+          Client, sauf offre commerciale particulière convenue par écrit entre les parties.
         </p>
         <p>Le tarif applicable est celui en vigueur au jour de la souscription, rappelé au Client avant tout premier paiement.</p>
         <p>
-          Le paiement s'effectue par virement bancaire mensuel, sur la base des coordonnées
-          bancaires (RIB) et de la référence communiquées par le Prestataire au Client, exigible au
-          début de chaque période mensuelle.
+          Le paiement s'effectue via un lien de paiement sécurisé communiqué par le Prestataire
+          (aucune donnée bancaire n'est collectée directement par Fidélions), exigible au début de
+          chaque période choisie (mensuelle, semestrielle ou annuelle).
         </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
 

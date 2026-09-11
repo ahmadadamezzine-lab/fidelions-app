@@ -201,6 +201,14 @@ export default function RestaurantSignup() {
                 <a className="walletBtn" href={result.url}>
                   Ajouter à Google Wallet
                 </a>
+                <button
+                  type="button"
+                  className="appleWalletBtn"
+                  disabled
+                  title="Le support Apple Wallet arrive bientôt sur Fidélions"
+                >
+                  Apple Wallet — bientôt disponible
+                </button>
 
                 <div className="referralBox">
                   <p className="referralTitle">Invitez un ami, gagnez un point</p>
@@ -318,6 +326,20 @@ export default function RestaurantSignup() {
           font-size: 16px;
           font-weight: 700;
           text-decoration: none;
+          margin-bottom: 12px;
+          text-align: center;
+        }
+        .appleWalletBtn {
+          display: block;
+          width: 100%;
+          background: #f2f2f2;
+          color: #9a9a9a;
+          border: none;
+          border-radius: 12px;
+          padding: 14px;
+          font-size: 13.5px;
+          font-weight: 700;
+          cursor: default;
           margin-bottom: 24px;
         }
         .referralBox {

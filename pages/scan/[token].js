@@ -4,6 +4,99 @@ import LegalFooter from "../../components/LegalFooter";
 
 const PURPLE = "#7414F4";
 
+// --- Mode "marche sans connexion" (basique) ---------------------------
+// Pas de vraie synchronisation en arrière-plan (Background Sync) — ce
+// qu'on peut faire raisonnablement sans backend dédié : un service worker
+// (public/sw-scan.js) qui garde une copie des pages/scripts déjà visités
+// pour que l'écran continue de s'afficher hors-ligne, un cache local des
+// dernières fiches clients scannées (pour reconnaître un client déjà vu
+// même sans réseau), et une file d'actions "+1" en attente, rejouée dès
+// que la connexion revient. Clé de stockage préfixée par le token du lien
+// employé pour ne jamais mélanger deux restaurants sur le même appareil.
+const QUEUE_KEY_PREFIX = "fidelions_scan_queue_";
+const CACHE_KEY_PREFIX = "fidelions_scan_cache_";
+
+function getQueue(token) {
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY_PREFIX + token);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function setQueue(token, queue) {
+  try {
+    localStorage.setItem(QUEUE_KEY_PREFIX + token, JSON.stringify(queue));
+  } catch {
+    // stockage local indisponible (navigation privée…) — la file ne
+    // survivra pas au rechargement, mais l'action en cours n'est pas bloquée
+  }
+}
+
+function enqueueStamp(token, item) {
+  const queue = getQueue(token);
+  queue.push({ ...item, queuedAt: Date.now() });
+  setQueue(token, queue);
+  return queue.length;
+}
+
+function getClientCache(token) {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_PREFIX + token);
+    const obj = raw ? JSON.parse(raw) : {};
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function setClientCacheEntry(token, objectId, data) {
+  try {
+    const cache = getClientCache(token);
+    cache[objectId] = data;
+    localStorage.setItem(CACHE_KEY_PREFIX + token, JSON.stringify(cache));
+  } catch {
+    // pas grave — juste pas de secours hors-ligne pour ce client
+  }
+}
+
+/** Rejoue la file d'actions en attente. Ne retire de la file QUE ce qui ne
+ * peut de toute façon jamais réussir : une vraie erreur réseau (toujours
+ * hors-ligne, voir le catch), ou une erreur applicative définitive envoyée
+ * par le serveur (4xx — client bloqué, introuvable, requête invalide :
+ * rejouer à l'identique ne changerait rien). Une erreur serveur transitoire
+ * (5xx) reste dans la file : ce n'est pas parce que le réseau répond que la
+ * synchronisation a réellement pu aboutir. */
+async function flushQueue(token, authHeadersFn) {
+  const queue = getQueue(token);
+  if (queue.length === 0) return { synced: 0, failed: 0, stillOffline: 0 };
+  const remaining = [];
+  let synced = 0;
+  let failed = 0;
+  for (const item of queue) {
+    try {
+      const res = await fetch("/api/add-stamp", {
+        method: "POST",
+        headers: authHeadersFn({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ objectId: item.objectId, amount: item.amount, reviewGiven: item.reviewGiven }),
+      });
+      if (res.ok) {
+        synced += 1;
+      } else if (res.status >= 500) {
+        remaining.push(item); // erreur serveur transitoire — on retentera plus tard
+      } else {
+        failed += 1; // erreur applicative définitive (4xx) — inutile de retenter
+      }
+    } catch {
+      remaining.push(item);
+    }
+  }
+  setQueue(token, remaining);
+  return { synced, failed, stillOffline: remaining.length };
+}
+
 // Page "lien employé" : un seul lien à envoyer à toute l'équipe (SMS,
 // WhatsApp…). Chaque employé s'identifie ensuite avec son propre code à 4
 // chiffres (réglé par le patron dans l'onglet Équipe de /commercant), ce
@@ -22,7 +115,7 @@ export default function ScanPage() {
   }, [token]);
 
   // --- Identification par code à 4 chiffres ---
-  const [auth, setAuth] = useState(null); // { employeeId, name, permissions }
+  const [auth, setAuth] = useState(null); // { employeeId, name, permissions, loyaltyMode, pointsConfig }
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
   const [checkingPin, setCheckingPin] = useState(false);
@@ -30,6 +123,62 @@ export default function ScanPage() {
 
   const [section, setSection] = useState("scanner");
   const [message, setMessage] = useState(null);
+
+  // --- Mode sans connexion : service worker (cache la page pour qu'elle se
+  // recharge même hors-ligne) + suivi de l'état réseau + file d'actions en
+  // attente (voir flushQueue plus haut).
+  const [isOnline, setIsOnline] = useState(true);
+  const [queueCount, setQueueCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    setIsOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
+    const goOnline = () => {
+      setIsOnline(true);
+      trySync();
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw-scan.js", { scope: "/scan/" }).catch(() => {
+        // pas grave — l'écran fonctionne quand même, juste sans le
+        // rechargement hors-ligne de la page elle-même
+      });
+    }
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (tokenRef.current) setQueueCount(getQueue(tokenRef.current).length);
+  }, [auth]);
+
+  async function trySync() {
+    if (!tokenRef.current || !pinRef.current || syncing) return;
+    const before = getQueue(tokenRef.current).length;
+    if (before === 0) return;
+    setSyncing(true);
+    try {
+      const result = await flushQueue(tokenRef.current, authHeaders);
+      setQueueCount(getQueue(tokenRef.current).length);
+      if (result.synced > 0) {
+        setMessage({
+          type: "success",
+          text: `${result.synced} action${result.synced > 1 ? "s" : ""} synchronisée${result.synced > 1 ? "s" : ""} après le retour de connexion.`,
+        });
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function onQueueChange() {
+    if (tokenRef.current) setQueueCount(getQueue(tokenRef.current).length);
+  }
 
   async function submitPin(e) {
     e.preventDefault();
@@ -52,7 +201,13 @@ export default function ScanPage() {
         return;
       }
       pinRef.current = pinInput;
-      setAuth({ employeeId: data.employeeId, name: data.name, permissions: data.permissions });
+      setAuth({
+        employeeId: data.employeeId,
+        name: data.name,
+        permissions: data.permissions,
+        loyaltyMode: data.loyaltyMode || "stamps",
+        pointsConfig: data.pointsConfig || { pointsPerAmount: 1, amountUnit: 10 },
+      });
     } catch (err) {
       setPinError("Connexion impossible : " + err.message);
     } finally {
@@ -122,6 +277,20 @@ export default function ScanPage() {
           </button>
         </div>
 
+        {!isOnline && (
+          <div className="banner offline">
+            Hors connexion — le scan continue de fonctionner, les points seront synchronisés au retour du réseau.
+          </div>
+        )}
+        {isOnline && queueCount > 0 && (
+          <div className="banner offline">
+            {queueCount} action{queueCount > 1 ? "s" : ""} en attente de synchronisation.{" "}
+            <button type="button" className="link-btn" onClick={trySync} disabled={syncing}>
+              {syncing ? "Synchronisation…" : "Synchroniser maintenant"}
+            </button>
+          </div>
+        )}
+
         {message && <div className={`banner ${message.type}`}>{message.text}</div>}
 
         {sections.length > 1 && (
@@ -140,10 +309,16 @@ export default function ScanPage() {
         )}
 
         {section === "scanner" && (
-          <ScannerSection authHeaders={authHeaders} setMessage={setMessage} />
+          <ScannerSection
+            authHeaders={authHeaders}
+            setMessage={setMessage}
+            token={token}
+            loyaltyMode={auth.loyaltyMode}
+            onQueueChange={onQueueChange}
+          />
         )}
         {section === "clients" && auth.permissions?.clients && (
-          <ClientsSection authHeaders={authHeaders} setMessage={setMessage} />
+          <ClientsSection authHeaders={authHeaders} setMessage={setMessage} loyaltyMode={auth.loyaltyMode} />
         )}
         {section === "stats" && auth.permissions?.stats && (
           <StatsSection authHeaders={authHeaders} />
@@ -159,12 +334,14 @@ export default function ScanPage() {
   );
 }
 
-// --- Scanner (toujours disponible) ---
-function ScannerSection({ authHeaders, setMessage }) {
+// --- Scanner (toujours disponible, y compris hors connexion) ---
+function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueChange }) {
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraStatus, setCameraStatus] = useState("");
   const [found, setFound] = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const [amountInput, setAmountInput] = useState("");
+  const [reviewGiven, setReviewGiven] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -268,6 +445,8 @@ function ScannerSection({ authHeaders, setMessage }) {
 
   async function lookupClient(objectId) {
     setCameraStatus("Recherche du client…");
+    setAmountInput("");
+    setReviewGiven(false);
     try {
       const res = await fetch(`/api/scan-lookup?objectId=${encodeURIComponent(objectId)}`, {
         headers: authHeaders(),
@@ -279,10 +458,24 @@ function ScannerSection({ authHeaders, setMessage }) {
         return;
       }
       setFound(data);
+      if (token) setClientCacheEntry(token, objectId, data);
       setCameraStatus("");
     } catch (err) {
-      setMessage({ type: "error", text: "Connexion impossible : " + err.message });
-      resumeAfterDelay();
+      // Probablement hors connexion : si ce client a déjà été scanné sur cet
+      // appareil, on peut continuer avec ses dernières infos connues (voir
+      // setClientCacheEntry) plutôt que de bloquer l'employé.
+      const cached = token ? getClientCache(token)[objectId] : null;
+      if (cached) {
+        setFound({ ...cached, _offline: true });
+        setMessage({ type: "success", text: "Hors connexion — dernières infos connues de ce client." });
+        setCameraStatus("");
+      } else {
+        setMessage({
+          type: "error",
+          text: "Hors connexion et ce client n'a encore jamais été scanné sur cet appareil — impossible de l'identifier sans réseau.",
+        });
+        resumeAfterDelay();
+      }
     }
   }
 
@@ -295,28 +488,44 @@ function ScannerSection({ authHeaders, setMessage }) {
 
   async function confirmStamp() {
     if (!found) return;
+    let amount;
+    if (loyaltyMode === "points") {
+      amount = Number(String(amountInput).replace(",", "."));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setMessage({ type: "error", text: "Indique le montant dépensé par le client avant de valider." });
+        return;
+      }
+    }
     setConfirming(true);
     setMessage(null);
     try {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId: found.objectId }),
+        body: JSON.stringify({ objectId: found.objectId, amount, reviewGiven }),
       });
       const data = await res.json();
       if (!res.ok) {
         setMessage({ type: "error", text: data.error || "Erreur lors de l'ajout." });
       } else {
-        setMessage({
-          type: "success",
-          text: data.rewardReached
-            ? `Récompense débloquée pour ${found.prenom} !`
-            : `+1 pour ${found.prenom} (total : ${data.client.points}).`,
-        });
+        let text = data.rewardReached
+          ? `Récompense débloquée pour ${found.prenom} !`
+          : `+${data.delta || 1} pour ${found.prenom} (total : ${data.client.points}).`;
+        if (data.reviewBonusApplied) text += " Merci pour l'avis Google !";
+        setMessage({ type: "success", text });
         setFound(null);
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Connexion impossible : " + err.message });
+      // Hors connexion (ou réseau instable) : on met l'action de côté au
+      // lieu de la perdre — elle sera rejouée automatiquement au retour du
+      // réseau (voir flushQueue), sans bloquer le reste du service.
+      enqueueStamp(token, { objectId: found.objectId, amount, reviewGiven });
+      if (onQueueChange) onQueueChange();
+      setMessage({
+        type: "success",
+        text: `Hors connexion — le point pour ${found.prenom} est enregistré et sera synchronisé automatiquement.`,
+      });
+      setFound(null);
     } finally {
       setConfirming(false);
       pausedRef.current = false;
@@ -358,13 +567,34 @@ function ScannerSection({ authHeaders, setMessage }) {
           <h2>{found.prenom}</h2>
           <p className="subtitle" style={{ marginBottom: 12 }}>
             Solde actuel : {found.points}
+            {found._offline ? " (dernières infos connues, hors connexion)" : ""}
           </p>
           {found.blocked ? (
             <p className="banner error">Ce client est bloqué — impossible d'ajouter un point.</p>
           ) : (
-            <button className="primary" disabled={confirming} onClick={confirmStamp}>
-              {confirming ? "Ajout…" : "+1"}
-            </button>
+            <>
+              {loyaltyMode === "points" && (
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Montant dépensé (€)"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  style={{ textAlign: "center" }}
+                  autoFocus
+                />
+              )}
+              {!found.reviewLeft && (
+                <label className="review-check">
+                  <input type="checkbox" checked={reviewGiven} onChange={(e) => setReviewGiven(e.target.checked)} />
+                  Le client a laissé un avis Google (bonus de points)
+                </label>
+              )}
+              <button className="primary" disabled={confirming} onClick={confirmStamp}>
+                {confirming ? "Ajout…" : loyaltyMode === "points" ? "Valider" : "+1"}
+              </button>
+            </>
           )}
         </div>
       )}
@@ -373,7 +603,7 @@ function ScannerSection({ authHeaders, setMessage }) {
 }
 
 // --- Clients (si le patron a coché la permission) ---
-function ClientsSection({ authHeaders, setMessage }) {
+function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -399,15 +629,25 @@ function ClientsSection({ authHeaders, setMessage }) {
 
   async function addStamp(objectId) {
     setMessage(null);
+    let amount;
+    if (loyaltyMode === "points") {
+      const input = window.prompt("Montant dépensé par le client (en €) :", "");
+      if (input === null) return;
+      amount = Number(String(input).replace(",", "."));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setMessage({ type: "error", text: "Montant invalide — l'ajout de point a été annulé." });
+        return;
+      }
+    }
     try {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId }),
+        body: JSON.stringify({ objectId, amount }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setMessage({ type: "success", text: `+1 pour ${data.client.prenom} (${data.client.points}).` });
+      setMessage({ type: "success", text: `+${data.delta || 1} pour ${data.client.prenom} (${data.client.points}).` });
       setClients((prev) => prev.map((c) => (c.objectId === objectId ? data.client : c)));
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -436,7 +676,7 @@ function ClientsSection({ authHeaders, setMessage }) {
             </div>
             {!c.blocked && (
               <button className="primary small" onClick={() => addStamp(c.objectId)}>
-                +1
+                {loyaltyMode === "points" ? "+ points" : "+1"}
               </button>
             )}
           </div>
@@ -667,6 +907,23 @@ const styles = `
   .banner.success {
     background: #e8f7ee;
     color: #1e7a42;
+  }
+  .banner.offline {
+    background: #fff4e0;
+    color: #8a5a00;
+  }
+  .review-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: #444;
+    margin: 8px 0 14px;
+    text-align: left;
+  }
+  .review-check input {
+    width: auto;
+    margin: 0;
   }
   .error {
     color: #c0392b;

@@ -6,10 +6,32 @@
 // Wallet du client (solde + notif) — système de fidélité unique "points",
 // à un ou plusieurs paliers de récompense (voir lib/loyalty.js).
 
-import { getClient, addPoints, getLoyaltySettings, markTiersUnlocked, logStampEvent } from "../../lib/db";
+import {
+  getClient,
+  addPoints,
+  getLoyaltySettings,
+  markTiersUnlocked,
+  logStampEvent,
+  markClientReview,
+  recordEmployeeStamp,
+  recordEmployeeReview,
+} from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
 import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
+
+// Bonus (en points) accordé une seule fois par client quand un avis Google
+// est déclaré en caisse (case "Avis Google laissé" côté scan) — pas d'appel
+// à une API Google, c'est une déclaration de l'employé/commerçant.
+const REVIEW_BONUS_POINTS = 3;
+
+// Garde-fous serveur pour le mode "points" : le montant vient du
+// formulaire (employé ou patron), donc jamais fiable à 100% — un montant
+// de vente réel ne dépassera jamais ça, et ça borne aussi le nombre de
+// points attribuables d'un coup si jamais un appel direct à l'API
+// contournait l'interface.
+const MAX_AMOUNT = 10000; // €
+const MAX_DELTA = 5000; // points
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -25,7 +47,7 @@ export default async function handler(req, res) {
   const merchantId = auth.merchantId;
 
   try {
-    const { objectId } = req.body || {};
+    const { objectId, amount, reviewGiven } = req.body || {};
     if (!objectId) {
       return res.status(400).json({ error: "Identifiant client manquant." });
     }
@@ -42,8 +64,34 @@ export default async function handler(req, res) {
         .json({ error: "Ce client est bloqué — débloque-le depuis la liste pour lui ajouter un point." });
     }
 
-    const { tiers } = await getLoyaltySettings(merchantId);
-    const updated = await addPoints(merchantId, objectId, 1);
+    const { tiers, mode, pointsConfig } = await getLoyaltySettings(merchantId);
+
+    // Mode "points" (montant dépensé) : le delta dépend de l'addition ;
+    // mode "stamps" (par défaut) ou montant non renseigné : comportement
+    // historique, toujours +1 par passage.
+    let delta = 1;
+    if (mode === "points") {
+      const amt = Number(amount);
+      if (Number.isFinite(amt) && amt > 0 && amt <= MAX_AMOUNT) {
+        const unit = pointsConfig.amountUnit || 10;
+        const perAmount = pointsConfig.pointsPerAmount || 1;
+        delta = Math.max(1, Math.round((amt / unit) * perAmount));
+      } else if (Number.isFinite(amt) && amt > MAX_AMOUNT) {
+        return res.status(400).json({ error: `Montant trop élevé (maximum ${MAX_AMOUNT} €).` });
+      }
+    }
+
+    // Bonus avis Google : une seule fois par client, ajouté au même delta
+    // pour ne déclencher qu'UNE notification/mise à jour de solde.
+    const reviewBonusApplied = !!reviewGiven && !existing.reviewLeft;
+    if (reviewBonusApplied) {
+      delta += REVIEW_BONUS_POINTS;
+    }
+
+    // Garde-fou final, quel que soit le mode.
+    delta = Math.min(delta, MAX_DELTA);
+
+    const updated = await addPoints(merchantId, objectId, delta);
 
     // Un seul palier défini → carte classique, la récompense se
     // redéclenche à chaque multiple du seuil (comportement historique,
@@ -62,22 +110,40 @@ export default async function handler(req, res) {
         notifHeader = "Récompense débloquée !";
         notifBody = `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`;
       } else {
-        notifHeader = "+1 point !";
+        notifHeader = `+${delta} point${delta > 1 ? "s" : ""} !`;
         notifBody = result.nextTierLabel
           ? `Plus que ${result.remaining} point(s) avant : ${result.nextTierLabel}.`
           : "Continuez, une récompense arrive bientôt !";
       }
     } else {
-      const result = computeSingleTierReward(updated.points, tiers);
+      const result = computeSingleTierReward(updated.points, tiers, existing.points);
       rewardReached = result.rewardReached;
-      notifHeader = rewardReached ? "Récompense débloquée !" : "+1 point !";
+      notifHeader = rewardReached ? "Récompense débloquée !" : `+${delta} point${delta > 1 ? "s" : ""} !`;
       notifBody = rewardReached
         ? `Bravo, ${result.label} est disponible — montrez cette carte en caisse.`
         : `Plus que ${result.remaining} point(s) avant : ${result.label}.`;
     }
 
+    if (reviewBonusApplied) {
+      await markClientReview(merchantId, objectId);
+      notifBody = `Merci pour votre avis Google (+${REVIEW_BONUS_POINTS} points) ! ${notifBody}`;
+    }
+
+    // Attribution à l'employé qui a fait le scan (uniquement si l'action
+    // vient du lien employé — voir getRoleAsync dans lib/auth.js), pour le
+    // classement de l'onglet Équipe. Non bloquant : un souci ici ne doit
+    // jamais empêcher l'ajout de point lui-même.
+    if (auth.role === "employee" && auth.employeeId) {
+      try {
+        await recordEmployeeStamp(merchantId, auth.employeeId, objectId);
+        if (reviewBonusApplied) await recordEmployeeReview(merchantId, auth.employeeId);
+      } catch (err) {
+        console.error("Statistiques employé non mises à jour :", err);
+      }
+    }
+
     await setLoyaltyPoints(objectId, updated.points, "Points");
-    await logStampEvent(merchantId, { objectId, delta: 1, rewardReached });
+    await logStampEvent(merchantId, { objectId, delta, rewardReached });
 
     // Le point lui-même (solde + base de données) est déjà enregistré à ce
     // stade. La notification est un bonus : si Google refuse (ex : quota de
@@ -92,7 +158,7 @@ export default async function handler(req, res) {
       notificationSent = false;
     }
 
-    return res.status(200).json({ client: updated, rewardReached, notificationSent });
+    return res.status(200).json({ client: updated, rewardReached, notificationSent, delta, reviewBonusApplied });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message || "Erreur serveur" });

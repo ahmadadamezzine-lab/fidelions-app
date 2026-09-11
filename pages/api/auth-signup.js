@@ -18,6 +18,8 @@ import {
   deleteMerchantAccount,
   saveBranding,
   saveEstablishmentInfo,
+  updateLoyaltySettings,
+  saveSubscriptionChoice,
 } from "../../lib/db";
 import { insertLoyaltyClass, describeWalletError } from "../../lib/walletObjects";
 import { signSession } from "../../lib/session";
@@ -54,7 +56,28 @@ export default async function handler(req, res) {
     });
   }
 
-  const { email, password, restaurantName, businessType, businessTypeOther, phone, logo } = req.body || {};
+  const {
+    email,
+    password,
+    restaurantName,
+    businessType,
+    businessTypeOther,
+    phone,
+    logo,
+    cardColor,
+    loyaltyMode,
+    pointsConfig,
+    posCount,
+    billingCycle,
+  } = req.body || {};
+
+  // Couleur de carte choisie à l'étape "Mécanique de fidélité" de
+  // l'inscription (facultative — le violet Fidélions reste la valeur par
+  // défaut si rien n'est envoyé ou si le format est invalide).
+  const safeCardColor =
+    typeof cardColor === "string" && /^#[0-9a-fA-F]{6}$/.test(cardColor.trim())
+      ? cardColor.trim()
+      : "#7414F4";
 
   let merchant;
   try {
@@ -96,7 +119,7 @@ export default async function handler(req, res) {
       classId,
       name: merchant.restaurantName,
       logoUrl,
-      hexColor: "#7414F4",
+      hexColor: safeCardColor,
     });
     await setMerchantWalletClassId(merchant.id, classId);
   } catch (err) {
@@ -118,7 +141,7 @@ export default async function handler(req, res) {
   // commerçant pourra toujours compléter ça lui-même depuis les onglets
   // correspondants.
   try {
-    await saveBranding(merchant.id, { hexColor: "#7414F4", logoUrl: uploadedLogoUrl || null, bannerUrl: null });
+    await saveBranding(merchant.id, { hexColor: safeCardColor, logoUrl: uploadedLogoUrl || null, bannerUrl: null });
   } catch (err) {
     console.error("Personnalisation initiale de la carte non enregistrée :", err);
   }
@@ -126,6 +149,26 @@ export default async function handler(req, res) {
     await saveEstablishmentInfo(merchant.id, { businessType, businessTypeOther, phone });
   } catch (err) {
     console.error("Fiche établissement initiale non créée :", err);
+  }
+  // Mécanique de fidélité choisie à l'inscription (tampons par défaut, ou
+  // points variables selon le montant — voir lib/db.js/getLoyaltySettings).
+  try {
+    await updateLoyaltySettings(merchant.id, {
+      tiers: null, // garde le palier par défaut, modifiable ensuite dans l'onglet Fidélité
+      mode: loyaltyMode === "points" ? "points" : "stamps",
+      pointsConfig,
+    });
+  } catch (err) {
+    console.error("Mécanique de fidélité initiale non enregistrée :", err);
+  }
+  // Formule tarifaire choisie à l'inscription (palier de points de vente +
+  // cycle de facturation) — affichée ensuite dans l'onglet Abonnement.
+  // N'entraîne aucun prélèvement automatique : le paiement se fait via un
+  // lien externe (voir REVOLUT_PAYMENT_LINK côté /commercant).
+  try {
+    await saveSubscriptionChoice(merchant.id, { posCount, billingCycle });
+  } catch (err) {
+    console.error("Formule tarifaire initiale non enregistrée :", err);
   }
 
   const token = signSession({ merchantId: merchant.id });

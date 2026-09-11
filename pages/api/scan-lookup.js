@@ -37,6 +37,7 @@ export default async function handler(req, res) {
       prenom: client.prenom,
       points: client.points,
       blocked: !!client.blocked,
+      reviewLeft: !!client.reviewLeft,
     });
   } catch (err) {
     console.error(err);
