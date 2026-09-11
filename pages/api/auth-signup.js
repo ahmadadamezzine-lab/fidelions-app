@@ -63,6 +63,7 @@ export default async function handler(req, res) {
     businessType,
     businessTypeOther,
     phone,
+    googleReviewUrl,
     logo,
     cardColor,
     loyaltyMode,
@@ -146,7 +147,7 @@ export default async function handler(req, res) {
     console.error("Personnalisation initiale de la carte non enregistrée :", err);
   }
   try {
-    await saveEstablishmentInfo(merchant.id, { businessType, businessTypeOther, phone });
+    await saveEstablishmentInfo(merchant.id, { businessType, businessTypeOther, phone, googleReviewUrl });
   } catch (err) {
     console.error("Fiche établissement initiale non créée :", err);
   }

@@ -666,14 +666,20 @@ export default function Commercant() {
 
   // --- Inscription : assistant en 6 étapes (voir handleSignupSubmit) ---
   // 1. Nom + logo · 2. Mécanique de fidélité + couleur de carte (facultatif)
-  // · 3. Type d'activité · 4. Tarification · 5. Activation de l'abonnement
-  // · 6. Identifiants + téléphone (seule étape qui appelle /api/auth-signup).
+  // · 3. Type d'activité + fiche Google Business Profile (facultatif) ·
+  // 4. Tarification · 5. Activation de l'abonnement · 6. Identifiants +
+  // téléphone (seule étape qui appelle /api/auth-signup).
   const [signupStep, setSignupStep] = useState(1);
   const SIGNUP_STEPS_TOTAL = 6;
   const [signupRestaurantName, setSignupRestaurantName] = useState("");
   const [signupLogo, setSignupLogo] = useState(null); // { base64, mimeType, filename } ou null (optionnel)
   const [signupBusinessType, setSignupBusinessType] = useState("");
   const [signupBusinessTypeOther, setSignupBusinessTypeOther] = useState("");
+  // Lien "laisser un avis" de la fiche Google Business Profile — facultatif,
+  // demandé dès l'inscription pour activer le bonus de points "avis Google"
+  // sans attendre que le commerçant aille le renseigner plus tard dans
+  // l'onglet Établissement (voir estGoogleReviewUrl, même champ).
+  const [signupGoogleReviewUrl, setSignupGoogleReviewUrl] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
@@ -1174,6 +1180,7 @@ export default function Commercant() {
           businessType: signupBusinessType,
           businessTypeOther: signupBusinessType === "autre" ? signupBusinessTypeOther : "",
           phone: signupPhone,
+          googleReviewUrl: signupGoogleReviewUrl,
           logo: signupLogo,
           cardColor: selectedCardColor || null,
           loyaltyMode: signupLoyaltyMode,
@@ -2556,6 +2563,23 @@ export default function Commercant() {
                       autoFocus
                     />
                   )}
+
+                  <p className="subtitle" style={{ margin: "16px 0 6px" }}>
+                    Fiche Google Maps / Google Business Profile{" "}
+                    <span style={{ fontWeight: 400 }}>(facultatif)</span>
+                  </p>
+                  <input
+                    type="url"
+                    value={signupGoogleReviewUrl}
+                    onChange={(e) => setSignupGoogleReviewUrl(e.target.value)}
+                    placeholder="Lien « laisser un avis » (ex : https://g.page/r/.../review)"
+                  />
+                  <p className="subtitle" style={{ marginTop: -8, fontSize: 12.5 }}>
+                    Renseigne-le pour proposer tout de suite à tes clients « Donnez votre avis
+                    Google, gagnez des points » — tu peux aussi le faire plus tard depuis
+                    l'onglet Établissement.
+                  </p>
+
                   {authError && <p className="error">{authError}</p>}
                   <div className="signup-nav-row">
                     <button type="button" className="secondary" onClick={goSignupStep2Back}>
