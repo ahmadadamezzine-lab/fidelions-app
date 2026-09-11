@@ -56,8 +56,15 @@ function Icon({ name, size = 20 }) {
 }
 
 const FEATURES = [
-  { icon: "wallet", title: "Carte 100% digitale", desc: "Ajoutée en un geste à Google Wallet — aucune application à télécharger pour tes clients." },
-  { icon: "apple", title: "Apple Wallet", desc: "Support Apple Wallet en préparation.", badge: "Bientôt" },
+  {
+    icon: "wallet",
+    title: "Google Wallet & Apple Wallet",
+    desc: "Ajoutée en un geste au portefeuille du téléphone de ton client — aucune application à télécharger.",
+    wallets: [
+      { name: "Google Wallet", status: "ready" },
+      { name: "Apple Wallet", status: "soon" },
+    ],
+  },
   { icon: "gift", title: "Points ou tampons", desc: "Choisis la mécanique de fidélité qui correspond à ton commerce, avec des paliers de récompense sur mesure." },
   { icon: "star", title: "Bonus avis Google", desc: "Récompense automatiquement les clients qui laissent un avis en caisse.", badge: "Nouveau" },
   { icon: "wifi", title: "Mode sans connexion", desc: "L'écran de scan employé continue de fonctionner même sans réseau, et se synchronise ensuite.", badge: "Nouveau" },
@@ -80,31 +87,39 @@ const PRODUCT_FACTS = [
   { value: "< 3 min", label: "pour créer ta carte de fidélité" },
   { value: "0 €", label: "de matériel supplémentaire à acheter" },
   { value: "0 appli", label: "à faire installer à tes clients" },
-  { value: "39 €", label: "par mois, sans engagement, dès 1 point de vente" },
+  { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
 
 export default function Home() {
-  const [nbClients, setNbClients] = useState(150);
+  const [clientsParJour, setClientsParJour] = useState(40);
   const [panierMoyen, setPanierMoyen] = useState(18);
-  const [visitesParMois, setVisitesParMois] = useState(2);
+  const [joursOuverture, setJoursOuverture] = useState(26);
+  const [gainPct, setGainPct] = useState(10);
   const [billingCycle, setBillingCycle] = useState("mensuel");
 
+  const baseTier = PRICING_TIERS.find((t) => t.id === "1") || PRICING_TIERS[0];
+
   const roi = useMemo(() => {
-    const clients = Math.max(0, Number(nbClients) || 0);
+    const clients = Math.max(0, Number(clientsParJour) || 0);
     const panier = Math.max(0, Number(panierMoyen) || 0);
-    const visites = Math.max(0, Number(visitesParMois) || 0);
-    // Estimation indicative : un programme de fidélité actif augmente
-    // généralement le nombre de visites des clients inscrits — on retient
-    // une hypothèse prudente de +20% de visites supplémentaires, affichée
-    // comme telle (ce n'est pas une donnée mesurée sur de vrais clients
-    // Fidélions, le service étant récent).
-    const visitesSupp = clients * visites * 0.2;
-    const caSupp = visitesSupp * panier;
+    const jours = Math.max(0, Number(joursOuverture) || 0);
+    const gain = Math.max(0, Number(gainPct) || 0) / 100;
+    // Estimation indicative, entièrement pilotée par les curseurs : le
+    // curseur « gain de fréquentation » est l'hypothèse — prudente par
+    // défaut (10%) — plutôt qu'un pourcentage caché dans le calcul (ce
+    // n'est pas une donnée mesurée sur de vrais clients Fidélions, le
+    // service étant récent).
+    const caSupp = clients * jours * panier * gain;
+    const cout = getTierPrice(baseTier, "mensuel") || 0;
+    const beneficeNet = caSupp - cout;
     return {
-      visitesSupp: Math.round(visitesSupp),
       caSupp: Math.round(caSupp),
+      cout,
+      beneficeNet: Math.round(beneficeNet),
+      roiMultiple: cout > 0 ? Math.round(caSupp / cout) : null,
+      annuel: Math.round(beneficeNet * 12),
     };
-  }, [nbClients, panierMoyen, visitesParMois]);
+  }, [clientsParJour, panierMoyen, joursOuverture, gainPct, baseTier]);
 
   return (
     <div className="home">
@@ -148,6 +163,32 @@ export default function Home() {
           </div>
 
           <div className="hero-visual" aria-hidden="true">
+            <div className="mock-phone-back">
+              <div className="mock-phone-shell">
+                <div className="mock-phone-notch" />
+                <div className="mock-pass">
+                  <div className="mock-pass-top">
+                    <div className="mock-pass-logo" />
+                    <span>Fidélions</span>
+                  </div>
+                  <div className="mock-pass-banner" />
+                  <div className="mock-pass-body">
+                    <div className="mock-pass-row">
+                      <span>CARTE DE</span>
+                      <span>RÉCOMPENSE</span>
+                    </div>
+                    <div className="mock-pass-row mock-pass-row-strong">
+                      <span>Thomas</span>
+                      <span>-20% sur l'addition</span>
+                    </div>
+                    <div className="mock-pass-qr">
+                      <Icon name="qr" size={46} />
+                    </div>
+                    <div className="mock-pass-caption">4/6 tampons</div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="mock-phone">
               <div className="mock-card">
                 <div className="mock-card-top">
@@ -206,49 +247,107 @@ export default function Home() {
 
       <section className="calculator">
         <div className="section-inner">
-          <h2 className="section-title">Estime le retour sur investissement</h2>
+          <span className="calc-eyebrow">Faites le calcul</span>
+          <h2 className="section-title">Combien Fidélions peut vous rapporter</h2>
           <p className="section-sub">
-            Une estimation indicative, à ajuster selon ton commerce — pas une donnée mesurée sur de vrais clients Fidélions.
+            Une estimation à partir de vos propres chiffres. Ajustez, comparez, décidez.
           </p>
           <div className="calc-box">
-            <div className="calc-inputs">
-              <label>
-                Clients réguliers
+            <div className="calc-card calc-card-inputs">
+              <h3>Vos chiffres</h3>
+              <p className="calc-card-sub">Ajustez les curseurs à votre réalité.</p>
+
+              <div className="calc-slider-row">
+                <div className="calc-slider-label">
+                  <span>Clients par jour</span>
+                  <strong>{clientsParJour}</strong>
+                </div>
                 <input
-                  type="number"
-                  min={0}
-                  value={nbClients}
-                  onChange={(e) => setNbClients(e.target.value)}
+                  type="range"
+                  min="1"
+                  max="200"
+                  value={clientsParJour}
+                  onChange={(e) => setClientsParJour(e.target.value)}
                 />
-              </label>
-              <label>
-                Panier moyen (€)
+              </div>
+
+              <div className="calc-slider-row">
+                <div className="calc-slider-label">
+                  <span>Panier moyen</span>
+                  <strong>{panierMoyen} €</strong>
+                </div>
                 <input
-                  type="number"
-                  min={0}
+                  type="range"
+                  min="1"
+                  max="100"
                   value={panierMoyen}
                   onChange={(e) => setPanierMoyen(e.target.value)}
                 />
-              </label>
-              <label>
-                Visites par mois et par client
-                <input
-                  type="number"
-                  min={0}
-                  step="0.5"
-                  value={visitesParMois}
-                  onChange={(e) => setVisitesParMois(e.target.value)}
-                />
-              </label>
-            </div>
-            <div className="calc-result">
-              <div className="calc-result-item">
-                <span className="calc-result-value">+{roi.visitesSupp}</span>
-                <span className="calc-result-label">visites supplémentaires estimées / mois</span>
               </div>
-              <div className="calc-result-item">
-                <span className="calc-result-value">+{roi.caSupp.toLocaleString("fr-FR")} €</span>
-                <span className="calc-result-label">de chiffre d'affaires potentiel / mois</span>
+
+              <div className="calc-slider-row">
+                <div className="calc-slider-label">
+                  <span>Jours d'ouverture / mois</span>
+                  <strong>{joursOuverture}</strong>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="31"
+                  value={joursOuverture}
+                  onChange={(e) => setJoursOuverture(e.target.value)}
+                />
+              </div>
+
+              <div className="calc-slider-row">
+                <div className="calc-slider-label">
+                  <span>Gain de fréquentation estimé</span>
+                  <strong>{gainPct} %</strong>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  value={gainPct}
+                  onChange={(e) => setGainPct(e.target.value)}
+                />
+              </div>
+
+              <p className="calc-hint">
+                Les programmes de fidélité augmentent en général le chiffre d'affaires de 5 à 20 %. Le
+                curseur « gain » vous laisse choisir une hypothèse prudente.
+              </p>
+            </div>
+
+            <div className="calc-card calc-card-result">
+              <span className="calc-result-tag">Estimation</span>
+              <p className="calc-result-heading">Chiffre d'affaires additionnel</p>
+              <div className="calc-result-big">
+                {roi.caSupp.toLocaleString("fr-FR")} € <span>/ mois</span>
+              </div>
+              <div className="calc-result-rows">
+                <div className="calc-result-row">
+                  <span>Coût Fidélions</span>
+                  <strong>{roi.cout} € / mois</strong>
+                </div>
+                <div className="calc-result-row">
+                  <span>Bénéfice net</span>
+                  <strong className="calc-positive">
+                    {roi.beneficeNet >= 0 ? "+" : ""}
+                    {roi.beneficeNet.toLocaleString("fr-FR")} €
+                  </strong>
+                </div>
+                <div className="calc-result-row">
+                  <span>Retour sur investissement</span>
+                  <strong>{roi.roiMultiple != null ? `×${roi.roiMultiple}` : "—"}</strong>
+                </div>
+              </div>
+              <div className="calc-result-annual">
+                Sur une année, cela représente
+                <strong>
+                  {roi.annuel >= 0 ? "+" : ""}
+                  {roi.annuel.toLocaleString("fr-FR")} €
+                </strong>
               </div>
             </div>
           </div>
@@ -267,6 +366,18 @@ export default function Home() {
                 </div>
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
+                {f.wallets && (
+                  <div className="feature-wallets">
+                    {f.wallets.map((w) => (
+                      <span
+                        key={w.name}
+                        className={`wallet-tag${w.status === "soon" ? " wallet-tag-soon" : ""}`}
+                      >
+                        {w.name} · {w.status === "soon" ? "bientôt" : "disponible"}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -328,12 +439,16 @@ export default function Home() {
               );
             })}
           </div>
+          <p className="pricing-footnote">
+            Support de caisse premium avec ton QR code (chevalet ou sticker, au choix) : 20 €, en
+            paiement unique — optionnel.
+          </p>
         </div>
       </section>
 
       <section className="cta-banner">
         <div className="section-inner cta-banner-inner">
-          <h2>Prêt à faire revenir tes clients ?</h2>
+          <h2>Tes clients reviennent, automatiquement, sans que tu y penses.</h2>
           <p>Crée ton compte gratuitement et personnalise ta carte en quelques minutes.</p>
           <Link href="/commercant?mode=signup" className="btn btn-primary btn-lg">
             Créer mon compte
@@ -555,19 +670,109 @@ const styles = `
   }
 
   .hero-visual {
+    position: relative;
     flex: 1;
     display: flex;
     justify-content: center;
+    align-items: center;
     min-width: 260px;
+    min-height: 300px;
   }
   .mock-phone {
     position: relative;
     width: 260px;
+    z-index: 2;
+    transform: translate(-22px, -16px);
     animation: float 4s ease-in-out infinite;
   }
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%, 100% { transform: translate(-22px, -16px); }
+    50% { transform: translate(-22px, -26px); }
+  }
+  .mock-phone-back {
+    position: absolute;
+    top: 34px;
+    right: -4px;
+    width: 168px;
+    z-index: 1;
+    transform: rotate(9deg);
+    animation: floatBack 5s ease-in-out infinite;
+  }
+  @keyframes floatBack {
+    0%, 100% { transform: rotate(9deg) translateY(0); }
+    50% { transform: rotate(9deg) translateY(8px); }
+  }
+  .mock-phone-shell {
+    background: #1a1a1a;
+    border-radius: 26px;
+    padding: 8px;
+    box-shadow: 0 25px 55px rgba(20, 16, 31, 0.3);
+  }
+  .mock-phone-notch {
+    width: 46px;
+    height: 12px;
+    background: #1a1a1a;
+    border-radius: 0 0 8px 8px;
+    margin: 0 auto;
+  }
+  .mock-pass {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .mock-pass-top {
+    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .mock-pass-logo {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.35);
+  }
+  .mock-pass-banner {
+    height: 54px;
+    background: linear-gradient(135deg, #f3ecff, #e6d9ff);
+  }
+  .mock-pass-body {
+    padding: 10px 12px 14px;
+  }
+  .mock-pass-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mock-pass-row-strong {
+    font-size: 11px;
+    font-weight: 800;
+    color: #1a1a1a;
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 4px 0 10px;
+  }
+  .mock-pass-qr {
+    display: flex;
+    justify-content: center;
+    color: ${PURPLE};
+    background: #faf9fd;
+    border-radius: 8px;
+    padding: 8px 0 4px;
+  }
+  .mock-pass-caption {
+    text-align: center;
+    font-size: 9px;
+    color: #999;
+    margin-top: 4px;
+    font-weight: 700;
   }
   .mock-card {
     background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
@@ -716,59 +921,161 @@ const styles = `
     background: #faf9fd;
     padding: 72px 0;
   }
+  .calc-eyebrow {
+    display: block;
+    text-align: center;
+    color: ${PURPLE};
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
   .calc-box {
-    background: #fff;
-    border-radius: 18px;
-    padding: 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 28px;
+    gap: 20px;
+    align-items: stretch;
   }
-  .calc-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+  .calc-card {
+    border-radius: 18px;
+    padding: 26px;
   }
-  .calc-inputs label {
+  .calc-card-inputs {
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .calc-card-inputs h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+  .calc-card-sub {
+    margin: 0 0 20px;
     font-size: 12.5px;
+    color: #8a8a8a;
+  }
+  .calc-slider-row {
+    margin-bottom: 20px;
+  }
+  .calc-slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
     font-weight: 700;
-    color: #444;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    color: #333;
+    margin-bottom: 8px;
   }
-  .calc-inputs input {
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1.5px solid #e0e0e0;
-    font-size: 15px;
-  }
-  .calc-inputs input:focus {
-    outline: none;
-    border-color: ${PURPLE};
-  }
-  .calc-result {
-    background: #f6f1ff;
-    border-radius: 14px;
-    padding: 22px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 18px;
-  }
-  .calc-result-item {
-    display: flex;
-    flex-direction: column;
-  }
-  .calc-result-value {
-    font-size: 26px;
-    font-weight: 800;
+  .calc-slider-label strong {
     color: ${PURPLE};
+    font-size: 14px;
   }
-  .calc-result-label {
+  .calc-slider-row input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 5px;
+    border-radius: 999px;
+    background: #ece4fb;
+    outline: none;
+  }
+  .calc-slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: ${PURPLE};
+    box-shadow: 0 2px 6px rgba(116, 20, 244, 0.4);
+    cursor: pointer;
+  }
+  .calc-slider-row input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 50%;
+    background: ${PURPLE};
+    box-shadow: 0 2px 6px rgba(116, 20, 244, 0.4);
+    cursor: pointer;
+  }
+  .calc-hint {
+    font-size: 11.5px;
+    color: #999;
+    line-height: 1.5;
+    margin: 4px 0 0;
+  }
+  .calc-card-result {
+    background: #14101f;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .calc-result-tag {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.12);
+    color: #cfc6e8;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .calc-result-heading {
+    margin: 0 0 4px;
+    font-size: 12.5px;
+    color: #b8aee0;
+  }
+  .calc-result-big {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 18px;
+  }
+  .calc-result-big span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #b8aee0;
+  }
+  .calc-result-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    margin-bottom: 18px;
+  }
+  .calc-result-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #cfc6e8;
+  }
+  .calc-result-row strong {
+    color: #fff;
+  }
+  .calc-positive {
+    color: #4ade80 !important;
+  }
+  .calc-result-annual {
+    margin-top: auto;
+    background: linear-gradient(135deg, ${PURPLE} 0%, #4a0ba3 100%);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 12.5px;
+    color: #f0eaff;
+    line-height: 1.5;
+  }
+  .calc-result-annual strong {
+    display: block;
+    font-size: 19px;
+    color: #fff;
+    margin-top: 2px;
+  }
+  .pricing-footnote {
+    text-align: center;
     font-size: 12px;
-    color: #666;
+    color: #8a8a8a;
+    margin: 24px 0 0;
   }
 
   .features {
@@ -824,6 +1131,26 @@ const styles = `
     color: #777;
     line-height: 1.5;
     margin: 0;
+  }
+  .feature-wallets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .wallet-tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #16A34A;
+    background: #ecfdf3;
+    border: 1px solid #cdf3dc;
+    padding: 4px 9px;
+    border-radius: 999px;
+  }
+  .wallet-tag-soon {
+    color: ${PURPLE};
+    background: #f3ecff;
+    border-color: #e6d9ff;
   }
 
   .steps {
@@ -1017,7 +1344,7 @@ const styles = `
     .nav-links { display: none; }
     .hero-inner { flex-direction: column; }
     .hero h1 { font-size: 28px; }
-    .hero-visual { margin-top: 24px; }
+    .hero-visual { margin-top: 32px; min-height: 260px; }
     .facts-grid { grid-template-columns: repeat(2, 1fr); }
     .compare-grid { grid-template-columns: 1fr; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1029,5 +1356,7 @@ const styles = `
     .features-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .facts-grid { grid-template-columns: 1fr; }
+    .mock-phone { width: 220px; }
+    .mock-phone-back { width: 140px; right: 4px; }
   }
 `;

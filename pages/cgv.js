@@ -51,7 +51,7 @@ export default function CGV() {
 
         <h2>Article 4 — Tarifs et modalités de paiement</h2>
         <p>
-          Le Service est proposé à partir de 39 € par mois pour un point de vente, selon un tarif
+          Le Service est proposé à partir de 49 € par mois pour un point de vente, selon un tarif
           croissant avec le nombre de points de vente gérés par le Client ; la grille tarifaire
           complète est communiquée au Client lors de la souscription. Le tarif choisi n'implique
           aucun engagement de durée sur la formule mensuelle et aucune commission sur les ventes du
