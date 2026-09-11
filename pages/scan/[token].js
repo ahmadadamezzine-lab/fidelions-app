@@ -717,7 +717,13 @@ function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addStamp(objectId) {
+  // `reviewGiven` : le client peut laisser son avis Google quand il veut —
+  // pas forcément le jour de sa première commande — donc cette action est
+  // aussi disponible ici, directement depuis la liste, plutôt que
+  // seulement pendant un scan (voir ScannerSection plus haut, même
+  // mécanique). Pas d'appel à une API Google : c'est une déclaration de
+  // l'employé, comme partout ailleurs dans Fidélions.
+  async function addStamp(objectId, { reviewGiven } = {}) {
     setMessage(null);
     let amount;
     if (loyaltyMode === "points") {
@@ -733,15 +739,21 @@ function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId, amount }),
+        body: JSON.stringify({ objectId, amount, reviewGiven }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setMessage({ type: "success", text: `+${data.delta || 1} pour ${data.client.prenom} (${data.client.points}).` });
+      let text = `+${data.delta || 1} pour ${data.client.prenom} (${data.client.points}).`;
+      if (data.reviewBonusApplied) text += " Merci pour l'avis Google !";
+      setMessage({ type: "success", text });
       setClients((prev) => prev.map((c) => (c.objectId === objectId ? data.client : c)));
     } catch (err) {
       setMessage({ type: "error", text: err.message });
     }
+  }
+
+  function addStampWithReview(objectId) {
+    return addStamp(objectId, { reviewGiven: true });
   }
 
   const filtered = clients.filter((c) => c.prenom.toLowerCase().includes(search.trim().toLowerCase()));
@@ -765,9 +777,20 @@ function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
               <div className="meta">{c.points} actuellement</div>
             </div>
             {!c.blocked && (
-              <button className="primary small" onClick={() => addStamp(c.objectId)}>
-                {loyaltyMode === "points" ? "+ points" : "+1"}
-              </button>
+              <div className="row-actions">
+                <button className="primary small" onClick={() => addStamp(c.objectId)}>
+                  {loyaltyMode === "points" ? "+ points" : "+1"}
+                </button>
+                {!c.reviewLeft && (
+                  <button
+                    className="secondary small"
+                    title="Le client a laissé un avis Google (bonus de points) — à cocher quand il le fait, pas forcément à sa première commande."
+                    onClick={() => addStampWithReview(c.objectId)}
+                  >
+                    Avis Google
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -1088,6 +1111,13 @@ const styles = `
   }
   .row.blocked {
     opacity: 0.55;
+  }
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .meta {
     font-size: 12px;

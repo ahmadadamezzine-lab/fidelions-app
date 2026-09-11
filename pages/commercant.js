@@ -3740,11 +3740,11 @@ export default function Commercant() {
                         </button>
                         {!c.reviewLeft && (
                           <button
-                            className="secondary small"
-                            title="Marquer qu'un avis Google vient d'être laissé (bonus de points)"
+                            className="secondary small icon-heading"
+                            title="Le client a laissé un avis Google (bonus de points) — à cocher quand il le fait, pas forcément à sa première commande."
                             onClick={() => addStampWithReview(c.objectId)}
                           >
-                            <Icon name="star" size={13} />
+                            <Icon name="star" size={13} /> Avis Google
                           </button>
                         )}
                       </>
