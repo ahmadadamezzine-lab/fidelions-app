@@ -723,8 +723,8 @@ export default function Commercant() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   // --- Menu du restaurant (texte/PDF/photo) + analyse IA + offre éditable ---
-  // (Rangé dans l'onglet Statistiques, comme demandé : les conseils de l'IA
-  // sont une donnée d'analyse au même titre que les graphes.)
+  // (Rangé dans l'onglet Notifications/Campagnes : l'offre qui en ressort
+  // sert justement de base au message de campagne envoyé juste en dessous.)
   const [menuText, setMenuText] = useState("");
   const [menuFile, setMenuFile] = useState(null); // { base64, mimeType, name } ou null
   const [menuDragOver, setMenuDragOver] = useState(false);
@@ -3124,113 +3124,6 @@ export default function Commercant() {
             {!loadingStats && !statsData && (
               <p className="subtitle">Pas encore de données — reviens après quelques points ajoutés.</p>
             )}
-
-            <h2 style={{ marginTop: 28 }}>Analyse du menu & suggestions (IA)</h2>
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Écris ton menu, ou importe-le directement — texte (.txt), PDF, ou
-              simple photo prise au téléphone. Une IA (gratuite) le lit et le
-              comprend toute seule, puis propose des idées de promotions basées
-              sur tes propres plats — c'est notre plus par rapport à la
-              concurrence, gardé ici avec le reste de l'analyse.
-            </p>
-            <textarea
-              className="menu-textarea"
-              placeholder={"Salade César - 9€\nBurger maison - 14€\nTiramisu - 6€\n\n(ou importe directement un PDF/photo ci-dessous)"}
-              value={menuText}
-              onChange={(e) => {
-                setMenuText(e.target.value);
-                if (menuFile) setMenuFile(null);
-              }}
-              rows={6}
-            />
-            <input
-              type="file"
-              accept=".txt,application/pdf,image/*"
-              ref={menuFileInputRef}
-              style={{ display: "none" }}
-              onChange={handleMenuFile}
-            />
-            <div
-              className={"dropzone" + (menuDragOver ? " drag-over" : "")}
-              onClick={() => menuFileInputRef.current?.click()}
-              onDrop={handleMenuDrop}
-              onDragOver={handleMenuDragOver}
-              onDragEnter={handleMenuDragOver}
-              onDragLeave={handleMenuDragLeave}
-              role="button"
-              tabIndex={0}
-            >
-              {menuFile ? (
-                <p className="subtitle icon-heading" style={{ margin: 0 }}>
-                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à analyser —{" "}
-                  <button
-                    type="button"
-                    className="link-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      clearMenuFile();
-                    }}
-                  >
-                    retirer
-                  </button>
-                </p>
-              ) : (
-                <p className="subtitle icon-heading" style={{ margin: 0 }}>
-                  <Icon name="file" size={14} /> Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
-                </p>
-              )}
-            </div>
-            <div className="menu-actions">
-              <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
-                {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
-              </button>
-              <button className="primary icon-heading" type="button" onClick={analyzeWithAI} disabled={analyzing}>
-                {analyzing ? "Analyse en cours…" : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
-              </button>
-            </div>
-            {aiResult && aiResult.items && aiResult.items.length > 0 && (
-              <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                {aiResult.items.length} plat{aiResult.items.length > 1 ? "s" : ""} détecté
-                {aiResult.items.length > 1 ? "s" : ""}
-                {aiResult.fallback ? " (analyse basique, pas encore la vraie IA)" : ""}
-              </p>
-            )}
-            {aiResult && aiResult.suggestions && aiResult.suggestions.length > 0 && (
-              <>
-                <div className="insights">
-                  {aiResult.suggestions.map((s, i) => (
-                    <div className="insight-row" key={i}>
-                      {s}
-                    </div>
-                  ))}
-                </div>
-                <div className="menu-actions" style={{ marginTop: 10 }}>
-                  <button className="secondary icon-heading" type="button" onClick={useAiSuggestions}>
-                    <Icon name="download" size={15} /> Utiliser ces suggestions dans mon offre
-                  </button>
-                </div>
-              </>
-            )}
-
-            <h2 style={{ marginTop: 28 }}>Ton offre actuelle</h2>
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Ce texte est à toi : écris ou modifie librement ton offre du
-              moment (tu peux partir des suggestions IA ci-dessus, ou tout
-              écrire toi-même). C'est ce que tu affiches en caisse, sur tes
-              réseaux, etc.
-            </p>
-            <textarea
-              className="menu-textarea"
-              placeholder="Ex : Formule du midi à 12€ jusqu'à vendredi, café offert pour toute commande avant 12h30…"
-              value={offerText}
-              onChange={(e) => setOfferText(e.target.value)}
-              rows={5}
-            />
-            <div className="menu-actions">
-              <button className="primary icon-heading" type="button" onClick={saveOffer} disabled={savingOffer}>
-                {savingOffer ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer mon offre</>)}
-              </button>
-            </div>
           </div>
         )}
 
@@ -3592,7 +3485,115 @@ export default function Commercant() {
 
         {role === "owner" && activeTab === "campagnes" && (
           <div className="card">
-            <h2>Envoyer une campagne</h2>
+            <h2>Analyse du menu & suggestions (IA)</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Écris ton menu, ou importe-le directement — texte (.txt), PDF, ou
+              simple photo prise au téléphone. Une IA (gratuite) le lit et le
+              comprend toute seule, puis propose des idées de promotions basées
+              sur tes propres plats — c'est notre plus par rapport à la
+              concurrence, gardé ici avec le reste des campagnes.
+            </p>
+            <textarea
+              className="menu-textarea"
+              placeholder={"Salade César - 9€\nBurger maison - 14€\nTiramisu - 6€\n\n(ou importe directement un PDF/photo ci-dessous)"}
+              value={menuText}
+              onChange={(e) => {
+                setMenuText(e.target.value);
+                if (menuFile) setMenuFile(null);
+              }}
+              rows={6}
+            />
+            <input
+              type="file"
+              accept=".txt,application/pdf,image/*"
+              ref={menuFileInputRef}
+              style={{ display: "none" }}
+              onChange={handleMenuFile}
+            />
+            <div
+              className={"dropzone" + (menuDragOver ? " drag-over" : "")}
+              onClick={() => menuFileInputRef.current?.click()}
+              onDrop={handleMenuDrop}
+              onDragOver={handleMenuDragOver}
+              onDragEnter={handleMenuDragOver}
+              onDragLeave={handleMenuDragLeave}
+              role="button"
+              tabIndex={0}
+            >
+              {menuFile ? (
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à analyser —{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearMenuFile();
+                    }}
+                  >
+                    retirer
+                  </button>
+                </p>
+              ) : (
+                <p className="subtitle icon-heading" style={{ margin: 0 }}>
+                  <Icon name="file" size={14} /> Glisse-dépose un fichier ici (.txt, PDF, photo), ou clique pour en choisir un
+                </p>
+              )}
+            </div>
+            <div className="menu-actions">
+              <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
+                {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
+              </button>
+              <button className="primary icon-heading" type="button" onClick={analyzeWithAI} disabled={analyzing}>
+                {analyzing ? "Analyse en cours…" : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
+              </button>
+            </div>
+            {aiResult && aiResult.items && aiResult.items.length > 0 && (
+              <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
+                {aiResult.items.length} plat{aiResult.items.length > 1 ? "s" : ""} détecté
+                {aiResult.items.length > 1 ? "s" : ""}
+                {aiResult.fallback ? " (analyse basique, pas encore la vraie IA)" : ""}
+              </p>
+            )}
+            {aiResult && aiResult.suggestions && aiResult.suggestions.length > 0 && (
+              <>
+                <div className="insights">
+                  {aiResult.suggestions.map((s, i) => (
+                    <div className="insight-row" key={i}>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+                <div className="menu-actions" style={{ marginTop: 10 }}>
+                  <button className="secondary icon-heading" type="button" onClick={useAiSuggestions}>
+                    <Icon name="download" size={15} /> Utiliser ces suggestions dans mon offre
+                  </button>
+                </div>
+              </>
+            )}
+
+            <h2 style={{ marginTop: 28 }}>Ton offre actuelle</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Ce texte est à toi : écris ou modifie librement ton offre du
+              moment (tu peux partir des suggestions IA ci-dessus, ou tout
+              écrire toi-même). C'est ce que tu affiches en caisse, sur tes
+              réseaux, etc. Copie-le ensuite dans le message de campagne
+              ci-dessous si tu veux le pousser à tes clients.
+            </p>
+            <textarea
+              className="menu-textarea"
+              placeholder="Ex : Formule du midi à 12€ jusqu'à vendredi, café offert pour toute commande avant 12h30…"
+              value={offerText}
+              onChange={(e) => setOfferText(e.target.value)}
+              rows={5}
+            />
+            <div className="menu-actions">
+              <button className="primary icon-heading" type="button" onClick={saveOffer} disabled={savingOffer}>
+                {savingOffer ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer mon offre</>)}
+              </button>
+            </div>
+
+            <h2 style={{ marginTop: 28 }}>Envoyer une campagne</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Un message envoyé d'un coup à tous tes {activeClients.length} client
               {activeClients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),

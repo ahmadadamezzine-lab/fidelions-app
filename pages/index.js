@@ -82,9 +82,12 @@ const STEPS = [
   { n: "3", title: "Partage ton lien", desc: "QR code ou lien direct : tes clients ajoutent leur carte et reviennent, automatiquement." },
 ];
 
+// 3 faits, pas plus : le 4e ("+3 pts pour un avis Google") a été retiré —
+// ce nombre de points est réglable par chaque commerçant (onglet
+// Notifications/Campagnes), donc ce n'était plus toujours vrai. Pas de
+// remplacement pour garder exactement 3 idées, comme demandé.
 const PRODUCT_FACTS = [
   { value: "2 min", label: "pour créer ta carte de fidélité" },
-  { value: "+3 pts", label: "offerts automatiquement pour un avis Google laissé" },
   { value: "0 appli", label: "à faire installer à tes clients" },
   { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
@@ -145,7 +148,7 @@ export default function Home() {
           <div className="hero-text">
             <span className="eyebrow">Fidélisation client</span>
             <h1>
-              Le système de fidélisation clé en main pour les commerces qui veulent que leurs clients reviennent
+              Le système de fidélisation clé en main pour faire revenir tous vos clients
             </h1>
             <p className="hero-sub">
               Fidélions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
@@ -258,7 +261,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Nombre de clients par jour</span>
+                  <span>Clients accueillis chaque jour</span>
                   <strong>{clientsParJour}</strong>
                 </div>
                 <input
@@ -272,7 +275,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Panier moyen par client</span>
+                  <span>Ticket moyen par visite</span>
                   <strong>{panierMoyen} €</strong>
                 </div>
                 <input
@@ -286,7 +289,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Jours d'ouverture par mois</span>
+                  <span>Jours d'activité dans le mois</span>
                   <strong>{joursOuverture}</strong>
                 </div>
                 <input
@@ -300,7 +303,7 @@ export default function Home() {
 
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
-                  <span>Gain de fréquentation grâce à la fidélité</span>
+                  <span>Hausse de fréquentation estimée</span>
                   <strong>{gainPct} %</strong>
                 </div>
                 <input
@@ -313,8 +316,8 @@ export default function Home() {
               </div>
 
               <p className="calc-hint">
-                Les programmes de fidélité augmentent en général le chiffre d'affaires de 5 à 20 %. Le
-                curseur « gain » vous laisse choisir une hypothèse prudente.
+                Une carte comme la vôtre fait en général revenir vos clients 5 à 20 % plus souvent.
+                Choisissez une estimation prudente.
               </p>
             </div>
 
@@ -872,7 +875,7 @@ const styles = `
   }
   .facts-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     text-align: center;
   }
@@ -1471,7 +1474,7 @@ const styles = `
     .hero-inner { flex-direction: column; }
     .hero h1 { font-size: 28px; }
     .hero-visual { margin-top: 32px; min-height: 260px; }
-    .facts-grid { grid-template-columns: repeat(2, 1fr); }
+    .facts-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .compare-grid { grid-template-columns: 1fr; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .steps-grid { grid-template-columns: 1fr; }
@@ -1484,7 +1487,20 @@ const styles = `
     .features-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .facts-grid { grid-template-columns: 1fr; }
-    .mock-phone { width: 220px; }
-    .mock-phone-back { width: 140px; right: 4px; }
+    /* Sur téléphone, le hero-visual devient trop étroit pour poser les deux
+       "3D phones" côte à côte sans qu'ils se chevauchent et deviennent
+       illisibles (voir capture Adam) — on garde seulement la carte du
+       dessus, bien centrée, sans le décalage prévu pour laisser la place à
+       la deuxième derrière. */
+    .mock-phone-back { display: none; }
+    .mock-phone {
+      width: 240px;
+      transform: none;
+      animation: floatMobile 4s ease-in-out infinite;
+    }
+  }
+  @keyframes floatMobile {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
   }
 `;
