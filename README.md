@@ -121,6 +121,7 @@ Sans cette étape, tout le reste fonctionne normalement — c'est juste l'onglet
    - `RESEND_API_KEY` → optionnel, la clé copiée à l'étape 3bis (pour les campagnes par email)
    - `GEMINI_API_KEY` → optionnel, la clé copiée à l'étape 3ter (pour la vraie analyse IA du menu — PDF/photo compris)
    - `GOOGLE_REVIEW_URL` → optionnel, laisse vide pour l'instant (n'a plus vraiment de sens en multi-comptes, une future version le déplacera par restaurant)
+   - `CARDS_ADMIN_PASSWORD` → un mot de passe de ton choix, pour toi seul — protège `/admin-cartes` (voir la section **Cartes NFC/QR physiques** plus bas)
    - Retire `MERCHANT_PASSWORD` et `CASHIER_PASSWORD` si elles existent encore — elles ne sont plus utilisées (chaque restaurant a maintenant son propre email + mot de passe, stockés en base).
 7. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
@@ -146,6 +147,15 @@ Toutes tes anciennes données (clients, réglages, équipe, personnalisation) so
 4. Ouvre ce lien dans un autre onglet/navigateur (comme le ferait un client), entre un prénom, clique `Créer ma carte`, puis `Ajouter à Google Wallet`.
 5. Une page Google doit s'ouvrir proposant d'ajouter la carte, avec un QR code dessus.
 6. Retourne sur `/commercant`, clique `Activer la caméra` (accepte l'autorisation caméra demandée par le navigateur) et vise le QR de la carte que tu viens de créer. (Tu peux aussi juste taper le prénom du client.) Puis clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
+
+## Cartes NFC/QR physiques (produit à 20 €, page d'accueil)
+
+La page d'accueil propose une carte physique NFC + QR à 20 € (juste sous la grille de tarifs). Le principe : les cartes sont imprimées **à l'avance, en lot, toutes identiques** — chacune gravée avec un code générique (`tonsite.vercel.app/c/XXXXXX`), pas encore lié à un commerçant. C'est seulement au moment où une carte est vendue qu'on la relie au bon commerçant, en quelques secondes, sans jamais retoucher à l'impression.
+
+1. Va sur `tonsite.vercel.app/admin-cartes` et connecte-toi avec `CARDS_ADMIN_PASSWORD` (défini à l'étape 4).
+2. Dans "Générer un nouveau lot", choisis une quantité (ex. 20) et clique `Générer`. La liste des URLs complètes s'affiche : clique `Copier les URLs`, c'est exactement ce qu'il faut coller dans le formulaire de commande de l'imprimeur (champ "encodage" ET champ "QR code" — les deux doivent recevoir la même URL, une par carte).
+3. Quand une carte est vendue à un commerçant : demande-lui son lien `/r/son-nom` (visible dans son onglet **Partager**), reviens sur `/admin-cartes`, retrouve la carte dans la liste, colle son slug (la partie après `/r/`) dans le champ à côté, clique `Attribuer`. La carte redirige désormais vers sa page dès le prochain scan/tap.
+4. Une carte reprise par erreur ou jamais remise peut être libérée (`Libérer`) puis réattribuée à un autre commerçant, sans jamais commander de nouvelles cartes.
 
 ## Nouveautés (page d'accueil, tarification, points/avis Google, hors-ligne, équipe)
 
