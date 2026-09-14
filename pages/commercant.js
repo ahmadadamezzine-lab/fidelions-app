@@ -76,7 +76,21 @@ const ICONS = {
   briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
   whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
+  apple: <path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" />,
 };
+
+// Logo Google officiel (4 couleurs) — utilisé uniquement pour le bouton
+// "Continuer avec Google" des écrans de connexion/inscription.
+function GoogleGlyph({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.5h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.6Z" />
+      <path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.7H.9v2.3A9 9 0 0 0 9 18Z" />
+      <path fill="#FBBC05" d="M3.9 10.8a5.4 5.4 0 0 1 0-3.6V4.9H.9a9 9 0 0 0 0 8.2l3-2.3Z" />
+      <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 4.9l3 2.3C4.6 5.1 6.6 3.6 9 3.6Z" />
+    </svg>
+  );
+}
 
 function Icon({ name, size = 18, className }) {
   const d = ICONS[name];
@@ -1031,6 +1045,18 @@ export default function Commercant() {
     setAuthMode("signup");
     setSignupStep(1);
     setAuthError("");
+  }
+
+  // --- Connexion via Google / Apple ---
+  // Les boutons sont prêts côté interface ; la connexion réelle nécessite
+  // des identifiants OAuth (Google Cloud Console / Apple Developer) que
+  // seul Adam peut créer — voir le plan d'action fourni à côté du code.
+  // Une fois ces identifiants ajoutés en variables d'environnement, ces
+  // boutons pourront rediriger vers /api/auth-google et /api/auth-apple.
+  function handleSocialAuth(provider) {
+    setAuthError(
+      `Connexion ${provider} : bientôt disponible — utilise l'email et le mot de passe en attendant.`
+    );
   }
 
   // --- Connexion (compte déjà créé) ---
@@ -2363,10 +2389,19 @@ export default function Commercant() {
                   placeholder="Mot de passe"
                   required
                 />
-                <button type="submit" disabled={checking}>
+                <button type="submit" className="primary" disabled={checking}>
                   {checking ? "Connexion…" : "Se connecter"}
                 </button>
               </form>
+              <div className="auth-divider">ou continuer avec</div>
+              <div className="auth-social-row">
+                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
+                  <GoogleGlyph /> Google
+                </button>
+                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
+                  <Icon name="apple" size={16} /> Apple
+                </button>
+              </div>
               {authError && <p className="error">{authError}</p>}
               <p className="auth-switch">
                 <button type="button" className="link-btn" onClick={goToChoice}>
@@ -2403,6 +2438,16 @@ export default function Commercant() {
                   Se connecter
                 </button>
               </div>
+              <div className="auth-divider">ou continuer avec</div>
+              <div className="auth-social-row">
+                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
+                  <GoogleGlyph /> Google
+                </button>
+                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
+                  <Icon name="apple" size={16} /> Apple
+                </button>
+              </div>
+              {authError && <p className="error">{authError}</p>}
             </>
           )}
 
@@ -2418,6 +2463,16 @@ export default function Commercant() {
 
               {signupStep === 1 && (
                 <div className="signup-step">
+                  <div className="auth-social-row">
+                    <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
+                      <GoogleGlyph /> Google
+                    </button>
+                    <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
+                      <Icon name="apple" size={16} /> Apple
+                    </button>
+                  </div>
+                  <div className="auth-divider">ou avec ton email</div>
+                  {authError && <p className="error">{authError}</p>}
                   <input
                     type="text"
                     value={signupRestaurantName}
@@ -2669,7 +2724,7 @@ export default function Commercant() {
                   </div>
                   <p className="subtitle" style={{ fontSize: 12.5 }}>
                     {selectedTierPrice != null
-                      ? "Le paiement se fait via un lien sécurisé (Revolut) — aucune donnée bancaire n'est jamais saisie sur Fidélions."
+                      ? "Le paiement se fait via un lien sécurisé Revolut — carte bancaire, Apple Pay et Google Pay sont proposés automatiquement sur cette page, aucune donnée bancaire n'est jamais saisie sur Fidélions."
                       : "Cette formule est sur devis — contacte-nous pour finaliser le tarif avant d'activer l'abonnement."}
                   </p>
                   <a
@@ -4745,17 +4800,85 @@ const styles = `
   }
   .auth-page .card {
     width: 100%;
-    max-width: 480px;
+    max-width: 440px;
+    text-align: center;
+    padding: 36px 32px 28px;
+    border-radius: 24px;
+    border: 1px solid rgba(17, 17, 17, 0.05);
+    box-shadow: 0 24px 60px -12px rgba(76, 20, 149, 0.22), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .auth-page .card input,
+  .auth-page .card select,
+  .auth-page .card textarea {
+    text-align: left;
+  }
+  .auth-page input {
+    border-radius: 999px;
+    padding: 13px 18px;
+    border: 1.5px solid #e7e1f5;
+    background: #faf9fd;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .auth-page input:focus {
+    background: #fff;
+    border-color: ${PURPLE};
+  }
+  .auth-page button.primary,
+  .auth-page button.secondary {
+    border-radius: 999px;
+    padding: 13px 18px;
+  }
+  .auth-page .auth-logo {
+    display: block;
+    margin: 0 auto 18px;
+  }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0;
+    color: #aba3c4;
+    font-size: 12px;
+  }
+  .auth-divider::before,
+  .auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e7e1f5;
+  }
+  .auth-social-row {
+    display: flex;
+    gap: 10px;
+  }
+  .auth-social-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1.5px solid #e7e1f5;
+    border-radius: 999px;
+    padding: 11px 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .auth-social-btn:hover {
+    border-color: #cabdf0;
+    background: #faf9fd;
   }
   .split-login {
     width: 100%;
     max-width: 940px;
     background: #fff;
-    border-radius: 22px;
+    border-radius: 28px;
     overflow: hidden;
     display: flex;
     min-height: 520px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    box-shadow: 0 24px 60px -12px rgba(76, 20, 149, 0.22), 0 4px 16px rgba(0,0,0,0.04);
   }
   .split-panel {
     flex: 1;

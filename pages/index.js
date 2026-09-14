@@ -24,17 +24,27 @@ const PURPLE = "#7414F4";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 
+// Permet de taper directement une valeur au clavier dans le calculateur ROI
+// (en plus du curseur) — on ne bloque pas tant que le champ est vide ou en
+// cours de frappe, on borne juste la valeur finale entre min et max.
+function clampNum(raw, min, max) {
+  if (raw === "") return min;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
 const ICONS = {
   bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6Z" />,
   wallet: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M16 13h.01" /><path d="M3 9h18" /></>,
-  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /></>,
+  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3c-1.3 0-2.6-.7-2.6-2.3S10.5 4 12 6.2C13.5 4 15.6 4.7 15.6 7S13.3 9.3 12 9.3Z" /></>,
   star: <path d="M12 3.5 14.6 9l6 .8-4.4 4.1 1.1 6-5.3-2.9L6.7 20l1.1-6-4.4-4.1 6-.8Z" />,
   apple: <path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" />,
-  wifi: <><path d="M4.5 10.5a11 11 0 0 1 15 0" /><path d="M7.5 13.7a7 7 0 0 1 9 0" /><path d="M10.5 17a3 3 0 0 1 3 0" /><path d="M12 20h.01" /></>,
+  wifi: <><path d="M4.5 10.5a11 11 0 0 1 15 0" /><path d="M7.5 13.7a7 7 0 0 1 9 0" /><path d="M10.5 17a3 3 0 0 1 3 0" /><path d="M12 20h.01" /><path d="M3 4 21 20" /></>,
   users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
   chart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
   mappin: <><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.4" /></>,
-  megaphone: <><path d="M3 10v4h3l7 4V6l-7 4Z" /><path d="M17 9a4 4 0 0 1 0 6" /></>,
+  megaphone: <><path d="M4 11v3.5a1.3 1.3 0 0 0 1.3 1.3H7l1.3 3.7a1.4 1.4 0 0 0 2.6-.5v-3.2" /><path d="M4 11h3l10-5.5v14L7 14.5H4a1 1 0 0 1-1-1V12a1 1 0 0 1 1-1Z" /><path d="M20 9a5.5 5.5 0 0 1 0 7.5" /></>,
   palette: <><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-.7-1.4-.7-2.2c0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8Z" /><circle cx="7.5" cy="10.5" r="1" /><circle cx="10.5" cy="7" r="1" /><circle cx="15" cy="8" r="1" /></>,
   trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
   building: <><rect x="5" y="3" width="10" height="18" /><path d="M9 21v-4h2v4" /><path d="M8 7h1M8 10h1M8 13h1M11 7h1M11 10h1M11 13h1" /><path d="M15 10h4v11h-4" /></>,
@@ -74,6 +84,7 @@ const FEATURES = [
   { icon: "trophy", title: "Équipe & classement", desc: "Gère les accès de tes employés et suis un classement des plus fidélisants." },
   { icon: "building", title: "Fiche établissement", desc: "Horaires, réseaux, photos : une vitrine publique pour ton commerce." },
   { icon: "robot", title: "Assistant IA menu", desc: "Analyse ton menu et suggère des offres pertinentes pour fidéliser." },
+  { icon: "qr", title: "Lien & QR code de partage", desc: "Un lien unique et un QR code à afficher en caisse ou sur les tables : tes clients ajoutent leur carte en un scan." },
 ];
 
 const STEPS = [
@@ -112,7 +123,11 @@ export default function Home() {
     // n'est pas une donnée mesurée sur de vrais clients Fidélions, le
     // service étant récent).
     const caSupp = clients * jours * panier * gain;
-    const cout = getTierPrice(baseTier, "mensuel") || 0;
+    // Coût pris en compte : le tarif annuel engagé (le moins cher), pour donner
+    // l'estimation de retour sur investissement la plus favorable — clairement
+    // annoté ci-dessous comme "engagement 1 an" pour rester honnête vis-à-vis
+    // du tarif mensuel sans engagement (49€), affiché dans la grille tarifaire.
+    const cout = getTierPrice(baseTier, "annuel") || 0;
     const beneficeNet = caSupp - cout;
     return {
       caSupp: Math.round(caSupp),
@@ -262,13 +277,22 @@ export default function Home() {
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
                   <span>Clients accueillis chaque jour</span>
-                  <strong>{clientsParJour}</strong>
+                  <span className="calc-num-wrap">
+                    <input
+                      type="number"
+                      className="calc-num-input"
+                      min="0"
+                      max="2000"
+                      value={clientsParJour}
+                      onChange={(e) => setClientsParJour(clampNum(e.target.value, 0, 2000))}
+                    />
+                  </span>
                 </div>
                 <input
                   type="range"
                   min="1"
                   max="200"
-                  value={clientsParJour}
+                  value={Math.min(clientsParJour, 200)}
                   onChange={(e) => setClientsParJour(e.target.value)}
                 />
               </div>
@@ -276,13 +300,23 @@ export default function Home() {
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
                   <span>Ticket moyen par visite</span>
-                  <strong>{panierMoyen} €</strong>
+                  <span className="calc-num-wrap">
+                    <input
+                      type="number"
+                      className="calc-num-input"
+                      min="0"
+                      max="1000"
+                      value={panierMoyen}
+                      onChange={(e) => setPanierMoyen(clampNum(e.target.value, 0, 1000))}
+                    />
+                    <span className="calc-num-suffix">€</span>
+                  </span>
                 </div>
                 <input
                   type="range"
                   min="1"
                   max="100"
-                  value={panierMoyen}
+                  value={Math.min(panierMoyen, 100)}
                   onChange={(e) => setPanierMoyen(e.target.value)}
                 />
               </div>
@@ -290,13 +324,22 @@ export default function Home() {
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
                   <span>Jours d'activité dans le mois</span>
-                  <strong>{joursOuverture}</strong>
+                  <span className="calc-num-wrap">
+                    <input
+                      type="number"
+                      className="calc-num-input"
+                      min="0"
+                      max="31"
+                      value={joursOuverture}
+                      onChange={(e) => setJoursOuverture(clampNum(e.target.value, 0, 31))}
+                    />
+                  </span>
                 </div>
                 <input
                   type="range"
                   min="1"
                   max="31"
-                  value={joursOuverture}
+                  value={Math.min(joursOuverture, 31)}
                   onChange={(e) => setJoursOuverture(e.target.value)}
                 />
               </div>
@@ -304,19 +347,30 @@ export default function Home() {
               <div className="calc-slider-row">
                 <div className="calc-slider-label">
                   <span>Hausse de fréquentation estimée</span>
-                  <strong>{gainPct} %</strong>
+                  <span className="calc-num-wrap">
+                    <input
+                      type="number"
+                      className="calc-num-input"
+                      min="0"
+                      max="100"
+                      value={gainPct}
+                      onChange={(e) => setGainPct(clampNum(e.target.value, 0, 100))}
+                    />
+                    <span className="calc-num-suffix">%</span>
+                  </span>
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="30"
-                  value={gainPct}
+                  value={Math.min(gainPct, 30)}
                   onChange={(e) => setGainPct(e.target.value)}
                 />
               </div>
 
               <p className="calc-hint">
-                Une carte comme la vôtre fait en général revenir vos clients 5 à 20 % plus souvent.
+                Une carte comme la vôtre fait en général revenir vos clients 5 à 20 % plus souvent
+                (source : rapport annuel Paytronix sur la fidélité client en restauration).
                 Choisissez une estimation prudente.
               </p>
             </div>
@@ -344,6 +398,9 @@ export default function Home() {
                   <strong>{roi.roiMultiple != null ? `×${roi.roiMultiple}` : "—"}</strong>
                 </div>
               </div>
+              <p className="calc-result-fine">
+                Coût calculé sur la formule annuelle avec engagement 1 an (29 €/mois) — 49 €/mois sans engagement.
+              </p>
               <div className="calc-result-annual">
                 Sur une année, cela représente
                 <strong>
@@ -500,6 +557,7 @@ export default function Home() {
             <div className="payment-badges">
               <span className="payment-badge">Revolut</span>
               <span className="payment-badge">Apple Pay</span>
+              <span className="payment-badge">Google Pay</span>
               <span className="payment-badge">Carte bancaire</span>
             </div>
           </div>
@@ -1006,6 +1064,39 @@ const styles = `
     color: ${PURPLE};
     font-size: 14px;
   }
+  .calc-num-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #f4effc;
+    border: 1px solid #e3d7fa;
+    border-radius: 8px;
+    padding: 2px 6px;
+  }
+  .calc-num-input {
+    width: 48px;
+    border: none;
+    background: transparent;
+    color: ${PURPLE};
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: right;
+    -moz-appearance: textfield;
+  }
+  .calc-num-input::-webkit-outer-spin-button,
+  .calc-num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .calc-num-input:focus {
+    outline: none;
+  }
+  .calc-num-suffix {
+    color: ${PURPLE};
+    font-size: 13px;
+    font-weight: 700;
+  }
   .calc-slider-row input[type="range"] {
     width: 100%;
     -webkit-appearance: none;
@@ -1091,6 +1182,12 @@ const styles = `
   }
   .calc-positive {
     color: #4ade80 !important;
+  }
+  .calc-result-fine {
+    font-size: 10.5px;
+    color: #8a80ab;
+    line-height: 1.5;
+    margin: -8px 0 14px;
   }
   .calc-result-annual {
     margin-top: auto;
