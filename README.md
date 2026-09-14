@@ -105,6 +105,30 @@ Sans cette étape, tout le reste fonctionne normalement — c'est juste l'onglet
 8. Clique `Create` (en bas de la fenêtre).
 9. Sur l'écran suivant, coche ton projet `fidelions-app` puis `Connect`.
 
+## Étape 3quinquies — Activer la connexion "Continuer avec Google" (optionnel, gratuit)
+
+Sans cette étape, tout fonctionne normalement — les boutons "Google" restent juste inactifs et affichent une erreur claire si on clique dessus, la connexion par email + mot de passe marche déjà très bien. Cette étape est à faire une seule fois, pour toute la plateforme (pas par restaurant).
+
+Pas de connexion Apple pour l'instant : elle demande en plus un compte payant Apple Developer (~99 $/an), alors que Google est gratuit — activable plus tard sur le même principe si besoin.
+
+1. Va sur `console.cloud.google.com` (connecte-toi avec un compte Google).
+2. En haut, ouvre le sélecteur de projet → `Nouveau projet` → nom `Fidelions` → `Créer`. Une fois créé, sélectionne-le (en haut, vérifie qu'il est bien actif).
+3. Menu ☰ (en haut à gauche) → `API et services` → `Écran de consentement OAuth`.
+4. Type d'utilisateur : `Externe` → `Créer`.
+5. Renseigne : `Nom de l'application` → `Fidélions`, `E-mail d'assistance utilisateur` → ton email, en bas `Coordonnées du développeur` → ton email à nouveau → `Enregistrer et continuer` sur chaque écran suivant (Champs d'application : rien à changer, `Enregistrer et continuer` ; Utilisateurs test : rien à ajouter, `Enregistrer et continuer` ; puis `Retour au tableau de bord`).
+6. Menu ☰ → `API et services` → `Identifiants` → en haut `+ Créer des identifiants` → `ID client OAuth`.
+7. `Type d'application` → `Application Web`. `Nom` → `Fidélions - commerçant`.
+8. Sous `URI de redirection autorisés` → `+ Ajouter un URI` → colle exactement :
+   `https://fidelions-app.vercel.app/api/auth-google-callback`
+9. `Créer`. Une fenêtre affiche `ID client` et `Code secret du client` — garde cette fenêtre ouverte (ou clique `Télécharger le fichier JSON`).
+10. Sur `vercel.com`, ton projet `fidelions-app` → `Settings` → `Environment Variables`, ajoute :
+    - `GOOGLE_OAUTH_CLIENT_ID` → la valeur `ID client` de l'étape 9
+    - `GOOGLE_OAUTH_CLIENT_SECRET` → la valeur `Code secret du client` de l'étape 9
+11. `Deployments` → `⋯` sur le déploiement le plus récent → `Redeploy` (les nouvelles variables ne sont prises en compte qu'après un redéploiement).
+12. Sur `/commercant`, le bouton `Google` fonctionne désormais : un commerçant déjà inscrit est connecté directement ; un email Google inconnu ouvre l'inscription avec l'email déjà rempli (le mot de passe n'est plus demandé, il se reconnectera toujours via Google).
+
+Tant que l'écran de consentement reste en mode "Test" (étape 5), seuls les comptes Google ajoutés comme "Utilisateurs test" peuvent se connecter — pour l'ouvrir à tout le monde : `Écran de consentement OAuth` → `Publier l'application` → `Confirmer` (aucune revue Google n'est nécessaire pour les scopes utilisés ici : email/profil de base).
+
 ## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
@@ -122,6 +146,7 @@ Sans cette étape, tout le reste fonctionne normalement — c'est juste l'onglet
    - `GEMINI_API_KEY` → optionnel, la clé copiée à l'étape 3ter (pour la vraie analyse IA du menu — PDF/photo compris)
    - `GOOGLE_REVIEW_URL` → optionnel, laisse vide pour l'instant (n'a plus vraiment de sens en multi-comptes, une future version le déplacera par restaurant)
    - `CARDS_ADMIN_PASSWORD` → un mot de passe de ton choix, pour toi seul — protège `/admin-cartes` (voir la section **Cartes NFC/QR physiques** plus bas)
+   - `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` → optionnelles, pour le bouton "Continuer avec Google" (voir **Étape 3quinquies** ci-dessus) — sans elles le bouton affiche juste une erreur claire, rien d'autre ne casse
    - Retire `MERCHANT_PASSWORD` et `CASHIER_PASSWORD` si elles existent encore — elles ne sont plus utilisées (chaque restaurant a maintenant son propre email + mot de passe, stockés en base).
 7. `Deploy` (ou `Redeploy` si le projet existait déjà).
 

@@ -668,15 +668,41 @@ export default function Commercant() {
   // saute directement au bon écran plutôt que d'afficher le choix.
   useEffect(() => {
     if (!router.isReady || authed) return;
-    const mode = router.query.mode;
+    const { mode, oauth_token, oauth_error, oauth_email } = router.query;
+
+    // Retour de /api/auth-google-callback après une connexion Google
+    // réussie (voir tryAuth plus bas) : le jeton de session voyage dans
+    // l'URL une seule fois, le temps de le récupérer et de le ranger comme
+    // n'importe quelle connexion classique.
+    if (oauth_token) {
+      const t = String(oauth_token);
+      setPassword(t);
+      tryAuth(t);
+      router.replace("/commercant", undefined, { shallow: true });
+      return;
+    }
+    if (oauth_error) {
+      setAuthMode("login");
+      setAuthError(String(oauth_error));
+      router.replace("/commercant?mode=login", undefined, { shallow: true });
+      return;
+    }
+
     if (mode === "signup") {
       setAuthMode("signup");
       setSignupStep(1);
+      // Retour de /api/auth-google-callback quand cet email Google n'a
+      // pas encore de compte : on saute directement à l'inscription avec
+      // l'email déjà rempli (voir signupViaGoogle, étape 6).
+      if (oauth_email) {
+        setSignupEmail(String(oauth_email));
+        setSignupViaGoogle(true);
+      }
     } else if (mode === "login") {
       setAuthMode("login");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady, router.query.mode]);
+  }, [router.isReady, router.query.mode, router.query.oauth_token, router.query.oauth_error, router.query.oauth_email]);
 
   // --- Inscription : assistant en 6 étapes (voir handleSignupSubmit) ---
   // 1. Nom + logo · 2. Mécanique de fidélité + couleur de carte (facultatif)
@@ -697,6 +723,12 @@ export default function Commercant() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
+  // true quand l'inscription vient du bouton "Continuer avec Google" (voir
+  // /api/auth-google-callback) : l'email est déjà connu et vérifié par
+  // Google, donc pas de champ mot de passe à l'étape 6 — un mot de passe
+  // aléatoire est généré et envoyé en silence (le commerçant se
+  // reconnectera toujours via Google, jamais en le tapant).
+  const [signupViaGoogle, setSignupViaGoogle] = useState(false);
   const signupLogoInputRef = useRef(null);
 
   // --- Inscription, étape "Mécanique de fidélité" : tampons (1 point par
@@ -1048,12 +1080,19 @@ export default function Commercant() {
   }
 
   // --- Connexion via Google / Apple ---
-  // Les boutons sont affichés à dessein DÉSACTIVÉS (pas juste "prêts mais
-  // cassés") tant qu'ils ne peuvent pas réellement connecter personne : la
-  // connexion réelle nécessite des identifiants OAuth (Google Cloud Console
-  // / Apple Developer) que seul Adam peut créer — voir le plan d'action.
-  // Une fois ces identifiants ajoutés en variables d'environnement, on
-  // retire `disabled` et on branche /api/auth-google et /api/auth-apple.
+  // Google : branché sur /api/auth-google-start → /api/auth-google-callback
+  // (voir lib/googleAuth.js), actif dès que GOOGLE_OAUTH_CLIENT_ID /
+  // GOOGLE_OAUTH_CLIENT_SECRET existent en variables d'environnement — si
+  // elles manquent, /api/auth-google-start répond une erreur claire plutôt
+  // que de planter silencieusement.
+  // Apple : gardé DÉSACTIVÉ volontairement — "Sign in with Apple" exige un
+  // compte Apple Developer payant (≈99 $/an) en plus des identifiants
+  // techniques, contrairement à Google qui est gratuit. À activer plus
+  // tard si le besoin s'en fait sentir (même schéma que Google : un
+  // /api/auth-apple-start + /api/auth-apple-callback).
+  function startGoogleAuth() {
+    window.location.href = "/api/auth-google-start";
+  }
 
   // --- Connexion (compte déjà créé) ---
   async function handleLoginSubmit(e) {
@@ -1185,7 +1224,15 @@ export default function Commercant() {
 
   async function handleSignupSubmit(e) {
     e.preventDefault();
-    if (signupPassword.length < 4) {
+    let effectivePassword = signupPassword;
+    if (signupViaGoogle) {
+      // Mot de passe aléatoire, jamais affiché ni saisi — ce compte se
+      // reconnecte uniquement via le bouton Google.
+      effectivePassword =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Math.random().toString(36).slice(2)}${Date.now()}`;
+    } else if (signupPassword.length < 4) {
       setAuthError("Le mot de passe doit faire au moins 4 caractères.");
       return;
     }
@@ -1197,7 +1244,7 @@ export default function Commercant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: signupEmail,
-          password: signupPassword,
+          password: effectivePassword,
           restaurantName: signupRestaurantName,
           businessType: signupBusinessType,
           businessTypeOther: signupBusinessType === "autre" ? signupBusinessTypeOther : "",
@@ -2393,8 +2440,8 @@ export default function Commercant() {
               </form>
               <div className="auth-divider">ou continuer avec</div>
               <div className="auth-social-row">
-                <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
-                  <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
+                <button type="button" className="auth-social-btn" onClick={startGoogleAuth}>
+                  <GoogleGlyph /> Google
                 </button>
                 <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
                   <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
@@ -2440,8 +2487,8 @@ export default function Commercant() {
               </div>
               <div className="auth-divider">ou continuer avec</div>
               <div className="auth-social-row">
-                <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
-                  <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
+                <button type="button" className="auth-social-btn" onClick={startGoogleAuth}>
+                  <GoogleGlyph /> Google
                 </button>
                 <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
                   <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
@@ -2464,8 +2511,8 @@ export default function Commercant() {
               {signupStep === 1 && (
                 <div className="signup-step">
                   <div className="auth-social-row">
-                    <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
-                      <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
+                    <button type="button" className="auth-social-btn" onClick={startGoogleAuth}>
+                      <GoogleGlyph /> Google
                     </button>
                     <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
                       <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
@@ -2761,16 +2808,23 @@ export default function Commercant() {
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
                     placeholder="Ton email"
-                    autoFocus
+                    autoFocus={!signupViaGoogle}
+                    readOnly={signupViaGoogle}
                     required
                   />
-                  <input
-                    type="password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    placeholder="Mot de passe (4 caractères minimum)"
-                    required
-                  />
+                  {signupViaGoogle ? (
+                    <p className="subtitle" style={{ margin: "-6px 0 4px" }}>
+                      Compte lié à Google — tu te reconnecteras avec le bouton Google, pas besoin de mot de passe.
+                    </p>
+                  ) : (
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="Mot de passe (4 caractères minimum)"
+                      required
+                    />
+                  )}
                   <input
                     type="tel"
                     value={signupPhone}
