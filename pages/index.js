@@ -15,6 +15,13 @@
 // installer, etc.), pas des statistiques clients inventées — Fidélions
 // étant un service tout jeune, aucune fausse preuve sociale ("+10 000
 // clients") n'est affichée.
+//
+// La section "stats-proof" (juste avant les tarifs) est différente : ce
+// sont des chiffres sur la fidélisation client EN GÉNÉRAL, pas sur
+// Fidélions, chacun sourcé (Harvard Business Review, Bain & Company,
+// étude SumUp France 2024) et vérifié avant publication — jamais les
+// chiffres exacts d'un concurrent, toujours reformulés avec leur propre
+// source citée.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -39,7 +46,7 @@ const ICONS = {
   wallet: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M16 13h.01" /><path d="M3 9h18" /></>,
   gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3c-1.3 0-2.6-.7-2.6-2.3S10.5 4 12 6.2C13.5 4 15.6 4.7 15.6 7S13.3 9.3 12 9.3Z" /></>,
   star: <path d="M12 3.5 14.6 9l6 .8-4.4 4.1 1.1 6-5.3-2.9L6.7 20l1.1-6-4.4-4.1 6-.8Z" />,
-  apple: <path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" />,
+  apple: <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>,
   wifi: <><path d="M4.5 10.5a11 11 0 0 1 15 0" /><path d="M7.5 13.7a7 7 0 0 1 9 0" /><path d="M10.5 17a3 3 0 0 1 3 0" /><path d="M12 20h.01" /><path d="M3 4 21 20" /></>,
   users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
   chart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
@@ -52,6 +59,7 @@ const ICONS = {
   check: <path d="M5 12.5 10 17 19 7" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   qr: <><rect x="4" y="4" width="6" height="6" /><rect x="14" y="4" width="6" height="6" /><rect x="4" y="14" width="6" height="6" /><path d="M14 14h3v3h-3zM19 14v6M14 19h6" /></>,
+  nfc: <><rect x="3" y="5" width="13" height="14" rx="2.3" /><path d="M18 9a4 4 0 0 1 0 6" /><path d="M20.7 7a7.5 7.5 0 0 1 0 10" /></>,
 };
 
 function Icon({ name, size = 20 }) {
@@ -101,6 +109,30 @@ const PRODUCT_FACTS = [
   { value: "2 min", label: "pour créer ta carte de fidélité" },
   { value: "0 appli", label: "à faire installer à tes clients" },
   { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
+];
+
+// 3 statistiques vérifiées avant publication (voir le commentaire en tête
+// de fichier) — sur la fidélisation client en général, pas sur Fidélions.
+// Les deux stats SumUp (67% reviennent dans la même enseigne / 68% dépensent
+// plus que prévu près d'une récompense) sont volontairement regroupées en
+// une seule ("près de 70%") plutôt que présentées comme deux chiffres à
+// part — elles viennent de la même étude et racontent la même idée.
+const STATS_PROOF = [
+  {
+    value: "5 à 25x",
+    label: "plus cher d'acquérir un nouveau client que de fidéliser un client existant",
+    source: "Harvard Business Review",
+  },
+  {
+    value: "+25 à 95%",
+    label: "de bénéfices pour seulement 5% de clients fidélisés en plus",
+    source: "Bain & Company",
+  },
+  {
+    value: "Près de 70%",
+    label: "des clients reviennent plus souvent et dépensent plus que prévu grâce à un programme de fidélité",
+    source: "SumUp, étude France 2024",
+  },
 ];
 
 export default function Home() {
@@ -458,6 +490,25 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="stats-proof">
+        <div className="section-inner">
+          <span className="eyebrow stats-proof-eyebrow">Pourquoi investir dans la fidélité</span>
+          <h2 className="stats-proof-title">Vos clients fidèles rapportent plus que vous ne le pensez</h2>
+          <p className="stats-proof-sub">
+            Ce ne sont pas nos chiffres : ce sont ceux de la recherche sur la fidélisation client.
+          </p>
+          <div className="stats-proof-grid">
+            {STATS_PROOF.map((s) => (
+              <div className="stat-proof-card" key={s.label}>
+                <span className="stat-proof-value">{s.value}</span>
+                <p className="stat-proof-label">{s.label}</p>
+                <span className="stat-proof-source">{s.source}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="pricing" id="tarifs">
         <div className="section-inner">
           <h2 className="section-title">Un tarif simple, qui grandit avec toi</h2>
@@ -498,9 +549,34 @@ export default function Home() {
               );
             })}
           </div>
-          <p className="pricing-footnote">
-            Support de caisse premium avec ton QR code : 20 €, en paiement unique.
-          </p>
+
+          <div className="pricing-addon">
+            <div className="pricing-addon-icon" aria-hidden="true">
+              <Icon name="nfc" size={26} />
+            </div>
+            <div className="pricing-addon-text">
+              <h3>Carte NFC & QR code à poser en caisse</h3>
+              <p>
+                Tes clients approchent leur téléphone ou scannent le QR code : leur carte de
+                fidélité s'ajoute en 2 secondes, sans QR à chercher ni application à installer.
+              </p>
+            </div>
+            <div className="pricing-addon-cta">
+              <span className="pricing-addon-price">
+                20 €<span className="pricing-addon-price-suffix">paiement unique</span>
+              </span>
+              <a
+                href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                  "Bonjour, je souhaite commander une carte NFC Fidélions pour ma caisse."
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+              >
+                Commander la mienne
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -952,6 +1028,61 @@ const styles = `
     font-size: 12px;
   }
 
+  .stats-proof {
+    background: #14101f;
+    padding: 72px 0;
+  }
+  .stats-proof-eyebrow {
+    display: block;
+    width: fit-content;
+    margin: 0 auto 16px;
+  }
+  .stats-proof-title {
+    color: #fff;
+    font-size: 26px;
+    text-align: center;
+    margin: 0 0 12px;
+  }
+  .stats-proof-sub {
+    color: #b8aee0;
+    text-align: center;
+    font-size: 14.5px;
+    margin: 0 auto 40px;
+    max-width: 540px;
+  }
+  .stats-proof-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .stat-proof-card {
+    background: #1e1830;
+    border: 1px solid #322a49;
+    border-radius: 16px;
+    padding: 24px 18px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stat-proof-value {
+    color: #fff;
+    font-size: 30px;
+    font-weight: 800;
+  }
+  .stat-proof-label {
+    color: #d8d0ec;
+    font-size: 12.5px;
+    margin: 0;
+    line-height: 1.45;
+  }
+  .stat-proof-source {
+    color: #8a80ab;
+    font-size: 11px;
+    margin-top: auto;
+    padding-top: 4px;
+  }
+
   .compare {
     padding: 72px 0;
   }
@@ -1204,11 +1335,65 @@ const styles = `
     color: #fff;
     margin-top: 2px;
   }
-  .pricing-footnote {
-    text-align: center;
-    font-size: 12px;
+  .pricing-addon {
+    margin-top: 32px;
+    background: #faf9fd;
+    border: 1.5px solid #e6d9ff;
+    border-radius: 16px;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .pricing-addon-icon {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f3ecff;
+    color: ${PURPLE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pricing-addon-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .pricing-addon-text h3 {
+    font-size: 14.5px;
+    margin: 0 0 4px;
+    color: #1a1a1a;
+  }
+  .pricing-addon-text p {
+    font-size: 12.5px;
+    color: #777;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .pricing-addon-cta {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .pricing-addon-price {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+  }
+  .pricing-addon-price-suffix {
+    font-size: 10.5px;
+    font-weight: 600;
     color: #8a8a8a;
-    margin: 24px 0 0;
+  }
+  .pricing-addon .btn {
+    white-space: nowrap;
   }
 
   .features {
@@ -1577,6 +1762,7 @@ const styles = `
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }
     .calc-box { grid-template-columns: 1fr; }
+    .pricing-addon { flex-direction: column; text-align: center; }
     .footer-top { flex-direction: column; gap: 28px; }
     .footer-bottom-row { flex-direction: column; text-align: center; }
   }
@@ -1584,6 +1770,7 @@ const styles = `
     .features-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .facts-grid { grid-template-columns: 1fr; }
+    .stats-proof-grid { grid-template-columns: 1fr; }
     /* Sur téléphone, le hero-visual devient trop étroit pour poser les deux
        "3D phones" côte à côte sans qu'ils se chevauchent et deviennent
        illisibles (voir capture Adam) — on garde seulement la carte du

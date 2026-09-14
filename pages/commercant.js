@@ -76,7 +76,7 @@ const ICONS = {
   briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
   whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
-  apple: <path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" />,
+  apple: <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>,
 };
 
 // Logo Google officiel (4 couleurs) — utilisé uniquement pour le bouton
@@ -1048,16 +1048,12 @@ export default function Commercant() {
   }
 
   // --- Connexion via Google / Apple ---
-  // Les boutons sont prêts côté interface ; la connexion réelle nécessite
-  // des identifiants OAuth (Google Cloud Console / Apple Developer) que
-  // seul Adam peut créer — voir le plan d'action fourni à côté du code.
-  // Une fois ces identifiants ajoutés en variables d'environnement, ces
-  // boutons pourront rediriger vers /api/auth-google et /api/auth-apple.
-  function handleSocialAuth(provider) {
-    setAuthError(
-      `Connexion ${provider} : bientôt disponible — utilise l'email et le mot de passe en attendant.`
-    );
-  }
+  // Les boutons sont affichés à dessein DÉSACTIVÉS (pas juste "prêts mais
+  // cassés") tant qu'ils ne peuvent pas réellement connecter personne : la
+  // connexion réelle nécessite des identifiants OAuth (Google Cloud Console
+  // / Apple Developer) que seul Adam peut créer — voir le plan d'action.
+  // Une fois ces identifiants ajoutés en variables d'environnement, on
+  // retire `disabled` et on branche /api/auth-google et /api/auth-apple.
 
   // --- Connexion (compte déjà créé) ---
   async function handleLoginSubmit(e) {
@@ -2356,7 +2352,9 @@ export default function Commercant() {
         <div className="auth-page">
           <div className="split-login">
             <div className="split-panel">
-              <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
+              <Link href="/" className="logo-link">
+                <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
+              </Link>
               <h2 className="split-title">Content de te revoir</h2>
               <ul className="split-benefits">
                 <li>
@@ -2395,11 +2393,11 @@ export default function Commercant() {
               </form>
               <div className="auth-divider">ou continuer avec</div>
               <div className="auth-social-row">
-                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
-                  <GoogleGlyph /> Google
+                <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
+                  <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
                 </button>
-                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
-                  <Icon name="apple" size={16} /> Apple
+                <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
+                  <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
                 </button>
               </div>
               {authError && <p className="error">{authError}</p>}
@@ -2424,7 +2422,9 @@ export default function Commercant() {
     return (
       <div className="auth-page">
         <div className="card">
-          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+          <Link href="/" className="logo-link">
+            <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+          </Link>
 
           {authMode === "choice" && (
             <>
@@ -2440,11 +2440,11 @@ export default function Commercant() {
               </div>
               <div className="auth-divider">ou continuer avec</div>
               <div className="auth-social-row">
-                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
-                  <GoogleGlyph /> Google
+                <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
+                  <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
                 </button>
-                <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
-                  <Icon name="apple" size={16} /> Apple
+                <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
+                  <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
                 </button>
               </div>
               {authError && <p className="error">{authError}</p>}
@@ -2464,11 +2464,11 @@ export default function Commercant() {
               {signupStep === 1 && (
                 <div className="signup-step">
                   <div className="auth-social-row">
-                    <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Google")}>
-                      <GoogleGlyph /> Google
+                    <button type="button" className="auth-social-btn" disabled title="Connexion Google — bientôt disponible">
+                      <GoogleGlyph /> Google <span className="soon-badge">Bientôt</span>
                     </button>
-                    <button type="button" className="auth-social-btn" onClick={() => handleSocialAuth("Apple")}>
-                      <Icon name="apple" size={16} /> Apple
+                    <button type="button" className="auth-social-btn" disabled title="Connexion Apple — bientôt disponible">
+                      <Icon name="apple" size={16} /> Apple <span className="soon-badge">Bientôt</span>
                     </button>
                   </div>
                   <div className="auth-divider">ou avec ton email</div>
@@ -4832,6 +4832,15 @@ const styles = `
     display: block;
     margin: 0 auto 18px;
   }
+  .logo-link {
+    display: inline-block;
+    line-height: 0;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .logo-link:hover {
+    opacity: 0.85;
+  }
   .auth-divider {
     display: flex;
     align-items: center;
@@ -4856,7 +4865,7 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     background: #fff;
     color: #1a1a1a;
     border: 1.5px solid #e7e1f5;
@@ -4869,6 +4878,27 @@ const styles = `
   .auth-social-btn:hover {
     border-color: #cabdf0;
     background: #faf9fd;
+  }
+  .auth-social-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: #fafafa;
+  }
+  .auth-social-btn:disabled:hover {
+    border-color: #e7e1f5;
+    background: #fafafa;
+  }
+  .soon-badge {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #8a80ab;
+    background: #f1ecfa;
+    padding: 2px 6px;
+    border-radius: 999px;
+    margin-left: 2px;
   }
   .split-login {
     width: 100%;
