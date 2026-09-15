@@ -173,6 +173,19 @@ Toutes tes anciennes données (clients, réglages, équipe, personnalisation) so
 5. Une page Google doit s'ouvrir proposant d'ajouter la carte, avec un QR code dessus.
 6. Retourne sur `/commercant`, clique `Activer la caméra` (accepte l'autorisation caméra demandée par le navigateur) et vise le QR de la carte que tu viens de créer. (Tu peux aussi juste taper le prénom du client.) Puis clique `+1 tampon`. La carte doit se mettre à jour avec une notification.
 
+## Notification "+1 point" chez le client : Wallet + email de secours
+
+À chaque point ajouté, deux choses se déclenchent :
+
+1. Une vraie notification Google Wallet (écran de verrouillage, "+1 point !"). C'est fait correctement côté code (API `addMessage`, `messageType: TEXT_AND_NOTIFY`, exactement comme documenté par Google).
+2. **Un email de secours**, envoyé en plus si le client a laissé son email à la création de sa carte — via Resend (`RESEND_API_KEY`, déjà utilisé pour les campagnes).
+
+Pourquoi les deux : Google prévient lui-même dans sa documentation que la notification Wallet n'apparaît que si "l'utilisateur a activé les notifications Wallet" — et en pratique, certains téléphones (Samsung en tête, avec sa gestion de batterie très agressive qui "endort" les applis en arrière-plan) ne la font jamais remonter, même quand tout fonctionne bien côté serveur. Ce n'est pas un bug corrigeable côté Fidélions — c'est une limite du système Android/Wallet. L'email de secours garantit que le client est prévenu quand même.
+
+Si un commerçant te remonte "mon client ne reçoit jamais la notif", fais-lui vérifier sur le téléphone du client (Android) :
+- `Paramètres` → `Notifications` → `Wallet Google` (ou `Google Wallet`) → notifications autorisées.
+- `Paramètres` → `Batterie` → `Wallet Google` → pas classée en "app en veille" / "mise en veille profonde" (le réglage qui pose problème sur Samsung en particulier).
+
 ## Cartes NFC/QR physiques (produit à 20 €, page d'accueil)
 
 La page d'accueil propose une carte physique NFC + QR à 20 € (juste sous la grille de tarifs). Le principe : les cartes sont imprimées **à l'avance, en lot, toutes identiques** — chacune gravée avec un code générique (`tonsite.vercel.app/c/XXXXXX`), pas encore lié à un commerçant. C'est seulement au moment où une carte est vendue qu'on la relie au bon commerçant, en quelques secondes, sans jamais retoucher à l'impression.

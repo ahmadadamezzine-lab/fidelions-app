@@ -27,6 +27,7 @@ import {
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
+import { sendEmail } from "../../lib/email";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -88,12 +89,24 @@ export default async function handler(req, res) {
       try {
         const updated = await addPoints(merchant.id, referredByObjectId, 1);
         if (updated) {
+          const parrainageHeader = "Un ami vous a rejoint !";
+          const parrainageBody = `+1 point grâce à votre parrainage. Vous avez maintenant ${updated.points} point(s).`;
           await setLoyaltyPoints(referredByObjectId, updated.points);
-          await sendWalletMessage(
-            referredByObjectId,
-            "Un ami vous a rejoint !",
-            `+1 point grâce à votre parrainage. Vous avez maintenant ${updated.points} point(s).`
-          );
+          await sendWalletMessage(referredByObjectId, parrainageHeader, parrainageBody);
+          // Même canal de secours par email que pour un point normal
+          // (voir add-stamp.js) — la notif Wallet n'est pas garantie de
+          // s'afficher sur tous les téléphones (Samsung notamment).
+          if (updated.email) {
+            try {
+              await sendEmail({
+                to: updated.email,
+                subject: `${merchant.restaurantName} — ${parrainageHeader}`,
+                text: `${parrainageBody}\n\nVotre carte de fidélité est à jour dans Google Wallet.`,
+              });
+            } catch (err) {
+              console.error("Email de secours (parrainage) non envoyé :", err);
+            }
+          }
         }
       } catch (err) {
         console.error("Erreur bonus parrainage :", err);

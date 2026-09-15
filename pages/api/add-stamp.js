@@ -16,10 +16,12 @@ import {
   recordEmployeeStamp,
   recordEmployeeReview,
   recordEmployeeRevenue,
+  getMerchantById,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
 import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
+import { sendEmail } from "../../lib/email";
 
 // Le bonus (en points) accordé une seule fois par client quand un avis
 // Google est déclaré en caisse (case "Avis Google laissé" côté scan) — pas
@@ -164,6 +166,35 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error("Notification Wallet non envoyée :", err);
       notificationSent = false;
+    }
+
+    // Canal de secours par email : la notification Google Wallet
+    // ci-dessus n'est PAS garantie de s'afficher — Google le dit
+    // lui-même ("l'utilisateur doit avoir activé les notifications
+    // Wallet"), et en pratique certains téléphones (Samsung en tête,
+    // avec sa gestion de batterie très agressive qui "endort" les
+    // notifications des applis en arrière-plan) ne la font jamais
+    // remonter, même quand l'appel ci-dessus réussit côté Google.
+    // Plutôt que de dépendre uniquement d'un canal qu'on ne contrôle
+    // pas, on envoie EN PLUS un email (gratuit, déjà en place pour les
+    // campagnes — voir lib/email.js) si le client en a laissé un à la
+    // création de sa carte. Jamais bloquant : un email raté n'empêche
+    // jamais l'ajout du point, déjà enregistré au-dessus.
+    if (existing.email) {
+      try {
+        const merchant = await getMerchantById(merchantId);
+        const restaurantName = merchant?.restaurantName || "Fidélions";
+        await sendEmail({
+          to: existing.email,
+          subject: `${restaurantName} — ${notifHeader}`,
+          text: `${notifBody}\n\nVotre carte de fidélité est à jour dans Google Wallet.`,
+        });
+      } catch (err) {
+        // Silencieux comme la notif Wallet ci-dessus : un email raté
+        // (RESEND_API_KEY absente, quota dépassé...) ne doit jamais
+        // faire échouer l'ajout du point lui-même.
+        console.error("Email de secours non envoyé :", err);
+      }
     }
 
     return res.status(200).json({ client: updated, rewardReached, notificationSent, delta, reviewBonusApplied });
