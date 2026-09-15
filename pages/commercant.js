@@ -776,6 +776,14 @@ export default function Commercant() {
   const [menuDragOver, setMenuDragOver] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  // Minuteur affiché quand Gemini renvoie "quota dépassé" (plan gratuit,
+  // partagé par tous les commerces Fidélions — voir lib/ai.js) : plutôt
+  // que de laisser le commerçant deviner combien de temps attendre,
+  // `quotaRetryAt` retient l'horodatage où on retente automatiquement, et
+  // le useEffect juste en dessous fait défiler le compte à rebours affiché
+  // à côté du bouton "Analyser avec l'IA".
+  const [quotaRetryAt, setQuotaRetryAt] = useState(null);
+  const [quotaSecondsLeft, setQuotaSecondsLeft] = useState(0);
   const [aiResult, setAiResult] = useState(null); // { items, suggestions, fallback? }
   const menuFileInputRef = useRef(null);
   const [offerText, setOfferText] = useState("");
@@ -1606,7 +1614,20 @@ export default function Commercant() {
       if (!res.ok) throw new Error(data.error || "Erreur");
       setAiResult({ items: data.items || [], suggestions: data.suggestions || [] });
       setMessage({ type: "success", text: "Analyse IA terminée." });
+      setQuotaRetryAt(null);
     } catch (err) {
+      // Quota Gemini gratuit dépassé (partagé par tous les commerces —
+      // voir lib/ai.js) : plutôt que de retomber tout de suite sur
+      // l'analyse basique, on affiche un compte à rebours et on relance
+      // automatiquement la VRAIE IA une fois le quota probablement
+      // reconstitué (60s — les limites gratuites de Google sont par
+      // minute), voir le useEffect juste après cette fonction.
+      if (err.message && err.message.includes("Limite gratuite Gemini")) {
+        setQuotaRetryAt(Date.now() + 60_000);
+        setMessage({ type: "error", text: `${err.message} Nouvel essai automatique dans 60s.` });
+        setAnalyzing(false);
+        return;
+      }
       if (menuText.trim()) {
         const fallback = analyzeMenu(menuText, rewardLabel, rewardThreshold);
         if (fallback.items.length > 0) {
@@ -1624,6 +1645,29 @@ export default function Commercant() {
       setAnalyzing(false);
     }
   }
+
+  // Fait défiler le compte à rebours affiché à côté du bouton "Analyser
+  // avec l'IA" quand analyzeWithAI a détecté un quota Gemini dépassé
+  // (voir plus haut), puis relance l'analyse toute seule à 0 — le
+  // commerçant n'a rien à cliquer, il voit juste "nouvel essai dans Xs".
+  useEffect(() => {
+    if (!quotaRetryAt) {
+      setQuotaSecondsLeft(0);
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((quotaRetryAt - Date.now()) / 1000));
+      setQuotaSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setQuotaRetryAt(null);
+        analyzeWithAI();
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotaRetryAt]);
 
   // Ajoute les suggestions IA au texte de l'offre — le commerçant garde la
   // main pour tout réécrire ensuite, rien n'est figé.
@@ -3653,8 +3697,17 @@ export default function Commercant() {
               <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
                 {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
               </button>
-              <button className="primary icon-heading" type="button" onClick={analyzeWithAI} disabled={analyzing}>
-                {analyzing ? "Analyse en cours…" : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
+              <button
+                className="primary icon-heading"
+                type="button"
+                onClick={analyzeWithAI}
+                disabled={analyzing || quotaSecondsLeft > 0}
+              >
+                {quotaSecondsLeft > 0
+                  ? `Nouvel essai dans ${quotaSecondsLeft}s…`
+                  : analyzing
+                  ? "Analyse en cours…"
+                  : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
               </button>
             </div>
             {aiResult && aiResult.items && aiResult.items.length > 0 && (
