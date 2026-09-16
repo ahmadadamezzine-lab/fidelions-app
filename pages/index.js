@@ -96,9 +96,9 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "1", title: "Crée ton compte", desc: "Nom, logo, mécanique de fidélité : ton espace est prêt en 2 minutes." },
-  { n: "2", title: "Personnalise ta carte", desc: "Couleurs, récompenses, notifications : configure ton programme comme tu le souhaites." },
-  { n: "3", title: "Partage ton lien", desc: "QR code ou lien direct : tes clients ajoutent leur carte et reviennent, automatiquement." },
+  { n: "1", icon: "building", title: "Crée ton compte", desc: "Nom, logo, mécanique de fidélité : ton espace est prêt en 2 minutes." },
+  { n: "2", icon: "palette", title: "Personnalise ta carte", desc: "Couleurs, récompenses, notifications : configure ton programme comme tu le souhaites." },
+  { n: "3", icon: "qr", title: "Partage ton lien", desc: "QR code ou lien direct : tes clients ajoutent leur carte et reviennent, automatiquement." },
 ];
 
 // 3 faits, pas plus : le 4e ("+3 pts pour un avis Google") a été retiré —
@@ -481,7 +481,10 @@ export default function Home() {
           <div className="steps-grid">
             {STEPS.map((s) => (
               <div className="step-card" key={s.n}>
-                <span className="step-number">{s.n}</span>
+                <div className="step-head">
+                  <span className="step-number">{s.n}</span>
+                  <span className="step-icon"><Icon name={s.icon} size={18} /></span>
+                </div>
                 <h3>{s.title}</h3>
                 <p>{s.desc}</p>
               </div>
@@ -1494,6 +1497,12 @@ const styles = `
     transform: translateY(-4px);
     background: rgba(255,255,255,0.1);
   }
+  .step-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
   .step-number {
     display: inline-flex;
     align-items: center;
@@ -1504,7 +1513,16 @@ const styles = `
     background: ${PURPLE};
     color: #fff;
     font-weight: 800;
-    margin-bottom: 14px;
+  }
+  .step-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    color: #cfc6e8;
   }
   .step-card h3 {
     color: #fff;
