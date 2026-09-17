@@ -57,11 +57,21 @@ export default function CGV() {
           aucun engagement de durée sur la formule mensuelle et aucune commission sur les ventes du
           Client, sauf offre commerciale particulière convenue par écrit entre les parties.
         </p>
+        <p>
+          Le Client déclare et garantit que la formule choisie correspond au nombre réel
+          d'établissements (points de vente physiques) utilisant le Service, y compris lorsque ces
+          établissements partagent un même compte, une même carte de fidélité ou un même code QR.
+          Le Prestataire se réserve le droit de facturer rétroactivement la différence tarifaire, à
+          compter de la date où l'écart a commencé, si le nombre réel de points de vente utilisant
+          le Service s'avère supérieur à celui déclaré.
+        </p>
         <p>Le tarif applicable est celui en vigueur au jour de la souscription, rappelé au Client avant tout premier paiement.</p>
         <p>
-          Le paiement s'effectue via un lien de paiement sécurisé communiqué par le Prestataire
-          (aucune donnée bancaire n'est collectée directement par Fidélions), exigible au début de
-          chaque période choisie (mensuelle, semestrielle ou annuelle).
+          Le paiement s'effectue par prélèvement automatique via Stripe, prestataire de paiement
+          sécurisé (aucune donnée bancaire n'est collectée ni conservée directement par Fidélions),
+          au début de chaque période choisie (mensuelle, semestrielle ou annuelle), puis renouvelé
+          automatiquement à chaque échéance jusqu'à résiliation par le Client ou fin de la période
+          d'engagement choisie.
         </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
 

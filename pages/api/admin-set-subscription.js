@@ -1,10 +1,12 @@
 // pages/api/admin-set-subscription.js
 //
-// Bascule manuelle du statut d'abonnement d'un commerce — usage exclusif
-// d'Adam, une fois qu'un paiement Revolut est réellement reçu (→ "actif"),
-// pour couper un compte (→ "suspendu"), ou pour relancer un essai
-// (→ "essai", avec une nouvelle échéance de 14 jours). Protégé par
-// SESSION_SECRET, même principe que /api/admin-reset-password et
+// Bascule MANUELLE du statut d'abonnement d'un commerce — dépannage
+// exclusif d'Adam (paiement reçu autrement que par Stripe, geste
+// commercial, compte à suspendre). Depuis l'intégration Stripe
+// (lib/stripe.js, pages/api/stripe-webhook.js), l'activation normale et le
+// retour au verrou en fin d'engagement se font tout seuls à chaque
+// paiement/échéance — cette route n'est plus le chemin principal. Protégé
+// par SESSION_SECRET, même principe que /api/admin-reset-password et
 // /api/migrate-demo. Voir getSubscriptionAccess dans lib/db.js pour ce que
 // chaque statut entraîne côté commerçant.
 //
@@ -13,7 +15,7 @@
 
 import { getMerchantByEmail, setSubscriptionStatus, saveSubscriptionChoice } from "../../lib/db";
 
-const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
+const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -42,7 +44,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Aucun commerce trouvé avec cet email." });
     }
 
-    // Relancer un essai redonne aussi 14 jours pleins — pratique pour un
+    // Relancer un essai redonne aussi 7 jours pleins — pratique pour un
     // commerçant en cours de négociation à qui on laisse un peu plus de
     // temps, sans avoir à toucher au code.
     if (status === "essai") {

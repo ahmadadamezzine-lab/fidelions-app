@@ -1060,7 +1060,7 @@ const styles = `
     display: block;
     width: fit-content;
     margin: 0 auto 16px;
-    color: #F97316;
+    color: ${PURPLE};
     font-weight: 700;
     font-style: italic;
     font-size: 13.5px;
@@ -1102,7 +1102,7 @@ const styles = `
     border-color: #4a3d70;
   }
   .stat-proof-value {
-    color: #F97316;
+    color: ${PURPLE};
     font-size: 34px;
     font-weight: 800;
   }

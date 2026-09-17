@@ -129,6 +129,25 @@ Pas de connexion Apple pour l'instant : elle demande en plus un compte payant Ap
 
 Tant que l'écran de consentement reste en mode "Test" (étape 5), seuls les comptes Google ajoutés comme "Utilisateurs test" peuvent se connecter — pour l'ouvrir à tout le monde : `Écran de consentement OAuth` → `Publier l'application` → `Confirmer` (aucune revue Google n'est nécessaire pour les scopes utilisés ici : email/profil de base).
 
+## Étape 3sexies — Activer le paiement automatique (Stripe)
+
+Sans cette étape, tout le reste fonctionne normalement : chaque commerce a ses 7 jours d'essai gratuit comme avant, mais le bouton "Activer mon abonnement" (verrou de fin d'essai, bannière d'essai, onglet Abonnement) affiche une erreur claire tant que Stripe n'est pas branché — à faire donc dès que tu veux réellement encaisser un paiement. Une fois fait, PLUS RIEN À FAIRE À LA MAIN ENSUITE : le prélèvement mensuel, l'activation du compte, et le reverrouillage en fin d'engagement ou en cas d'échec de paiement se font tout seuls (voir la section **Abonnement** plus bas).
+
+1. Va sur `stripe.com` → `Créer un compte` (gratuit, aucun abonnement Stripe — Stripe prend juste un petit pourcentage sur chaque paiement encaissé). Renseigne les infos de ton activité ; tu peux commencer les étapes suivantes avant même d'avoir fini l'activation complète du compte (le mode "test" fonctionne tout de suite).
+2. Une fois connecté au Dashboard Stripe, en haut à droite, vérifie que le bouton bascule est bien sur **Mode test** pour l'instant (tu repasseras en mode réel juste avant de lancer la commercialisation, voir l'étape 6 ci-dessous).
+3. Menu de gauche → `Développeurs` → `Clés API`. Copie la valeur sous `Clé secrète` (elle commence par `sk_test_...` en mode test, `sk_live_...` en mode réel) — c'est ta `STRIPE_SECRET_KEY`.
+4. Toujours dans `Développeurs` → `Webhooks` → `+ Ajouter un point de terminaison`.
+   - `URL du point de terminaison` → `https://fidelions-app.vercel.app/api/stripe-webhook` (remplace par ton vrai domaine Vercel si différent).
+   - `Sélectionner les événements` → coche uniquement `checkout.session.completed` et `invoice.paid` → `Ajouter des événements` → `Ajouter un point de terminaison`.
+5. Sur la page du point de terminaison qui vient d'être créé, section `Signing secret`/`Secret de signature` → clique `Révéler` et copie la valeur (elle commence par `whsec_...`) — c'est ta `STRIPE_WEBHOOK_SECRET`.
+6. Sur `vercel.com`, ton projet `fidelions-app` → `Settings` → `Environment Variables`, ajoute :
+   - `STRIPE_SECRET_KEY` → la valeur de l'étape 3
+   - `STRIPE_WEBHOOK_SECRET` → la valeur de l'étape 5
+7. `Deployments` → `⋯` sur le déploiement le plus récent → `Redeploy`.
+8. Teste avec une vraie carte de test Stripe (en mode test, aucune carte réelle n'est débitée) : depuis `/commercant` → onglet **Abonnement** → `Activer mon abonnement`. Sur la page Stripe qui s'ouvre, utilise le numéro `4242 4242 4242 4242`, une date future, n'importe quel CVC et code postal. Le paiement doit repasser sur `/commercant` avec un message "Paiement reçu", et l'onglet Abonnement doit afficher "Actif" après quelques secondes (rafraîchis la page si besoin).
+9. Quand tu es prêt à encaisser réellement : dans Stripe, termine l'activation du compte (`Activer les paiements`, infos bancaires/entreprise demandées par Stripe), repasse le bouton en haut à droite du Dashboard sur **Mode réel** (Live), puis refais les étapes 3 à 7 EN MODE RÉEL (les clés et le webhook du mode test ne fonctionnent pas en mode réel, ce sont deux jeux de clés séparés) — remplace `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` sur Vercel par les nouvelles valeurs `sk_live_...`/`whsec_...`, puis `Redeploy`.
+10. **Obligatoire pour les formules avec engagement (6 mois / 1 an) — active le prélèvement SEPA.** Le site l'impose automatiquement pour ces formules (plus fiable et moins cher qu'une carte sur un engagement long — 0,35 € fixe par prélèvement contre 1,5 % + 0,25 % pour une carte) et laisse le choix carte/SEPA pour la formule mensuelle sans engagement — mais il faut d'abord l'activer côté Stripe, sinon le paiement d'une formule avec engagement échoue. En Mode réel, va sur `Paramètres` (⚙️) → `Moyens de paiement` (`dashboard.stripe.com/settings/payment_methods`) → trouve `Prélèvement SEPA` → active-le. Stripe peut te demander une vérification d'identité supplémentaire à ce moment-là (documents d'entreprise) — suis simplement ce qu'il demande.
+
 ## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
@@ -147,6 +166,7 @@ Tant que l'écran de consentement reste en mode "Test" (étape 5), seuls les com
    - `GOOGLE_REVIEW_URL` → optionnel, laisse vide pour l'instant (n'a plus vraiment de sens en multi-comptes, une future version le déplacera par restaurant)
    - `CARDS_ADMIN_PASSWORD` → un mot de passe de ton choix, pour toi seul — protège `/admin-cartes` (voir la section **Cartes NFC/QR physiques** plus bas)
    - `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` → optionnelles, pour le bouton "Continuer avec Google" (voir **Étape 3quinquies** ci-dessus) — sans elles le bouton affiche juste une erreur claire, rien d'autre ne casse
+   - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` → optionnelles, pour le paiement automatique récurrent (voir **Étape 3sexies** ci-dessus) — sans elles, l'essai gratuit fonctionne normalement mais le bouton "Activer mon abonnement" affiche une erreur claire tant qu'elles ne sont pas ajoutées
    - Retire `MERCHANT_PASSWORD` et `CASHIER_PASSWORD` si elles existent encore — elles ne sont plus utilisées (chaque restaurant a maintenant son propre email + mot de passe, stockés en base).
 7. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
@@ -188,11 +208,13 @@ Si un commerçant te remonte "mon client ne reçoit jamais la notif", fais-lui v
 
 **L'email de secours est aux couleurs du commerce, pas de Fidélions** : le nom affiché comme expéditeur, le logo et la couleur de l'email sont ceux du commerce (onglet "Ma carte"), pas "Fidélions" — c'est le commerce que le client final doit reconnaître dans sa boîte mail. Un commerce qui n'a pas encore mis de logo/couleur reçoit l'identité Fidélions par défaut, le temps qu'il personnalise sa carte. Même logique pour les campagnes envoyées par email (onglet Campagnes).
 
-## Abonnement : essai gratuit de 14 jours, puis verrou automatique
+## Abonnement : essai gratuit de 7 jours, puis verrou automatique
 
-Chaque nouveau compte commence avec un statut `essai` et 14 jours pleins d'accès complet. Passé ce délai, si tu n'as pas activé l'abonnement, l'ajout de points et la création de nouvelles cartes se bloquent tout seuls (le commerçant voit un écran "Active ton abonnement" à la place du tableau de bord) — sans que tu aies rien à faire. Les comptes créés avant cette fonctionnalité ne sont pas concernés (ils restent `actif` par défaut, pour ne couper l'accès à personne du jour au lendemain).
+Chaque nouveau compte commence avec un statut `essai` et 7 jours pleins d'accès complet. Passé ce délai, si tu n'as pas activé l'abonnement, l'ajout de points et la création de nouvelles cartes se bloquent tout seuls (le commerçant voit un écran "Active ton abonnement" à la place du tableau de bord) — sans que tu aies rien à faire. Les comptes créés avant cette fonctionnalité ne sont pas concernés (ils restent `actif` par défaut, pour ne couper l'accès à personne du jour au lendemain).
 
-Pour activer un commerce une fois son paiement Revolut reçu (ou pour couper/relancer un compte) :
+**Depuis l'intégration Stripe (voir Étape 3sexies plus haut), l'activation ET le reverrouillage en fin d'engagement ou d'échec de paiement se font entièrement tout seuls, sans que tu aies quoi que ce soit à faire** : le commerçant paie sur une page Stripe (bouton "Activer mon abonnement", depuis l'onglet Abonnement ou l'écran de fin d'essai), Stripe prélève ensuite chaque mois automatiquement, et il peut résilier lui-même quand il veut depuis son espace Stripe ("Gérer mon abonnement / résilier"). Il peut aussi passer lui-même à une formule supérieure (plus de points de vente) depuis l'onglet Abonnement — le complément est prélevé tout de suite au prorata, et le tarif normal de la nouvelle formule s'applique automatiquement dès le mois suivant. Rétrograder n'est volontairement PAS en libre-service (pour éviter qu'un commerçant fasse ça par erreur) — ça reste une demande à te faire directement, via les boutons WhatsApp/email de l'onglet Abonnement.
+
+La commande manuelle ci-dessous reste utile pour un cas particulier — paiement reçu autrement que par Stripe, geste commercial, ou compte à suspendre :
 
 ```
 tonsite.vercel.app/api/admin-set-subscription?secret=TA_VALEUR_SESSION_SECRET&email=contact@commerce.fr&status=actif

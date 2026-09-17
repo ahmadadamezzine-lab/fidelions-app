@@ -179,12 +179,13 @@ export default async function handler(req, res) {
   // N'entraîne aucun prélèvement automatique : le paiement se fait via un
   // lien externe (voir REVOLUT_PAYMENT_LINK côté /commercant).
   //
-  // Statut "essai" avec une échéance à 14 jours : le compte fonctionne
+  // Statut "essai" avec une échéance à 7 jours : le compte fonctionne
   // normalement pendant l'essai, puis se bloque tout seul (voir
-  // getSubscriptionAccess dans lib/db.js) si Adam ne l'a pas basculé sur
-  // "actif" entre-temps (une fois le paiement reçu, via
-  // /api/admin-set-subscription).
-  const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
+  // getSubscriptionAccess dans lib/db.js) si le paiement Stripe n'a pas
+  // basculé le compte sur "actif" entre-temps (voir
+  // pages/api/stripe-webhook.js — entièrement automatique, sans qu'Adam
+  // ait besoin d'intervenir).
+  const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
   try {
     await saveSubscriptionChoice(merchant.id, {
       posCount,

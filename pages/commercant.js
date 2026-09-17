@@ -12,15 +12,10 @@ const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 const CONTACT_WHATSAPP_ASSOCIE = "33749749829"; // Yassine
 
-// Lien de paiement hébergé (ex : lien de paiement Revolut Business) vers
-// lequel renvoie le bouton "Activer mon abonnement" de l'étape tarification
-// et de l'onglet Abonnement. Volontairement vide tant qu'Adam n'a pas
-// fourni son vrai lien : en attendant, le bouton ouvre WhatsApp avec un
-// message pré-rempli plutôt que de faire croire à un paiement possible —
-// aucune donnée bancaire n'est jamais collectée ici (voir REVOLUT_PAYMENT_LINK
-// plus bas). Pour activer les vrais paiements, il suffit de coller le lien
-// Revolut ici.
-const REVOLUT_PAYMENT_LINK = "";
+// Le paiement (activation, changement de carte, résiliation) passe
+// désormais par Stripe (voir handleStartCheckout / handleOpenBillingPortal
+// plus bas et lib/stripe.js) — prélèvement automatique chaque mois, sans
+// lien externe à coller ni geste manuel d'Adam à chaque paiement.
 
 // Tarification, couleurs de carte : voir lib/pricing.js (partagé avec la
 // page d'accueil marketing, section "Tarifs").
@@ -710,6 +705,28 @@ export default function Commercant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query.mode, router.query.oauth_token, router.query.oauth_error, router.query.oauth_email]);
 
+  // Retour de la page de paiement Stripe (voir
+  // pages/api/create-checkout-session.js) : le webhook Stripe
+  // (pages/api/stripe-webhook.js) active le compte automatiquement, en
+  // général en quelques secondes — pas besoin d'attendre ici, l'écran de
+  // paiement disparaît de lui-même dès que /api/clients renvoie
+  // `subscription.allowed: true` (au prochain chargement de la page).
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { checkout } = router.query;
+    if (checkout === "success") {
+      setMessage({
+        type: "success",
+        text: "Paiement reçu ! Ton abonnement s'active automatiquement, ça peut prendre quelques secondes — recharge la page si l'accès n'est pas encore débloqué.",
+      });
+      router.replace("/commercant", undefined, { shallow: true });
+    } else if (checkout === "cancel") {
+      setMessage({ type: "error", text: "Paiement annulé — ton abonnement n'a pas été activé." });
+      router.replace("/commercant", undefined, { shallow: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.checkout]);
+
   // --- Inscription : assistant en 6 étapes (voir handleSignupSubmit) ---
   // 1. Nom + logo · 2. Mécanique de fidélité + couleur de carte (facultatif)
   // · 3. Type d'activité + fiche Google Business Profile (facultatif) ·
@@ -839,6 +856,9 @@ export default function Commercant() {
   const [loadingEstablishment, setLoadingEstablishment] = useState(false);
   const [subscriptionInfo, setSubscriptionInfo] = useState(null); // { posCount, billingCycle }
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false); // redirection Stripe Checkout en cours
+  const [portalLoading, setPortalLoading] = useState(false); // redirection Billing Portal en cours
+  const [upgradingTierId, setUpgradingTierId] = useState(null); // id de la formule en cours de mise à niveau, sinon null
   const [savingEstablishment, setSavingEstablishment] = useState(false);
   const [estBusinessType, setEstBusinessType] = useState("");
   const [estBusinessTypeOther, setEstBusinessTypeOther] = useState("");
@@ -1767,6 +1787,91 @@ export default function Commercant() {
       // silencieux — l'onglet réessaiera à la prochaine ouverture
     } finally {
       setLoadingSubscription(false);
+    }
+  }
+
+  // Démarre le paiement Stripe (prélèvement automatique récurrent — voir
+  // pages/api/create-checkout-session.js) et redirige vers la page de
+  // paiement hébergée par Stripe. Utilisé depuis l'étape 5 de l'inscription,
+  // l'écran de verrou d'abonnement, la bannière d'essai et l'onglet
+  // Abonnement.
+  async function handleStartCheckout(posCount, billingCycle) {
+    setCheckoutLoading(true);
+    setAuthError("");
+    setMessage(null);
+    try {
+      // Appelé sans arguments depuis le verrou d'abonnement / la bannière
+      // d'essai (le compte existe déjà) : on reprend la formule déjà
+      // choisie à l'inscription plutôt que d'en redemander une.
+      let finalPosCount = posCount;
+      let finalBillingCycle = billingCycle;
+      if (!finalPosCount || !finalBillingCycle) {
+        const current =
+          subscriptionInfo ||
+          (await fetch("/api/subscription", { headers: { "x-merchant-password": password } }).then((r) => r.json()));
+        finalPosCount = finalPosCount || current.posCount || "1";
+        finalBillingCycle = finalBillingCycle || current.billingCycle || "mensuel";
+      }
+
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ posCount: finalPosCount, billingCycle: finalBillingCycle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Impossible de démarrer le paiement.");
+      window.location.href = data.url;
+    } catch (err) {
+      const text = err.message || "Impossible de démarrer le paiement.";
+      setAuthError(text);
+      setMessage({ type: "error", text });
+      setCheckoutLoading(false);
+    }
+  }
+
+  // Ouvre le Billing Portal Stripe (factures, moyen de paiement, et surtout
+  // résiliation en libre-service — voir pages/api/create-portal-session.js).
+  async function handleOpenBillingPortal() {
+    setPortalLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/create-portal-session", {
+        method: "POST",
+        headers: { "x-merchant-password": password },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Impossible d'ouvrir la gestion de l'abonnement.");
+      window.location.href = data.url;
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Impossible d'ouvrir la gestion de l'abonnement." });
+      setPortalLoading(false);
+    }
+  }
+
+  // Passage à une formule supérieure (jamais inférieure — rétrograder reste
+  // une demande à faire à Adam, voir pages/api/upgrade-subscription.js) :
+  // le complément est facturé tout de suite au prorata, et le prélèvement
+  // mensuel suivant reprend automatiquement le nouveau tarif.
+  async function handleUpgradeTier(tier) {
+    if (!window.confirm(`Passer à la formule "${tier.label}" ? Le complément au prorata sera prélevé tout de suite.`)) {
+      return;
+    }
+    setUpgradingTierId(tier.id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/upgrade-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ posCount: tier.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Impossible de changer de formule.");
+      setMessage({ type: "success", text: `Formule mise à niveau : ${tier.label}.` });
+      loadSubscription();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Impossible de changer de formule." });
+    } finally {
+      setUpgradingTierId(null);
     }
   }
 
@@ -2823,24 +2928,9 @@ export default function Commercant() {
                   </div>
                   <p className="subtitle" style={{ fontSize: 12.5 }}>
                     {selectedTierPrice != null
-                      ? "Le paiement se fait via un lien sécurisé Revolut — carte bancaire, Apple Pay et Google Pay sont proposés automatiquement sur cette page, aucune donnée bancaire n'est jamais saisie sur Fidélions."
+                      ? "Rien à payer maintenant : ton essai gratuit de 7 jours démarre dès la création de ton compte, avec toutes les fonctionnalités débloquées. Tu pourras activer le paiement à tout moment depuis l'onglet Abonnement, sur une page sécurisée Stripe — par carte pour la formule mensuelle, ou par prélèvement SEPA pour une formule avec engagement (6 mois / 1 an), prélevé automatiquement chaque mois."
                       : "Cette formule est sur devis — contacte-nous pour finaliser le tarif avant d'activer l'abonnement."}
                   </p>
-                  <a
-                    className="primary pay-btn"
-                    href={
-                      REVOLUT_PAYMENT_LINK ||
-                      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                        `Bonjour, je veux activer mon abonnement Fidélions (${selectedPricingTier.label}, ${
-                          BILLING_CYCLES.find((c) => c.id === signupBillingCycle).label
-                        }). Merci de m'envoyer le lien de paiement.`
-                      )}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {REVOLUT_PAYMENT_LINK ? "Payer et activer mon abonnement" : "Recevoir le lien de paiement"}
-                  </a>
                   {authError && <p className="error">{authError}</p>}
                   <div className="signup-nav-row">
                     <button type="button" className="secondary" onClick={goSignupStep4Back}>
@@ -2921,11 +3011,11 @@ export default function Commercant() {
   // connecté, puisque c'est le même compte commerçant qui est concerné.
   if (subscription && subscription.allowed === false) {
     const isSuspended = subscription.status === "suspendu";
-    const payHref =
-      REVOLUT_PAYMENT_LINK ||
-      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-        `Bonjour, mon essai Fidélions est terminé (compte ${restaurantName || ""}) — je veux activer mon abonnement.`
-      )}`;
+    const contactHref = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+      isSuspended
+        ? `Bonjour, mon compte Fidélions (${restaurantName || ""}) est suspendu — je veux le réactiver.`
+        : `Bonjour, mon essai Fidélions est terminé (compte ${restaurantName || ""}) — je veux activer mon abonnement.`
+    )}`;
     return (
       <div className="auth-page">
         <div className="card">
@@ -2934,20 +3024,39 @@ export default function Commercant() {
           <p className="subtitle">
             {isSuspended
               ? "L'accès de ce commerce à Fidélions a été suspendu. Contacte-nous pour le réactiver."
-              : "Les 14 jours d'essai gratuit sont passés. Active ton abonnement pour continuer à ajouter des points et créer de nouvelles cartes — tes clients existants et leurs points sont conservés, rien n'est perdu."}
+              : "Les 7 jours d'essai gratuit sont passés. Active ton abonnement pour continuer à ajouter des points et créer de nouvelles cartes — tes clients existants et leurs points sont conservés, rien n'est perdu."}
           </p>
-          <a
-            className="primary pay-btn"
-            href={payHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "block", marginTop: 20 }}
-          >
-            {REVOLUT_PAYMENT_LINK ? "Activer mon abonnement" : "Recevoir le lien de paiement"}
-          </a>
-          <p className="subtitle" style={{ fontSize: 12, marginTop: 14 }}>
-            Déjà payé ? Écris-nous à {CONTACT_EMAIL} pour qu'on active ton compte.
-          </p>
+          {isSuspended ? (
+            <a
+              className="primary pay-btn"
+              href={contactHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", marginTop: 20 }}
+            >
+              Nous contacter
+            </a>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="primary pay-btn"
+                style={{ display: "block", width: "100%", marginTop: 20 }}
+                onClick={() => handleStartCheckout()}
+                disabled={checkoutLoading}
+              >
+                {checkoutLoading ? "Redirection vers le paiement…" : "Activer mon abonnement"}
+              </button>
+              {authError && <p className="error">{authError}</p>}
+              <p className="subtitle" style={{ fontSize: 12, marginTop: 14 }}>
+                Formule sur devis, ou un souci pour payer ?{" "}
+                <a href={contactHref} target="_blank" rel="noopener noreferrer">
+                  Écris-nous
+                </a>
+                .
+              </p>
+            </>
+          )}
           <button type="button" className="secondary" style={{ marginTop: 10 }} onClick={handleLogout}>
             Se déconnecter
           </button>
@@ -2970,18 +3079,9 @@ export default function Commercant() {
               Essai gratuit : encore {subscription.daysLeft} jour{subscription.daysLeft > 1 ? "s" : ""} avant
               d'activer ton abonnement.
             </span>
-            <a
-              href={
-                REVOLUT_PAYMENT_LINK ||
-                `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                  `Bonjour, je veux activer mon abonnement Fidélions (compte ${restaurantName || ""}).`
-                )}`
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Activer maintenant
-            </a>
+            <button type="button" className="link-btn" onClick={() => handleStartCheckout()} disabled={checkoutLoading}>
+              {checkoutLoading ? "Redirection…" : "Activer maintenant"}
+            </button>
           </div>
         )}
 
@@ -4225,18 +4325,114 @@ export default function Commercant() {
                     <span>Facturation</span>
                     <strong>{price != null ? `${price} €${cycleLabel.suffix}` : "Sur devis"}</strong>
                   </div>
+                  <div className="recap-row">
+                    <span>Statut</span>
+                    <strong>
+                      {subscriptionInfo?.status === "actif"
+                        ? "Actif"
+                        : subscriptionInfo?.status === "suspendu"
+                        ? "Suspendu"
+                        : "Essai gratuit"}
+                    </strong>
+                  </div>
                 </div>
               );
             })()}
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Sans engagement de durée sur la formule mensuelle — résiliable à tout moment. Le
-              règlement se fait via un lien de paiement sécurisé, aucune donnée bancaire n'est
-              collectée directement par Fidélions. Pour changer de formule ou recevoir ton lien de
-              paiement, contacte-nous :
+
+            {subscriptionInfo?.stripeCustomerId ? (
+              <>
+                <p className="subtitle" style={{ marginBottom: 12 }}>
+                  Le prélèvement se fait tout seul chaque mois. Carte enregistrée, factures et
+                  résiliation se gèrent directement depuis l'espace sécurisé Stripe — tu peux
+                  t'arrêter quand tu veux, ça s'applique automatiquement à la bonne échéance.
+                </p>
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ width: "auto" }}
+                  onClick={handleOpenBillingPortal}
+                  disabled={portalLoading}
+                >
+                  {portalLoading ? "Ouverture…" : "Gérer mon abonnement / résilier"}
+                </button>
+
+                {(() => {
+                  const currentIndex = PRICING_TIERS.findIndex((t) => t.id === (subscriptionInfo?.posCount || "1"));
+                  const higherTiers = PRICING_TIERS.filter((_, i) => i > currentIndex);
+                  if (higherTiers.length === 0) return null;
+                  return (
+                    <div style={{ marginTop: 18 }}>
+                      <p className="subtitle" style={{ marginBottom: 8 }}>
+                        Plus de points de vente ? Passe à une formule supérieure quand tu veux — le
+                        complément est prélevé tout de suite au prorata, puis le tarif normal
+                        s'applique dès le mois prochain.
+                      </p>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        {higherTiers.map((t) => {
+                          const priceT = getTierPrice(t, subscriptionInfo?.billingCycle || "mensuel");
+                          const isQuote = priceT == null;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className="secondary"
+                              style={{ width: "auto" }}
+                              disabled={upgradingTierId === t.id}
+                              onClick={() =>
+                                isQuote
+                                  ? window.open(
+                                      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                                        `Bonjour, je veux passer à la formule ${t.label} pour mon abonnement Fidélions.`
+                                      )}`,
+                                      "_blank"
+                                    )
+                                  : handleUpgradeTier(t)
+                              }
+                            >
+                              {upgradingTierId === t.id
+                                ? "Mise à niveau…"
+                                : `${t.label}${priceT != null ? ` — ${priceT} €/mois` : " (sur devis)"}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                <p className="subtitle" style={{ marginBottom: 12 }}>
+                  {subscriptionInfo?.status === "suspendu"
+                    ? "L'accès de ce compte est suspendu — contacte-nous pour le réactiver."
+                    : "Aucun paiement en cours pour le moment. Active ton abonnement quand tu veux, sur une page Stripe sécurisée — par carte pour la formule mensuelle, ou par prélèvement SEPA pour une formule avec engagement (6 mois / 1 an), prélevé automatiquement chaque mois ensuite."}
+                </p>
+                {subscriptionInfo?.status !== "suspendu" && (
+                  <button
+                    type="button"
+                    className="primary"
+                    style={{ width: "auto" }}
+                    onClick={() => handleStartCheckout()}
+                    disabled={checkoutLoading}
+                  >
+                    {checkoutLoading ? "Redirection…" : "Activer mon abonnement"}
+                  </button>
+                )}
+              </>
+            )}
+            {message && activeTab === "abonnement" && (
+              <p className={message.type === "error" ? "error" : "subtitle"} style={{ marginTop: 10 }}>
+                {message.text}
+              </p>
+            )}
+
+            <p className="subtitle" style={{ margin: "18px 0 8px" }}>
+              Pour changer de formule (nombre de points de vente) ou toute autre question sur ton
+              abonnement, contacte-nous :
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <a
-                className="primary icon-heading"
+                className="secondary icon-heading"
                 style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
                 href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
                   "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
@@ -5356,11 +5552,16 @@ const styles = `
     gap: 12px;
     flex-wrap: wrap;
   }
-  .banner.warning a {
+  .banner.warning a,
+  .banner.warning .link-btn {
     color: #8a5a00;
     text-decoration: underline;
     font-weight: 700;
     white-space: nowrap;
+  }
+  .banner.warning .link-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .auth-logo {
     width: 108px;
