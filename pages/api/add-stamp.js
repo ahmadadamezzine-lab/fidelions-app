@@ -17,6 +17,8 @@ import {
   recordEmployeeReview,
   recordEmployeeRevenue,
   getMerchantById,
+  getSubscriptionAccess,
+  getBranding,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
@@ -50,6 +52,23 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Accès refusé." });
   }
   const merchantId = auth.merchantId;
+
+  // Verrou d'abonnement : un compte dont l'essai est expiré (ou suspendu)
+  // ne peut plus faire vivre son programme de fidélité, même via l'écran
+  // de scan employé — voir getSubscriptionAccess dans lib/db.js. On vérifie
+  // ici, pas seulement à la connexion, car un employé peut rester connecté
+  // sur l'appareil de caisse bien après l'expiration de l'essai.
+  const access = await getSubscriptionAccess(merchantId);
+  if (!access.allowed) {
+    return res.status(402).json({
+      error:
+        access.status === "suspendu"
+          ? "Abonnement suspendu — contacte Fidélions pour le réactiver."
+          : "Ton essai gratuit est terminé — active ton abonnement pour continuer à ajouter des points.",
+      subscriptionBlocked: true,
+      subscriptionStatus: access.status,
+    });
+  }
 
   try {
     const { objectId, amount, reviewGiven } = req.body || {};
@@ -182,12 +201,15 @@ export default async function handler(req, res) {
     // jamais l'ajout du point, déjà enregistré au-dessus.
     if (existing.email) {
       try {
-        const merchant = await getMerchantById(merchantId);
+        const [merchant, branding] = await Promise.all([getMerchantById(merchantId), getBranding(merchantId)]);
         const restaurantName = merchant?.restaurantName || "Fidélions";
         await sendEmail({
           to: existing.email,
           subject: `${restaurantName} — ${notifHeader}`,
           text: `${notifBody}\n\nVotre carte de fidélité est à jour dans Google Wallet.`,
+          fromName: restaurantName,
+          logoUrl: branding?.logoUrl,
+          accentColor: branding?.hexColor,
         });
       } catch (err) {
         // Silencieux comme la notif Wallet ci-dessus : un email raté

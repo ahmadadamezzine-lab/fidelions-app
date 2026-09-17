@@ -111,12 +111,15 @@ const PRODUCT_FACTS = [
   { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
 
-// 3 statistiques vérifiées avant publication (voir le commentaire en tête
+// 4 statistiques vérifiées avant publication (voir le commentaire en tête
 // de fichier) — sur la fidélisation client en général, pas sur Fidélions.
 // Les deux stats SumUp (67% reviennent dans la même enseigne / 68% dépensent
 // plus que prévu près d'une récompense) sont volontairement regroupées en
 // une seule ("près de 70%") plutôt que présentées comme deux chiffres à
-// part — elles viennent de la même étude et racontent la même idée.
+// part — elles viennent de la même étude et racontent la même idée. Le
+// principe de Pareto (4e carte) est un principe économique général du
+// domaine public (Vilfredo Pareto, 19e siècle), pas le chiffre propre
+// d'une étude ou d'un concurrent — safe à citer tel quel.
 const STATS_PROOF = [
   {
     value: "5 à 25x",
@@ -132,6 +135,11 @@ const STATS_PROOF = [
     value: "Près de 70%",
     label: "des clients reviennent plus souvent et dépensent plus que prévu grâce à un programme de fidélité",
     source: "SumUp, étude France 2024",
+  },
+  {
+    value: "80/20",
+    label: "vos 20% de clients les plus fidèles pèsent souvent 80% de votre chiffre d'affaires",
+    source: "Principe de Pareto",
   },
 ];
 
@@ -494,9 +502,12 @@ export default function Home() {
       </section>
 
       <section className="stats-proof">
+        <svg className="stats-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0,0 L1440,0 L1440,40 C1200,90 960,50 720,25 C480,0 240,80 0,30 Z" fill="#f5f4fb" />
+        </svg>
         <div className="section-inner">
-          <span className="eyebrow stats-proof-eyebrow">Pourquoi investir dans la fidélité</span>
-          <h2 className="stats-proof-title">Vos clients fidèles rapportent plus que vous ne le pensez</h2>
+          <span className="stats-proof-eyebrow">Pas une intuition, des chiffres</span>
+          <h2 className="stats-proof-title">La fidélité fait toute la différence</h2>
           <p className="stats-proof-sub">
             Ce ne sont pas nos chiffres : ce sont ceux de la recherche sur la fidélisation client.
           </p>
@@ -1033,16 +1044,33 @@ const styles = `
 
   .stats-proof {
     background: #14101f;
-    padding: 72px 0;
+    padding: 0 0 72px;
+    position: relative;
+  }
+  .stats-wave {
+    display: block;
+    width: 100%;
+    height: 64px;
+    margin-bottom: -1px;
+  }
+  .stats-proof .section-inner {
+    padding-top: 48px;
   }
   .stats-proof-eyebrow {
     display: block;
     width: fit-content;
     margin: 0 auto 16px;
+    color: #F97316;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 13.5px;
   }
   .stats-proof-title {
     color: #fff;
-    font-size: 26px;
+    font-size: 34px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
     text-align: center;
     margin: 0 0 12px;
   }
@@ -1055,7 +1083,7 @@ const styles = `
   }
   .stats-proof-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 18px;
   }
   .stat-proof-card {
@@ -1067,10 +1095,15 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .stat-proof-card:hover {
+    transform: translateY(-4px);
+    border-color: #4a3d70;
   }
   .stat-proof-value {
-    color: #fff;
-    font-size: 30px;
+    color: #F97316;
+    font-size: 34px;
     font-weight: 800;
   }
   .stat-proof-label {

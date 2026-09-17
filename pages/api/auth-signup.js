@@ -20,10 +20,12 @@ import {
   saveEstablishmentInfo,
   updateLoyaltySettings,
   saveSubscriptionChoice,
+  checkRateLimit,
 } from "../../lib/db";
 import { insertLoyaltyClass, describeWalletError } from "../../lib/walletObjects";
 import { signSession } from "../../lib/session";
 import { uploadBrandingImage } from "../../lib/blob";
+import { getClientIp } from "../../lib/auth";
 
 // Le logo optionnel envoyé à l'étape 1 de l'inscription voyage en base64
 // dans le corps de la requête — la limite par défaut de Next (1 Mo) est
@@ -46,6 +48,16 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
+  }
+
+  // Protection anti-abus : sans limite, un script pourrait créer des
+  // centaines de faux comptes commerçants en boucle. 5 créations/heure par
+  // IP passe très largement une inscription normale (même après plusieurs
+  // essais) et bloque un script.
+  const ip = getClientIp(req);
+  const withinLimit = await checkRateLimit(`auth-signup:${ip}`, 5, 3600).catch(() => true);
+  if (!withinLimit) {
+    return res.status(429).json({ error: "Trop de tentatives d'inscription depuis cette adresse — réessaie plus tard." });
   }
 
   const issuerId = (process.env.GOOGLE_WALLET_ISSUER_ID || "").trim();
@@ -166,8 +178,20 @@ export default async function handler(req, res) {
   // cycle de facturation) — affichée ensuite dans l'onglet Abonnement.
   // N'entraîne aucun prélèvement automatique : le paiement se fait via un
   // lien externe (voir REVOLUT_PAYMENT_LINK côté /commercant).
+  //
+  // Statut "essai" avec une échéance à 14 jours : le compte fonctionne
+  // normalement pendant l'essai, puis se bloque tout seul (voir
+  // getSubscriptionAccess dans lib/db.js) si Adam ne l'a pas basculé sur
+  // "actif" entre-temps (une fois le paiement reçu, via
+  // /api/admin-set-subscription).
+  const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
   try {
-    await saveSubscriptionChoice(merchant.id, { posCount, billingCycle });
+    await saveSubscriptionChoice(merchant.id, {
+      posCount,
+      billingCycle,
+      status: "essai",
+      trialEndsAt: Date.now() + TRIAL_DURATION_MS,
+    });
   } catch (err) {
     console.error("Formule tarifaire initiale non enregistrée :", err);
   }

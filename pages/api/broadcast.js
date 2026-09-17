@@ -5,7 +5,7 @@
 // choisit. C'est l'équivalent de la fonction "notification push à tous
 // les clients" montrée dans la vidéo Fidelix.
 
-import { listClients } from "../../lib/db";
+import { listClients, getMerchantById, getBranding } from "../../lib/db";
 import { sendWalletMessage } from "../../lib/walletObjects";
 import { sendEmail } from "../../lib/email";
 import { getRoleAsync, hasPermission } from "../../lib/auth";
@@ -49,6 +49,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Aucun client à qui envoyer la campagne pour le moment." });
     }
 
+    // Le client final doit reconnaître SON commerce dans sa boîte mail, pas
+    // "Fidélions" (voir lib/email.js) — récupéré une seule fois, pas à
+    // chaque email de la campagne.
+    const [merchant, branding] = await Promise.all([
+      getMerchantById(auth.merchantId),
+      getBranding(auth.merchantId),
+    ]);
+    const restaurantName = merchant?.restaurantName || "Fidélions";
+
     // On envoie par petits groupes pour ne pas saturer les API d'un coup
     // si la base de clients grossit un jour.
     const CHUNK_SIZE = 8;
@@ -74,7 +83,14 @@ export default async function handler(req, res) {
       if (sendMail) {
         for (const c of chunk.filter((c) => c.email)) {
           tasks.push(
-            sendEmail({ to: c.email, subject: cleanHeader, text: cleanBody })
+            sendEmail({
+              to: c.email,
+              subject: cleanHeader,
+              text: cleanBody,
+              fromName: restaurantName,
+              logoUrl: branding?.logoUrl,
+              accentColor: branding?.hexColor,
+            })
               .then(() => { emailSent++; })
               .catch(() => { emailFailed++; })
           );

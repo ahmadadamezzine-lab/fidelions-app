@@ -24,15 +24,29 @@ import {
   getMerchantById,
   getEstablishmentInfo,
   recordEmployeeCardCreated,
+  getSubscriptionAccess,
+  checkRateLimit,
+  getBranding,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
-import { getRoleAsync } from "../../lib/auth";
+import { getRoleAsync, getClientIp } from "../../lib/auth";
 import { sendEmail } from "../../lib/email";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Méthode non autorisée" });
+  }
+
+  // Protection anti-abus : cet endpoint est public (page /r/[slug], sans
+  // authentification) — sans limite, un script pourrait créer des
+  // milliers de fausses cartes. 20 créations/minute par IP est largement
+  // suffisant pour un usage normal (client qui s'inscrit, employé qui
+  // enregistre un client en caisse) et bloque un script en boucle.
+  const ip = getClientIp(req);
+  const withinLimit = await checkRateLimit(`create-pass:${ip}`, 20, 60).catch(() => true);
+  if (!withinLimit) {
+    return res.status(429).json({ error: "Trop de tentatives — réessaie dans une minute." });
   }
 
   try {
@@ -46,6 +60,22 @@ export default async function handler(req, res) {
     const merchant = auth?.merchantId ? await getMerchantById(auth.merchantId) : await getMerchantBySlug(slug);
     if (!merchant || !merchant.walletClassId) {
       return res.status(404).json({ error: "Commerce introuvable." });
+    }
+
+    // Verrou d'abonnement (voir add-stamp.js pour le même mécanisme) : un
+    // commerce dont l'essai est expiré ne peut plus créer de nouvelles
+    // cartes, que ce soit depuis sa page publique /r/[slug] ou depuis
+    // l'écran de scan employé.
+    const access = await getSubscriptionAccess(merchant.id);
+    if (!access.allowed) {
+      return res.status(402).json({
+        error:
+          access.status === "suspendu"
+            ? "Ce commerce a un abonnement Fidélions suspendu — impossible de créer une carte pour le moment."
+            : "L'essai gratuit de ce commerce est terminé — impossible de créer une nouvelle carte tant que l'abonnement n'est pas activé.",
+        subscriptionBlocked: true,
+        subscriptionStatus: access.status,
+      });
     }
 
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;
@@ -98,10 +128,14 @@ export default async function handler(req, res) {
           // s'afficher sur tous les téléphones (Samsung notamment).
           if (updated.email) {
             try {
+              const branding = await getBranding(merchant.id);
               await sendEmail({
                 to: updated.email,
                 subject: `${merchant.restaurantName} — ${parrainageHeader}`,
                 text: `${parrainageBody}\n\nVotre carte de fidélité est à jour dans Google Wallet.`,
+                fromName: merchant.restaurantName,
+                logoUrl: branding?.logoUrl,
+                accentColor: branding?.hexColor,
               });
             } catch (err) {
               console.error("Email de secours (parrainage) non envoyé :", err);

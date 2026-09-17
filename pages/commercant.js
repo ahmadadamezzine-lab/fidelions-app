@@ -654,6 +654,12 @@ export default function Commercant() {
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [checking, setChecking] = useState(false);
+  // Statut d'abonnement renvoyé par /api/clients à chaque connexion (voir
+  // getSubscriptionAccess dans lib/db.js) — { allowed, status, trialEndsAt,
+  // daysLeft }. Quand allowed est faux, un écran de paiement bloquant
+  // remplace tout le tableau de bord (voir plus bas, juste après l'écran
+  // de connexion/inscription).
+  const [subscription, setSubscription] = useState(null);
 
   // --- Écran de connexion / inscription (avant authentification) ---
   // "choice" est l'écran de départ : on demande d'abord de choisir entre
@@ -989,6 +995,7 @@ export default function Commercant() {
       if (data.rewardLabel) setRewardLabel(data.rewardLabel);
       if (data.restaurantName) setRestaurantName(data.restaurantName);
       if (data.slug) setMerchantSlug(data.slug);
+      setSubscription(data.subscription || null);
       setAuthed(true);
       localStorage.setItem(PW_STORAGE_KEY, pw);
 
@@ -1288,6 +1295,7 @@ export default function Commercant() {
   // initial plutôt que de rouvrir directement le formulaire de connexion.
   function handleLogout() {
     setAuthed(false);
+    setSubscription(null);
     setPassword("");
     setRole(null);
     setAuthMode("choice");
@@ -2906,12 +2914,76 @@ export default function Commercant() {
     );
   }
 
+  // Verrou d'abonnement (voir getSubscriptionAccess dans lib/db.js,
+  // renvoyé par /api/clients à chaque connexion) : remplace tout le
+  // tableau de bord par un écran de paiement bloquant tant que le
+  // commerce n'est pas "actif" — s'applique au patron comme à un employé
+  // connecté, puisque c'est le même compte commerçant qui est concerné.
+  if (subscription && subscription.allowed === false) {
+    const isSuspended = subscription.status === "suspendu";
+    const payHref =
+      REVOLUT_PAYMENT_LINK ||
+      `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+        `Bonjour, mon essai Fidélions est terminé (compte ${restaurantName || ""}) — je veux activer mon abonnement.`
+      )}`;
+    return (
+      <div className="auth-page">
+        <div className="card">
+          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+          <h2>{isSuspended ? "Abonnement suspendu" : "Ton essai gratuit est terminé"}</h2>
+          <p className="subtitle">
+            {isSuspended
+              ? "L'accès de ce commerce à Fidélions a été suspendu. Contacte-nous pour le réactiver."
+              : "Les 14 jours d'essai gratuit sont passés. Active ton abonnement pour continuer à ajouter des points et créer de nouvelles cartes — tes clients existants et leurs points sont conservés, rien n'est perdu."}
+          </p>
+          <a
+            className="primary pay-btn"
+            href={payHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "block", marginTop: 20 }}
+          >
+            {REVOLUT_PAYMENT_LINK ? "Activer mon abonnement" : "Recevoir le lien de paiement"}
+          </a>
+          <p className="subtitle" style={{ fontSize: 12, marginTop: 14 }}>
+            Déjà payé ? Écris-nous à {CONTACT_EMAIL} pour qu'on active ton compte.
+          </p>
+          <button type="button" className="secondary" style={{ marginTop: 10 }} onClick={handleLogout}>
+            Se déconnecter
+          </button>
+        </div>
+        <style jsx>{styles}</style>
+      </div>
+    );
+  }
+
   const pointLabel = "point";
 
   return (
     <div className="page">
       <div className={`wrap${sidebarCollapsed && role === "owner" ? " sb-collapsed" : ""}`}>
         <h1>Espace commerçant</h1>
+
+        {subscription && subscription.status === "essai" && subscription.daysLeft != null && (
+          <div className="banner warning">
+            <span>
+              Essai gratuit : encore {subscription.daysLeft} jour{subscription.daysLeft > 1 ? "s" : ""} avant
+              d'activer ton abonnement.
+            </span>
+            <a
+              href={
+                REVOLUT_PAYMENT_LINK ||
+                `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
+                  `Bonjour, je veux activer mon abonnement Fidélions (compte ${restaurantName || ""}).`
+                )}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Activer maintenant
+            </a>
+          </div>
+        )}
 
         {message && (
           <div className={`banner ${message.type}`}>{message.text}</div>
@@ -5274,6 +5346,21 @@ const styles = `
   .banner.error {
     background: #fdecea;
     color: #c0392b;
+  }
+  .banner.warning {
+    background: #fff4e5;
+    color: #8a5a00;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .banner.warning a {
+    color: #8a5a00;
+    text-decoration: underline;
+    font-weight: 700;
+    white-space: nowrap;
   }
   .auth-logo {
     width: 108px;

@@ -186,6 +186,20 @@ Si un commerçant te remonte "mon client ne reçoit jamais la notif", fais-lui v
 - `Paramètres` → `Notifications` → `Wallet Google` (ou `Google Wallet`) → notifications autorisées.
 - `Paramètres` → `Batterie` → `Wallet Google` → pas classée en "app en veille" / "mise en veille profonde" (le réglage qui pose problème sur Samsung en particulier).
 
+**L'email de secours est aux couleurs du commerce, pas de Fidélions** : le nom affiché comme expéditeur, le logo et la couleur de l'email sont ceux du commerce (onglet "Ma carte"), pas "Fidélions" — c'est le commerce que le client final doit reconnaître dans sa boîte mail. Un commerce qui n'a pas encore mis de logo/couleur reçoit l'identité Fidélions par défaut, le temps qu'il personnalise sa carte. Même logique pour les campagnes envoyées par email (onglet Campagnes).
+
+## Abonnement : essai gratuit de 14 jours, puis verrou automatique
+
+Chaque nouveau compte commence avec un statut `essai` et 14 jours pleins d'accès complet. Passé ce délai, si tu n'as pas activé l'abonnement, l'ajout de points et la création de nouvelles cartes se bloquent tout seuls (le commerçant voit un écran "Active ton abonnement" à la place du tableau de bord) — sans que tu aies rien à faire. Les comptes créés avant cette fonctionnalité ne sont pas concernés (ils restent `actif` par défaut, pour ne couper l'accès à personne du jour au lendemain).
+
+Pour activer un commerce une fois son paiement Revolut reçu (ou pour couper/relancer un compte) :
+
+```
+tonsite.vercel.app/api/admin-set-subscription?secret=TA_VALEUR_SESSION_SECRET&email=contact@commerce.fr&status=actif
+```
+
+`status` accepte `actif` (accès illimité), `suspendu` (accès coupé immédiatement) ou `essai` (relance un essai avec 14 nouveaux jours — pratique pour laisser un peu plus de temps à un commerçant en cours de négociation).
+
 ## Cartes NFC/QR physiques (produit à 20 €, page d'accueil)
 
 La page d'accueil propose une carte physique NFC + QR à 20 € (juste sous la grille de tarifs). Le principe : les cartes sont imprimées **à l'avance, en lot, toutes identiques** — chacune gravée avec un code générique (`tonsite.vercel.app/c/XXXXXX`), pas encore lié à un commerçant. C'est seulement au moment où une carte est vendue qu'on la relie au bon commerçant, en quelques secondes, sans jamais retoucher à l'impression.

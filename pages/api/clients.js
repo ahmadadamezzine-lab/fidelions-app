@@ -8,7 +8,7 @@
 // et le "slug" du restaurant (son lien public /r/[slug]), pour éviter un
 // appel séparé.
 
-import { listClients, getSettings, getMerchantById } from "../../lib/db";
+import { listClients, getSettings, getMerchantById, getSubscriptionAccess } from "../../lib/db";
 import { getRoleAsync, hasPermission } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -23,10 +23,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [clients, settings, merchant] = await Promise.all([
+    const [clients, settings, merchant, subscription] = await Promise.all([
       listClients(auth.merchantId),
       getSettings(auth.merchantId),
       getMerchantById(auth.merchantId),
+      getSubscriptionAccess(auth.merchantId),
     ]);
     return res.status(200).json({
       clients,
@@ -35,6 +36,9 @@ export default async function handler(req, res) {
       rewardLabel: settings.rewardLabel,
       restaurantName: merchant?.restaurantName || "",
       slug: merchant?.slug || "",
+      // Vérifié à chaque connexion (voir getSubscriptionAccess) — /commercant
+      // affiche un écran de paiement bloquant quand allowed est faux.
+      subscription,
     });
   } catch (err) {
     console.error(err);
