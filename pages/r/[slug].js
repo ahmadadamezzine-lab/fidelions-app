@@ -103,7 +103,7 @@ export default function RestaurantSignup() {
             justify-content: center;
             background: linear-gradient(160deg, ${DEFAULT_PURPLE} 0%, #4a0ba3 100%);
             padding: 24px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           }
           .card {
             background: #fff;
@@ -261,7 +261,7 @@ export default function RestaurantSignup() {
           justify-content: center;
           background: linear-gradient(160deg, ${purple} 0%, #4a0ba3 100%);
           padding: 24px;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .card {
           background: #fff;

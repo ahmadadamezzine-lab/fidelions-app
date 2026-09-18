@@ -5158,29 +5158,41 @@ const styles = `
   }
   .page {
     min-height: 100vh;
-    background: #f5f4fb;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, rgba(116, 20, 244, 0.08), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(116, 20, 244, 0.05), transparent 55%),
+      #f6f5fc;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     justify-content: center;
   }
   .auth-page {
     min-height: 100vh;
-    background: #f5f4fb;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, rgba(116, 20, 244, 0.10), transparent 60%),
+      radial-gradient(900px 480px at 100% 10%, rgba(116, 20, 244, 0.06), transparent 55%),
+      #f6f5fc;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
   }
   .auth-page .card {
     width: 100%;
     max-width: 440px;
     text-align: center;
-    padding: 36px 32px 28px;
-    border-radius: 24px;
+    padding: 40px 34px 30px;
+    border-radius: 26px;
     border: 1px solid rgba(17, 17, 17, 0.05);
-    box-shadow: 0 24px 60px -12px rgba(76, 20, 149, 0.22), 0 4px 16px rgba(0,0,0,0.04);
+    box-shadow: 0 30px 70px -16px rgba(76, 20, 149, 0.24), 0 6px 18px rgba(0,0,0,0.045);
+    animation: card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .auth-page .card input,
   .auth-page .card select,
@@ -5192,11 +5204,12 @@ const styles = `
     padding: 13px 18px;
     border: 1.5px solid #e7e1f5;
     background: #faf9fd;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   }
   .auth-page input:focus {
     background: #fff;
     border-color: ${PURPLE};
+    box-shadow: 0 0 0 4px rgba(116, 20, 244, 0.1);
   }
   .auth-page button.primary,
   .auth-page button.secondary {
@@ -5206,15 +5219,17 @@ const styles = `
   .auth-page .auth-logo {
     display: block;
     margin: 0 auto 18px;
+    filter: drop-shadow(0 8px 20px rgba(116, 20, 244, 0.22));
   }
   .logo-link {
     display: inline-block;
     line-height: 0;
     text-decoration: none;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, transform 0.15s;
   }
   .logo-link:hover {
-    opacity: 0.85;
+    opacity: 0.9;
+    transform: translateY(-1px);
   }
   .auth-divider {
     display: flex;
@@ -5249,10 +5264,12 @@ const styles = `
     font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
   }
   .auth-social-btn:hover {
     border-color: #cabdf0;
     background: #faf9fd;
+    transform: translateY(-1px);
   }
   .auth-social-btn:disabled {
     cursor: not-allowed;
@@ -5264,7 +5281,7 @@ const styles = `
     background: #fafafa;
   }
   .soon-badge {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -5356,10 +5373,11 @@ const styles = `
   }
   .card {
     background: #fff;
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid rgba(17, 17, 17, 0.04);
+    box-shadow: 0 2px 8px rgba(41, 15, 82, 0.04), 0 10px 30px -14px rgba(41, 15, 82, 0.14);
   }
   .subtitle {
     color: #595959;
@@ -5374,10 +5392,12 @@ const styles = `
     font-size: 15px;
     margin-bottom: 12px;
     box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
   input:focus {
     outline: none;
     border-color: ${PURPLE};
+    box-shadow: 0 0 0 4px rgba(116, 20, 244, 0.1);
   }
   button {
     cursor: pointer;
@@ -5385,12 +5405,26 @@ const styles = `
     border-radius: 10px;
     font-weight: 700;
     font-size: 14px;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s, opacity 0.15s;
   }
   button.primary {
-    background: ${PURPLE};
+    background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
     color: #fff;
     padding: 12px 16px;
     width: 100%;
+    box-shadow: 0 8px 20px -8px rgba(116, 20, 244, 0.55);
+  }
+  button.primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px -8px rgba(116, 20, 244, 0.6);
+  }
+  button.primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  button.primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
   }
   button.primary.small {
     width: auto;
@@ -5404,6 +5438,9 @@ const styles = `
     padding: 10px 14px;
     width: 100%;
     margin-top: 10px;
+  }
+  button.secondary:hover:not(:disabled) {
+    background: #e4e4e4;
   }
   .list {
     display: flex;

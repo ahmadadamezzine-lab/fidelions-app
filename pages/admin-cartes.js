@@ -281,7 +281,7 @@ const styles = `
     max-width: 780px;
     margin: 0 auto;
     padding: 40px 20px 80px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #1a1a1a;
   }
   .topbar {

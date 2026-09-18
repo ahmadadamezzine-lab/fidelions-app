@@ -908,7 +908,7 @@ const styles = `
   .page {
     min-height: 100vh;
     background: #f5f4fb;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     justify-content: center;

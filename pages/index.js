@@ -665,7 +665,7 @@ export default function Home() {
 
 const styles = `
   .home {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #1a1a1a;
     background: #fff;
     overflow-x: hidden;
@@ -708,7 +708,7 @@ const styles = `
     transform: translateY(0);
   }
   .btn-primary {
-    background: ${PURPLE};
+    background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
     color: #fff;
     box-shadow: 0 4px 14px rgba(116, 20, 244, 0.3);
   }
