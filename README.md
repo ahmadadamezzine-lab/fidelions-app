@@ -136,10 +136,11 @@ Sans cette étape, tout le reste fonctionne normalement : chaque commerce a ses 
 1. Va sur `stripe.com` → `Créer un compte` (gratuit, aucun abonnement Stripe — Stripe prend juste un petit pourcentage sur chaque paiement encaissé). Renseigne les infos de ton activité ; tu peux commencer les étapes suivantes avant même d'avoir fini l'activation complète du compte (le mode "test" fonctionne tout de suite).
 2. Une fois connecté au Dashboard Stripe, en haut à droite, vérifie que le bouton bascule est bien sur **Mode test** pour l'instant (tu repasseras en mode réel juste avant de lancer la commercialisation, voir l'étape 6 ci-dessous).
 3. Menu de gauche → `Développeurs` → `Clés API`. Copie la valeur sous `Clé secrète` (elle commence par `sk_test_...` en mode test, `sk_live_...` en mode réel) — c'est ta `STRIPE_SECRET_KEY`.
-4. Toujours dans `Développeurs` → `Webhooks` → `+ Ajouter un point de terminaison`.
-   - `URL du point de terminaison` → `https://fidelions-app.vercel.app/api/stripe-webhook` (remplace par ton vrai domaine Vercel si différent).
-   - `Sélectionner les événements` → coche uniquement `checkout.session.completed` et `invoice.paid` → `Ajouter des événements` → `Ajouter un point de terminaison`.
-5. Sur la page du point de terminaison qui vient d'être créé, section `Signing secret`/`Secret de signature` → clique `Révéler` et copie la valeur (elle commence par `whsec_...`) — c'est ta `STRIPE_WEBHOOK_SECRET`.
+4. Toujours dans `Développeurs` (en bas à gauche de l'écran, dans une petite barre fixe séparée du menu principal) → `Webhooks` → `+ Ajouter une destination` (Stripe a renommé "point de terminaison" en "destination" sur son interface récente — même chose).
+   - Choisis le type de destination "URL webhook" (pas Amazon EventBridge ni Azure Event Grid).
+   - `URL du endpoint` → `https://fidelions-app.vercel.app/api/stripe-webhook` (remplace par ton vrai domaine Vercel si différent).
+   - `Sélectionner les événements` → cherche et coche uniquement `checkout.session.completed` et `invoice.paid` → valide → `Ajouter la destination` (ou `Créer`).
+5. Sur la page de la destination qui vient d'être créée, cherche `Signing secret`/`Secret de signature` → clique `Révéler` et copie la valeur (elle commence par `whsec_...`) — c'est ta `STRIPE_WEBHOOK_SECRET`.
 6. Sur `vercel.com`, ton projet `fidelions-app` → `Settings` → `Environment Variables`, ajoute :
    - `STRIPE_SECRET_KEY` → la valeur de l'étape 3
    - `STRIPE_WEBHOOK_SECRET` → la valeur de l'étape 5
