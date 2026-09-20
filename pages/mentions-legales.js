@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Head from "next/head";
 
 const PURPLE = "#7414F4";
 
@@ -13,6 +14,10 @@ const PURPLE = "#7414F4";
 export default function MentionsLegales() {
   return (
     <div className="page">
+      <Head>
+        <title>Mentions légales — Fidélions</title>
+        <meta name="description" content="Mentions légales du site Fidélions." />
+      </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Mentions légales</h1>

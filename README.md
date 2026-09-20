@@ -79,6 +79,16 @@ Sans cette étape, les campagnes partent quand même par notification Wallet —
 
 Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en dessous.
 
+**⚠️ Important, à ne pas sauter :** tant qu'aucun domaine n'est vérifié sur Resend, les emails partent depuis leur adresse partagée `onboarding@resend.dev` — celle-ci ne délivre de façon fiable QUE vers l'adresse email de ton propre compte Resend (toi). Concrètement : les emails de notification "+1 point" à tes clients, les campagnes par email, et la relance automatique des inscriptions abandonnées (voir plus bas) ne toucheront réellement personne d'autre que toi tant que cette étape n'est pas faite — ils partiront "avec succès" côté code, mais n'arriveront jamais vraiment chez le client. Pour les activer pour de vrai :
+
+1. Achète un nom de domaine si tu n'en as pas déjà un (ex. sur `namecheap.com` ou `ovh.com`, quelques euros/an) — par exemple `fidelions.fr` ou `fidelions.app`.
+2. Sur `resend.com`, menu de gauche → `Domains` → `Add Domain` → tape ton domaine.
+3. Resend affiche 3-4 enregistrements DNS (des lignes `TXT`/`MX`/`CNAME`) → va les ajouter chez ton fournisseur de domaine (l'endroit où tu l'as acheté, dans la zone DNS), en collant chaque valeur exactement comme affichée.
+4. Reviens sur Resend, clique `Verify` — ça peut prendre de quelques minutes à quelques heures selon le fournisseur.
+5. Une fois vérifié, ajoute la variable `RESEND_FROM_EMAIL` (étape 4 ci-dessous) avec une adresse de ce domaine, par exemple `contact@fidelions.fr`.
+
+Sans domaine à toi, il n'existe pas de raccourci — c'est une limite du service Resend lui-même (et de tous ses concurrents), pas quelque chose que le code peut contourner.
+
 ## Étape 3ter — Activer la vraie IA pour l'analyse du menu (gratuit, sans carte bancaire)
 
 Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand même pour du texte collé/écrit (avec une analyse basique par règles), mais ne peut pas lire un PDF ou une photo de menu. Cette clé est gratuite chez Google, sans carte bancaire à saisir.
@@ -149,6 +159,16 @@ Sans cette étape, tout le reste fonctionne normalement : chaque commerce a ses 
 9. Quand tu es prêt à encaisser réellement : dans Stripe, termine l'activation du compte (`Activer les paiements`, infos bancaires/entreprise demandées par Stripe), repasse le bouton en haut à droite du Dashboard sur **Mode réel** (Live), puis refais les étapes 3 à 7 EN MODE RÉEL (les clés et le webhook du mode test ne fonctionnent pas en mode réel, ce sont deux jeux de clés séparés) — remplace `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` sur Vercel par les nouvelles valeurs `sk_live_...`/`whsec_...`, puis `Redeploy`.
 10. **Obligatoire pour les formules avec engagement (6 mois / 1 an) — active le prélèvement SEPA.** Le site l'impose automatiquement pour ces formules (plus fiable et moins cher qu'une carte sur un engagement long — 0,35 € fixe par prélèvement contre 1,5 % + 0,25 % pour une carte) et laisse le choix carte/SEPA pour la formule mensuelle sans engagement — mais il faut d'abord l'activer côté Stripe, sinon le paiement d'une formule avec engagement échoue. En Mode réel, va sur `Paramètres` (⚙️) → `Moyens de paiement` (`dashboard.stripe.com/settings/payment_methods`) → trouve `Prélèvement SEPA` → active-le. Stripe peut te demander une vérification d'identité supplémentaire à ce moment-là (documents d'entreprise) — suis simplement ce qu'il demande.
 
+## Étape 3septies — Activer les notifications automatiques programmées (QStash, gratuit)
+
+Nécessaire pour que la **demande d'avis Google automatique** (onglet Notifications > Automatisations) parte réellement à l'heure choisie (1h après le passage du client, par défaut). Sans cette étape, tout le reste du site fonctionne normalement, mais cette automatisation précise reste inactive — la relance "client inactif" (l'autre automatisation du même onglet), elle, n'en a pas besoin (voir plus bas pourquoi).
+
+1. Va sur `console.upstash.com` et connecte-toi avec le MÊME compte que celui utilisé à l'Étape 3 pour la base de données (QStash fait partie du même compte Upstash, pas besoin d'en créer un autre).
+2. Dans le menu de gauche, clique sur `QStash`.
+3. Sur cette page, repère la section `Request Builder` ou `Details` en haut — copie la valeur `QSTASH_TOKEN`.
+
+Tu ajouteras ce token comme variable `QSTASH_TOKEN` à l'étape 4 juste en dessous, avec une deuxième variable `QSTASH_FORWARD_SECRET` (déjà générée pour toi, pas besoin d'en inventer une) qui empêche n'importe qui d'autre de déclencher ces notifications à ta place.
+
 ## Étape 4 — Déployer sur GitHub + Vercel
 
 1. Va sur github.com, connecte-toi (ou crée un compte, gratuit).
@@ -168,6 +188,15 @@ Sans cette étape, tout le reste fonctionne normalement : chaque commerce a ses 
    - `CARDS_ADMIN_PASSWORD` → un mot de passe de ton choix, pour toi seul — protège `/admin-cartes` (voir la section **Cartes NFC/QR physiques** plus bas)
    - `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` → optionnelles, pour le bouton "Continuer avec Google" (voir **Étape 3quinquies** ci-dessus) — sans elles le bouton affiche juste une erreur claire, rien d'autre ne casse
    - `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` → optionnelles, pour le paiement automatique récurrent (voir **Étape 3sexies** ci-dessus) — sans elles, l'essai gratuit fonctionne normalement mais le bouton "Activer mon abonnement" affiche une erreur claire tant qu'elles ne sont pas ajoutées
+   - `CRON_SECRET` → protège la relance automatique des inscriptions abandonnées ET la relance client inactif (voir **Relance automatique des inscriptions abandonnées** et **Notifications automatiques** plus bas) pour que personne d'autre que Vercel ne puisse déclencher l'envoi d'emails. Colle exactement cette valeur (déjà générée pour toi, pas besoin d'en inventer une) :
+     ```
+     73f81d1a6f1102e2250d84cea0f4e09f42d9923f6ee725c90c8e3c6b28a28071
+     ```
+   - `QSTASH_TOKEN` → copié à l'**Étape 3septies** ci-dessus — nécessaire pour que la demande d'avis Google automatique parte à l'heure programmée.
+   - `QSTASH_FORWARD_SECRET` → protège ce même mécanisme, exactement comme `CRON_SECRET` ci-dessus. Colle exactement cette valeur (déjà générée pour toi) :
+     ```
+     9d00a922ac73d3685906bfac7dfad2744dc529c65f0cb5176f748201fedd8802
+     ```
    - Retire `MERCHANT_PASSWORD` et `CASHIER_PASSWORD` si elles existent encore — elles ne sont plus utilisées (chaque restaurant a maintenant son propre email + mot de passe, stockés en base).
 7. `Deploy` (ou `Redeploy` si le projet existait déjà).
 
@@ -208,6 +237,34 @@ Si un commerçant te remonte "mon client ne reçoit jamais la notif", fais-lui v
 - `Paramètres` → `Batterie` → `Wallet Google` → pas classée en "app en veille" / "mise en veille profonde" (le réglage qui pose problème sur Samsung en particulier).
 
 **L'email de secours est aux couleurs du commerce, pas de Fidélions** : le nom affiché comme expéditeur, le logo et la couleur de l'email sont ceux du commerce (onglet "Ma carte"), pas "Fidélions" — c'est le commerce que le client final doit reconnaître dans sa boîte mail. Un commerce qui n'a pas encore mis de logo/couleur reçoit l'identité Fidélions par défaut, le temps qu'il personnalise sa carte. Même logique pour les campagnes envoyées par email (onglet Campagnes).
+
+## Relance automatique des inscriptions abandonnées
+
+Beaucoup de commerçants commencent l'inscription (nom du commerce, mécanique de fidélité, formule tarifaire) mais abandonnent juste avant de cliquer sur "Créer mon compte", à la toute dernière étape (6/6) où ils tapent leur email. Cette fonctionnalité les relance automatiquement, par email, signé de toi — inspirée d'un email que Fidelix (un concurrent) t'a lui-même envoyé après ton propre test chez eux.
+
+**Entièrement automatique, tu n'as jamais rien à déclencher :**
+
+1. Dès qu'un email est tapé à la dernière étape de l'inscription, il est discrètement enregistré comme "lead" (sans bloquer ni ralentir la suite — un échec de cet enregistrement n'empêche jamais l'inscription elle-même).
+2. Si l'inscription se termine normalement, le lead est aussitôt marqué "terminé" et n'est plus jamais relancé.
+3. Sinon, un email automatique part entre 20h et 72h après (assez de temps pour finir seul, pas assez pour relancer quelqu'un qui a abandonné il y a des semaines) : "Il ne reste qu'une étape...", signé "Ahmad Adam Ezzine, Fondateur, Fidélions", avec un lien direct pour reprendre l'inscription.
+4. Chaque lead n'est relancé qu'une seule fois — jamais de spam.
+5. Ça tourne tout seul une fois par jour via Vercel Cron (le plan gratuit Vercel limite à une fois par jour — largement suffisant pour une fenêtre de 20-72h).
+
+**⚠️ Important, à ne pas sauter : sans domaine vérifié sur Resend (voir l'avertissement de l'étape 3bis plus haut), cette relance ne touchera en pratique QUE ta propre adresse email de test — pas les vrais commerçants.** La fonctionnalité est prête et tourne déjà, il manque juste la vérification du domaine côté Resend pour qu'elle touche réellement tout le monde. Suis les 5 étapes de l'encadré "Important, à ne pas sauter" dans la section **Étape 3bis** ci-dessus dès que tu veux que ça parte pour de vrai.
+
+Rien à surveiller ni à relancer toi-même : une fois `CRON_SECRET` ajouté (voir Étape 4) et le domaine Resend vérifié, tout se fait seul, tous les jours.
+
+## Notifications automatiques (onglet Notifications > Automatisations)
+
+Deux automatisations réglables par chaque commerçant depuis l'onglet **Notifications**, section **Automatisations** (valeurs par défaut déjà en place — un commerçant peut ne toucher à rien) :
+
+**1. Demande d'avis Google, après un passage.** Dès qu'un lien "laisser un avis" est renseigné (onglet Établissement — voir juste en dessous), le tout premier retour d'un client (par défaut : le 2e passage, la création de la carte comptant comme le 1er — "1h après le 2e scan, pas celui qui crée la carte") déclenche, 1h plus tard par défaut, une notification Wallet ET un email avec un vrai bouton "Laisser un avis" qui ouvre directement l'écran des étoiles (jamais la fiche générale de l'établissement). Pensé pour ne jamais spammer : un client régulier n'est pas resollicité à chaque passage (délai de repos configurable, 90 jours par défaut), jamais plus de 2 fois au total par client, jamais si le client a déjà laissé un avis (déclaré en caisse) ou s'il est bloqué. Techniquement, c'est **Upstash QStash** (Étape 3septies ci-dessus) qui permet ce délai précis à l'heure près — Vercel Cron seul ne le permettrait pas (limité à une fois par jour sur le plan Hobby, comme pour la relance des inscriptions abandonnées plus haut).
+
+**2. Relance d'un client inactif.** Si un client n'est pas revenu depuis un certain nombre de jours (21 par défaut), une notification "On ne vous a pas vu récemment !" part automatiquement, avec la même limite anti-spam (pas plus d'une fois tous les 60 jours par défaut pour un même client). Contrairement à la demande d'avis, une précision à l'heure près n'a aucun sens ici (on parle de jours/semaines d'absence) : une vérification une fois par jour (Vercel Cron, `vercel.json`) suffit largement — pas besoin de QStash pour celle-ci.
+
+**⚠️ Même limitation Resend que partout ailleurs sur le site** (voir l'avertissement de l'Étape 3bis) : tant que ton domaine n'est pas vérifié, le bouton email de la demande d'avis ne touchera que ta propre adresse de test — la notification Wallet, elle, fonctionne déjà normalement pour tous tes clients (Wallet n'a pas cette limitation).
+
+**Trouver son lien "laisser un avis" Google :** dans l'onglet Établissement, à côté du champ, un bouton "Comment trouver mon lien ?" ouvre un tutoriel pas-à-pas (Google Business Profile → "Demander des avis" → copier le lien court). Le site avertit aussi automatiquement si le lien collé ressemble à une fiche Google Maps générale plutôt qu'à un vrai lien d'avis direct.
 
 ## Abonnement : essai gratuit de 7 jours, puis verrou automatique
 

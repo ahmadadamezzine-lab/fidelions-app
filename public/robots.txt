@@ -1,0 +1,12 @@
+# Fidélions — toutes les pages publiques (accueil, fiches restaurants,
+# CGV, confidentialité) sont ouvertes à l'indexation. L'espace commerçant
+# (/commercant) est un tableau de bord privé derrière connexion : pas
+# d'intérêt à l'indexer, et Google finirait de toute façon sur un écran de
+# connexion vide.
+User-agent: *
+Disallow: /commercant
+Disallow: /admin-cartes
+Disallow: /scan
+Disallow: /api
+
+Sitemap: https://fidelions-app.vercel.app/sitemap.xml

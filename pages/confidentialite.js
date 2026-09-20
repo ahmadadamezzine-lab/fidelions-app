@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Head from "next/head";
 
 const PURPLE = "#7414F4";
 
@@ -10,6 +11,10 @@ const PURPLE = "#7414F4";
 export default function Confidentialite() {
   return (
     <div className="page">
+      <Head>
+        <title>Politique de Confidentialité — Fidélions</title>
+        <meta name="description" content="Politique de confidentialité et protection des données du programme de fidélité Fidélions." />
+      </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Politique de Confidentialité</h1>

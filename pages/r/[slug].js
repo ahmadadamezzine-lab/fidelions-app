@@ -11,17 +11,56 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import Head from "next/head";
 import LegalFooter from "../../components/LegalFooter";
+import { getMerchantBySlug, getBranding, getEstablishmentInfo } from "../../lib/db";
 
 const DEFAULT_PURPLE = "#7414F4";
 
-export default function RestaurantSignup() {
+// Récupère le nom/couleur/logo du restaurant CÔTÉ SERVEUR, avant même
+// d'envoyer le HTML au navigateur — avant ce correctif, cette page
+// affichait juste "Un instant…" tant qu'un fetch côté client n'avait pas
+// répondu : un lien partagé sur WhatsApp (l'aperçu de lien, qui ne charge
+// aucun JavaScript) ou un moteur/agent IA qui ne exécute pas le
+// JavaScript ne voyaient donc jamais le nom du restaurant — la page était
+// "invisible" pour eux, alors que c'est justement le lien que chaque
+// commerçant partage le plus (QR code, WhatsApp...). Avec
+// getServerSideProps, le nom et le logo du restaurant sont déjà dans le
+// HTML envoyé, donc visibles par n'importe qui/n'importe quoi qui lit
+// cette page sans exécuter de JS.
+export async function getServerSideProps({ params }) {
+  const slug = String(params?.slug || "");
+  const merchant = await getMerchantBySlug(slug);
+  if (!merchant) {
+    return { props: { initialMerchant: null } };
+  }
+  const [branding, establishment] = await Promise.all([
+    getBranding(merchant.id),
+    getEstablishmentInfo(merchant.id),
+  ]);
+  return {
+    props: {
+      initialMerchant: {
+        restaurantName: merchant.restaurantName,
+        slug: merchant.slug,
+        hexColor: branding?.hexColor || null,
+        logoUrl: branding?.logoUrl || null,
+        googleReviewUrl: establishment?.googleReviewUrl || null,
+      },
+    },
+  };
+}
+
+export default function RestaurantSignup({ initialMerchant }) {
   const router = useRouter();
   const { slug } = router.query;
 
-  const [merchant, setMerchant] = useState(null); // { restaurantName, hexColor, logoUrl }
-  const [merchantError, setMerchantError] = useState(false);
-  const [loadingMerchant, setLoadingMerchant] = useState(true);
+  // { restaurantName, hexColor, logoUrl } — déjà rempli par
+  // getServerSideProps ci-dessus, plus besoin d'un état "chargement" par
+  // défaut ni d'un fetch client pour l'obtenir (voir le useEffect retiré
+  // plus bas).
+  const [merchant] = useState(initialMerchant);
+  const [merchantError] = useState(!initialMerchant);
 
   const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState("");
@@ -37,20 +76,6 @@ export default function RestaurantSignup() {
       setRefCode(String(router.query.ref));
     }
   }, [router.isReady, router.query.ref]);
-
-  useEffect(() => {
-    if (!router.isReady || !slug) return;
-    setLoadingMerchant(true);
-    setMerchantError(false);
-    fetch(`/api/public-merchant?slug=${encodeURIComponent(slug)}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error("not found");
-        return res.json();
-      })
-      .then(setMerchant)
-      .catch(() => setMerchantError(true))
-      .finally(() => setLoadingMerchant(false));
-  }, [router.isReady, slug]);
 
   const purple = merchant?.hexColor || DEFAULT_PURPLE;
   const logoSrc = merchant?.logoUrl || "/logo.png";
@@ -84,9 +109,13 @@ export default function RestaurantSignup() {
   }
 
   // --- Restaurant introuvable (mauvais lien / compte supprimé) ---
-  if (!loadingMerchant && merchantError) {
+  if (merchantError) {
     return (
       <div className="page">
+        <Head>
+          <title>Établissement introuvable — Fidélions</title>
+          <meta name="robots" content="noindex" />
+        </Head>
         <div className="card">
           <h1>Établissement introuvable</h1>
           <p className="subtitle">
@@ -129,16 +158,23 @@ export default function RestaurantSignup() {
     );
   }
 
+  const pageTitle = `${merchant?.restaurantName || "Fidélions"} — Carte de fidélité`;
+  const pageDescription = `Ajoutez votre carte de fidélité ${merchant?.restaurantName || ""} directement sur votre téléphone (Apple/Google Wallet), sans application à installer.`;
+
   return (
     <div className="page">
+      <Head>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
+        {logoSrc && <meta property="og:image" content={logoSrc} />}
+        <meta property="og:type" content="website" />
+      </Head>
       <div className="card">
-        {loadingMerchant ? (
-          <p className="subtitle">Un instant…</p>
-        ) : (
-          <>
-            <img src={logoSrc} alt={merchant?.restaurantName || "Fidélions"} className="logo" />
+        <img src={logoSrc} alt={merchant?.restaurantName || "Fidélions"} className="logo" />
 
-            {!result ? (
+        {!result ? (
               <>
                 <h1>Bienvenue chez {merchant?.restaurantName || "nous"}</h1>
                 <p className="subtitle">
@@ -249,8 +285,6 @@ export default function RestaurantSignup() {
             </p>
 
             <LegalFooter />
-          </>
-        )}
       </div>
 
       <style jsx>{`

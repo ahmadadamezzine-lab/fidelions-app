@@ -6,7 +6,7 @@
 // partagé — dans le même en-tête x-merchant-password, à chaque appel API.
 
 import { verifyMerchantLogin, checkRateLimit } from "../../lib/db";
-import { signSession } from "../../lib/session";
+import { signSession, buildSessionCookie } from "../../lib/session";
 import { getClientIp } from "../../lib/auth";
 
 export default async function handler(req, res) {
@@ -36,6 +36,14 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Email ou mot de passe incorrect." });
     }
     const token = signSession({ merchantId: merchant.id });
+    // Cookie httpOnly = la vraie session (voir lib/session.js) ; `token`
+    // reste renvoyé dans le corps JSON uniquement pour que
+    // pages/commercant.js garde une valeur en mémoire à envoyer dans
+    // l'en-tête x-merchant-password le temps de CETTE session d'onglet (au
+    // cas où le cookie ne suivrait pas pour une raison quelconque) — cette
+    // valeur n'est plus jamais écrite sur disque (voir handleLogin dans
+    // commercant.js, qui a arrêté d'appeler localStorage).
+    res.setHeader("Set-Cookie", buildSessionCookie(token));
     return res.status(200).json({
       token,
       merchantId: merchant.id,

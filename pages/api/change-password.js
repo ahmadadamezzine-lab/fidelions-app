@@ -13,6 +13,7 @@
 
 import { verifyMerchantPasswordById, updateMerchantPassword } from "../../lib/db";
 import { getRole, getMerchantId } from "../../lib/auth";
+import { validatePasswordStrength } from "../../lib/password";
 
 export default async function handler(req, res) {
   const role = getRole(req);
@@ -29,8 +30,9 @@ export default async function handler(req, res) {
   try {
     const { currentPassword, newPassword } = req.body || {};
 
-    if (!newPassword || newPassword.length < 4) {
-      return res.status(400).json({ error: "Le nouveau mot de passe doit faire au moins 4 caractères." });
+    const passwordError = validatePasswordStrength(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const ok = await verifyMerchantPasswordById(merchantId, currentPassword);

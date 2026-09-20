@@ -6,7 +6,6 @@ import LegalFooter from "../components/LegalFooter";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
 
 const PURPLE = "#7414F4";
-const PW_STORAGE_KEY = "fidelions_merchant_pw";
 
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
@@ -105,6 +104,37 @@ function Icon({ name, size = 18, className }) {
     >
       {d}
     </svg>
+  );
+}
+
+// Mini-maquette d'une carte de fidélité Fidélions, purement décorative (pas
+// de vraie donnée) — utilisée sur les écrans de connexion/inscription pour
+// montrer concrètement ce que le commerçant est en train de créer, plutôt
+// qu'une simple liste de bénéfices en texte. `filled` = nombre de tampons
+// déjà "gagnés" sur 8, pour donner un effet vivant plutôt qu'une carte vide.
+function MockLoyaltyCard({ filled = 5, className = "" }) {
+  return (
+    <div className={`mockcard ${className}`} aria-hidden="true">
+      <div className="mockcard-glow" />
+      <div className="mockcard-top">
+        <span className="mockcard-brand">
+          <Icon name="card" size={13} /> Café du Coin
+        </span>
+        <span className="mockcard-badge">
+          <Icon name="star" size={10} /> Fidèle
+        </span>
+      </div>
+      <div className="mockcard-stamps">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <span key={i} className={i < filled ? "stamp filled" : "stamp"}>
+            {i < filled && <Icon name="check" size={11} />}
+          </span>
+        ))}
+      </div>
+      <div className="mockcard-reward">
+        <Icon name="gift" size={13} /> 1 café offert dans {8 - filled} visites
+      </div>
+    </div>
   );
 }
 
@@ -669,16 +699,15 @@ export default function Commercant() {
   // saute directement au bon écran plutôt que d'afficher le choix.
   useEffect(() => {
     if (!router.isReady || authed) return;
-    const { mode, oauth_token, oauth_error, oauth_email } = router.query;
+    const { mode, oauth, oauth_error, oauth_email } = router.query;
 
     // Retour de /api/auth-google-callback après une connexion Google
-    // réussie (voir tryAuth plus bas) : le jeton de session voyage dans
-    // l'URL une seule fois, le temps de le récupérer et de le ranger comme
-    // n'importe quelle connexion classique.
-    if (oauth_token) {
-      const t = String(oauth_token);
-      setPassword(t);
-      tryAuth(t);
+    // réussie : le cookie de session est déjà posé par le serveur au
+    // moment de la redirection (voir buildSessionCookie dans
+    // lib/session.js) — plus besoin de faire voyager le jeton dans l'URL.
+    // Le contrôle silencieux au chargement (voir le useEffect au-dessus)
+    // le retrouve tout seul ; ici on se contente de nettoyer l'URL.
+    if (oauth === "success") {
       router.replace("/commercant", undefined, { shallow: true });
       return;
     }
@@ -703,7 +732,7 @@ export default function Commercant() {
       setAuthMode("login");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady, router.query.mode, router.query.oauth_token, router.query.oauth_error, router.query.oauth_email]);
+  }, [router.isReady, router.query.mode, router.query.oauth, router.query.oauth_error, router.query.oauth_email]);
 
   // Retour de la page de paiement Stripe (voir
   // pages/api/create-checkout-session.js) : le webhook Stripe
@@ -937,6 +966,32 @@ export default function Commercant() {
   const [channelWallet, setChannelWallet] = useState(true);
   const [channelEmail, setChannelEmail] = useState(false);
 
+  // --- Notifications automatiques (demande d'avis Google + relance client
+  // inactif) — voir pages/api/notification-settings.js et lib/db.js pour
+  // les valeurs par défaut, reprises ici tant que rien n'est encore chargé
+  // pour éviter un écran vide le temps du premier chargement.
+  const [notifSettings, setNotifSettings] = useState(null);
+  const [loadingNotifSettings, setLoadingNotifSettings] = useState(false);
+  const [savingNotifSettings, setSavingNotifSettings] = useState(false);
+  const [nsReviewEnabled, setNsReviewEnabled] = useState(true);
+  const [nsReviewTriggerVisit, setNsReviewTriggerVisit] = useState(2);
+  const [nsReviewDelayHours, setNsReviewDelayHours] = useState(1);
+  const [nsReviewTitle, setNsReviewTitle] = useState("");
+  const [nsReviewBody, setNsReviewBody] = useState("");
+  const [nsReviewButtonLabel, setNsReviewButtonLabel] = useState("");
+  const [nsReviewCooldownDays, setNsReviewCooldownDays] = useState(90);
+  const [nsReviewMaxAsks, setNsReviewMaxAsks] = useState(2);
+  const [nsWinbackEnabled, setNsWinbackEnabled] = useState(true);
+  const [nsWinbackInactivityDays, setNsWinbackInactivityDays] = useState(21);
+  const [nsWinbackCooldownDays, setNsWinbackCooldownDays] = useState(60);
+  const [nsWinbackTitle, setNsWinbackTitle] = useState("");
+  const [nsWinbackBody, setNsWinbackBody] = useState("");
+
+  // --- Tutoriel "Comment trouver mon lien Google Review ?" (onglet
+  // Établissement) : une simple modale, pas besoin d'un vrai composant vu
+  // qu'elle n'est utilisée qu'ici.
+  const [showReviewLinkHelp, setShowReviewLinkHelp] = useState(false);
+
   // --- Scanner caméra maison (getUserMedia + jsQR) ---
   // Pourquoi pas une librairie toute faite : html5-qrcode plantait sur
   // certains mobiles, et l'appareil photo natif (via <input capture>)
@@ -962,14 +1017,13 @@ export default function Commercant() {
     clientsRef.current = clients;
   }, [clients]);
 
-  // Au chargement, si un mot de passe est déjà enregistré sur cet
-  // appareil, on l'essaie automatiquement.
+  // Au chargement, on vérifie s'il existe une session valide — plus besoin
+  // de relire un jeton dans localStorage : le cookie httpOnly posé à la
+  // connexion (voir lib/session.js) voyage tout seul avec cette requête si
+  // le commerçant est déjà connecté sur cet appareil. `silent: true` évite
+  // d'afficher une erreur dans le cas normal où personne n'est connecté.
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(PW_STORAGE_KEY) : null;
-    if (saved) {
-      setPassword(saved);
-      tryAuth(saved);
-    }
+    tryAuth("", { silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -991,19 +1045,21 @@ export default function Commercant() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openMenuId]);
 
-  async function tryAuth(pw) {
+  // `silent` = true pour le contrôle automatique au chargement de la page
+  // (voir le useEffect plus bas) : dans ce cas, un 401 signifie juste
+  // "personne n'est connecté sur cet appareil" (cas normal, le cookie de
+  // session n'existe pas ou plus) — pas la peine d'afficher une erreur pour
+  // ça. `silent` = false reste utilisé après une connexion explicite
+  // (email/mot de passe, Google) où un 401 serait, lui, anormal.
+  async function tryAuth(pw, { silent = false } = {}) {
     setChecking(true);
     setAuthError("");
     try {
       const res = await fetch("/api/clients", {
-        headers: { "x-merchant-password": pw },
+        headers: pw ? { "x-merchant-password": pw } : {},
       });
       if (res.status === 401) {
-        // Ce cas ne se produit plus qu'au rechargement automatique avec un
-        // jeton déjà enregistré sur l'appareil (voir plus bas) — la
-        // connexion elle-même passe maintenant par /api/auth-login, qui
-        // renvoie sa propre erreur avant même d'arriver ici.
-        setAuthError("Session expirée — reconnecte-toi.");
+        if (!silent) setAuthError("Session expirée — reconnecte-toi.");
         setChecking(false);
         return;
       }
@@ -1017,7 +1073,6 @@ export default function Commercant() {
       if (data.slug) setMerchantSlug(data.slug);
       setSubscription(data.subscription || null);
       setAuthed(true);
-      localStorage.setItem(PW_STORAGE_KEY, pw);
 
       // Les rubriques suivantes ne sont utiles qu'au patron (owner) — pas
       // la peine d'appeler ces endpoints pour un caissier, il n'y a de
@@ -1253,6 +1308,27 @@ export default function Commercant() {
     setSignupStep(5);
   }
 
+  // Envoyé quand le champ email de l'étape 6/6 perd le focus (l'email
+  // n'est demandé qu'à cette toute dernière étape) — "au fait, voici un
+  // lead" plutôt qu'une inscription : si la personne s'arrête là sans
+  // cliquer sur "Créer mon compte", ça permet de la relancer par email
+  // plus tard (voir lib/db.js/saveSignupLead et le cron de relance).
+  // Fire-and-forget : un échec ici (réseau, etc.) ne doit jamais gêner
+  // l'inscription elle-même.
+  function reportSignupLead() {
+    if (!signupEmail.includes("@")) return;
+    fetch("/api/save-signup-lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: signupEmail,
+        restaurantName: signupRestaurantName,
+        posCount: signupPosCount,
+        billingCycle: signupBillingCycle,
+      }),
+    }).catch(() => {});
+  }
+
   const selectedCardColor = (signupCardColorCustom.trim() || signupCardColor || "").trim();
   const selectedPricingTier = PRICING_TIERS.find((t) => t.id === signupPosCount) || PRICING_TIERS[0];
   const selectedTierPrice = getTierPrice(selectedPricingTier, signupBillingCycle);
@@ -1267,8 +1343,8 @@ export default function Commercant() {
         typeof crypto !== "undefined" && crypto.randomUUID
           ? crypto.randomUUID()
           : `${Math.random().toString(36).slice(2)}${Date.now()}`;
-    } else if (signupPassword.length < 4) {
-      setAuthError("Le mot de passe doit faire au moins 4 caractères.");
+    } else if (signupPassword.length < 8 || !/[a-zA-ZÀ-ÿ]/.test(signupPassword) || !/[0-9]/.test(signupPassword)) {
+      setAuthError("Le mot de passe doit faire au moins 8 caractères, avec au moins une lettre et un chiffre.");
       return;
     }
     setChecking(true);
@@ -1320,11 +1396,12 @@ export default function Commercant() {
     setRole(null);
     setAuthMode("choice");
     setAuthError("");
-    try {
-      localStorage.removeItem(PW_STORAGE_KEY);
-    } catch {
-      // ignoré — au pire l'appareil réessaiera l'ancien jeton au prochain chargement
-    }
+    // Le cookie de session est httpOnly (illisible et donc pas supprimable
+    // depuis le navigateur) — /api/auth-logout renvoie le même cookie avec
+    // Max-Age=0 pour que le navigateur le jette. "Fire and forget" : même
+    // si cet appel échoue (réseau coupé...), l'écran repasse déjà à l'état
+    // déconnecté ci-dessus.
+    fetch("/api/auth-logout", { method: "POST" }).catch(() => {});
   }
 
   async function refreshClients() {
@@ -1774,6 +1851,15 @@ export default function Commercant() {
     if (tab === "abonnement" && !subscriptionInfo && !loadingSubscription) {
       loadSubscription();
     }
+    if (tab === "campagnes" && !notifSettings && !loadingNotifSettings) {
+      loadNotifSettings();
+    }
+    // Chargée aussi ici (pas seulement depuis l'onglet Établissement) pour
+    // savoir si le lien d'avis Google est renseigné — sinon l'avertissement
+    // de la section Automatisations ne peut pas être fiable.
+    if (tab === "campagnes" && !establishment && !loadingEstablishment) {
+      loadEstablishment();
+    }
   }
 
   // --- Abonnement : formule choisie à l'inscription (voir pages/api/subscription.js) ---
@@ -2111,8 +2197,8 @@ export default function Commercant() {
       setMessage({ type: "error", text: "Saisis ton mot de passe actuel." });
       return;
     }
-    if (pwNewPassword.length < 4) {
-      setMessage({ type: "error", text: "Le nouveau mot de passe doit faire au moins 4 caractères." });
+    if (pwNewPassword.length < 8 || !/[a-zA-ZÀ-ÿ]/.test(pwNewPassword) || !/[0-9]/.test(pwNewPassword)) {
+      setMessage({ type: "error", text: "Le nouveau mot de passe doit faire au moins 8 caractères, avec au moins une lettre et un chiffre." });
       return;
     }
     setPwSubmitting(true);
@@ -2413,6 +2499,69 @@ export default function Commercant() {
     }
   }
 
+  // --- Notifications automatiques ---
+  async function loadNotifSettings() {
+    setLoadingNotifSettings(true);
+    try {
+      const res = await fetch("/api/notification-settings", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifSettings(data);
+        setNsReviewEnabled(!!data.reviewRequestEnabled);
+        setNsReviewTriggerVisit(data.reviewRequestTriggerVisit);
+        setNsReviewDelayHours(data.reviewRequestDelayHours);
+        setNsReviewTitle(data.reviewRequestTitle || "");
+        setNsReviewBody(data.reviewRequestBody || "");
+        setNsReviewButtonLabel(data.reviewRequestButtonLabel || "");
+        setNsReviewCooldownDays(data.reviewRequestCooldownDays);
+        setNsReviewMaxAsks(data.reviewRequestMaxAsks);
+        setNsWinbackEnabled(!!data.winbackEnabled);
+        setNsWinbackInactivityDays(data.winbackInactivityDays);
+        setNsWinbackCooldownDays(data.winbackCooldownDays);
+        setNsWinbackTitle(data.winbackTitle || "");
+        setNsWinbackBody(data.winbackBody || "");
+      }
+    } catch {
+      // silencieux — l'onglet réessaiera à la prochaine ouverture
+    } finally {
+      setLoadingNotifSettings(false);
+    }
+  }
+
+  async function saveNotifSettings() {
+    setSavingNotifSettings(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/notification-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({
+          reviewRequestEnabled: nsReviewEnabled,
+          reviewRequestTriggerVisit: nsReviewTriggerVisit,
+          reviewRequestDelayHours: nsReviewDelayHours,
+          reviewRequestTitle: nsReviewTitle,
+          reviewRequestBody: nsReviewBody,
+          reviewRequestButtonLabel: nsReviewButtonLabel,
+          reviewRequestCooldownDays: nsReviewCooldownDays,
+          reviewRequestMaxAsks: nsReviewMaxAsks,
+          winbackEnabled: nsWinbackEnabled,
+          winbackInactivityDays: nsWinbackInactivityDays,
+          winbackCooldownDays: nsWinbackCooldownDays,
+          winbackTitle: nsWinbackTitle,
+          winbackBody: nsWinbackBody,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setNotifSettings(data);
+      setMessage({ type: "success", text: "Automatisations enregistrées." });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingNotifSettings(false);
+    }
+  }
+
   async function startCamera() {
     setMessage(null);
     setCameraStatus("Démarrage…");
@@ -2556,19 +2705,28 @@ export default function Commercant() {
         <div className="auth-page">
           <div className="split-login">
             <div className="split-panel">
-              <Link href="/" className="logo-link">
+              <div className="split-orb orb-a" />
+              <div className="split-orb orb-b" />
+              <Link href="/" className="logo-link split-logo-link">
                 <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
               </Link>
-              <h2 className="split-title">Content de te revoir</h2>
+              <h2 className="split-title">
+                Content de <span className="split-title-accent">te revoir</span>
+              </h2>
+              <p className="split-lead">Ton programme de fidélité tourne tout seul pendant ce temps.</p>
+              <MockLoyaltyCard filled={5} className="split-mockcard" />
               <ul className="split-benefits">
                 <li>
-                  <Icon name="check" size={15} /> Système de fidélisation clé en main
+                  <span className="split-benefit-icon"><Icon name="badge" size={13} /></span>
+                  Système de fidélisation clé en main
                 </li>
                 <li>
-                  <Icon name="check" size={15} /> Carte Google Wallet, sans application à installer
+                  <span className="split-benefit-icon"><Icon name="card" size={13} /></span>
+                  Carte Google Wallet, sans application à installer
                 </li>
                 <li>
-                  <Icon name="check" size={15} /> Statistiques, campagnes et équipe en un seul endroit
+                  <span className="split-benefit-icon"><Icon name="barchart" size={13} /></span>
+                  Statistiques, campagnes et équipe en un seul endroit
                 </li>
               </ul>
             </div>
@@ -2625,6 +2783,10 @@ export default function Commercant() {
 
     return (
       <div className="auth-page">
+        <div className="split-orb orb-a page-orb" />
+        <div className="split-orb orb-b page-orb" />
+        <MockLoyaltyCard filled={6} className="bg-mockcard bg-mockcard-1" />
+        <MockLoyaltyCard filled={3} className="bg-mockcard bg-mockcard-2" />
         <div className="card">
           <Link href="/" className="logo-link">
             <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
@@ -2949,6 +3111,7 @@ export default function Commercant() {
                     type="email"
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
+                    onBlur={reportSignupLead}
                     placeholder="Ton email"
                     autoFocus={!signupViaGoogle}
                     readOnly={signupViaGoogle}
@@ -2963,7 +3126,7 @@ export default function Commercant() {
                       type="password"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
-                      placeholder="Mot de passe (4 caractères minimum)"
+                      placeholder="Mot de passe (8 caractères min., 1 lettre + 1 chiffre)"
                       required
                     />
                   )}
@@ -3975,6 +4138,177 @@ export default function Commercant() {
           </div>
         )}
 
+        {role === "owner" && activeTab === "campagnes" && (
+          <div className="card">
+            <h2>Automatisations</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Contrairement aux campagnes ci-dessus (envoyées à la main quand tu
+              veux), ces notifications partent toutes seules, déclenchées par le
+              comportement de chaque client — rien à faire une fois réglé
+              ci-dessous. Valeurs par défaut déjà en place : tu peux ne rien
+              toucher et laisser tourner.
+            </p>
+
+            {loadingNotifSettings && <p className="subtitle">Chargement…</p>}
+
+            {!loadingNotifSettings && notifSettings && (
+              <>
+                <p className="subtitle icon-heading" style={{ marginTop: 6, marginBottom: 6 }}>
+                  <Icon name="star" size={13} /> Demande d'avis Google automatique
+                </p>
+                {!establishment?.googleReviewUrl && (
+                  <p className="subtitle" style={{ marginTop: -2, marginBottom: 10, fontSize: 12.5, color: "#b45309" }}>
+                    Renseigne d'abord ton lien « laisser un avis » dans l'onglet
+                    Établissement — sans lui, cette automatisation ne peut rien
+                    envoyer, même activée ci-dessous.
+                  </p>
+                )}
+                <label className="channel" style={{ marginBottom: 10 }}>
+                  <input type="checkbox" checked={nsReviewEnabled} onChange={(e) => setNsReviewEnabled(e.target.checked)} />
+                  Activer la demande d'avis automatique
+                </label>
+                {nsReviewEnabled && (
+                  <>
+                    <div className="points-config-row" style={{ marginBottom: 8 }}>
+                      <span className="points-config-label">Envoyer</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={168}
+                        value={nsReviewDelayHours}
+                        onChange={(e) => setNsReviewDelayHours(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">
+                        heure(s) après le passage n°
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={nsReviewTriggerVisit}
+                        onChange={(e) => setNsReviewTriggerVisit(e.target.value)}
+                        style={{ width: 56, marginBottom: 0 }}
+                      />
+                    </div>
+                    <p className="subtitle" style={{ marginTop: -4, marginBottom: 10, fontSize: 12.5 }}>
+                      La création de la carte compte comme le passage n°1 — laisse
+                      « 2 » par défaut pour viser le tout premier retour du client
+                      (« 1h après le 2e scan, pas celui qui crée la carte »).
+                    </p>
+                    <input
+                      type="text"
+                      value={nsReviewTitle}
+                      onChange={(e) => setNsReviewTitle(e.target.value)}
+                      placeholder="Titre (ex : Vous avez aimé votre expérience ? ⭐)"
+                      maxLength={60}
+                    />
+                    <input
+                      type="text"
+                      value={nsReviewBody}
+                      onChange={(e) => setNsReviewBody(e.target.value)}
+                      placeholder="Message (ex : Donnez votre avis Google et dites-nous ce que vous en avez pensé.)"
+                      maxLength={300}
+                    />
+                    <input
+                      type="text"
+                      value={nsReviewButtonLabel}
+                      onChange={(e) => setNsReviewButtonLabel(e.target.value)}
+                      placeholder="Texte du bouton (ex : Laisser un avis Google)"
+                      maxLength={40}
+                    />
+                    <p className="subtitle" style={{ marginTop: -8, marginBottom: 10, fontSize: 12.5 }}>
+                      Le bouton cliquable part par email (les notifications Wallet
+                      ne peuvent pas contenir de bouton vers un lien externe — elles
+                      restent un simple rappel visuel).
+                    </p>
+                    <div className="points-config-row" style={{ marginBottom: 4 }}>
+                      <span className="points-config-label">Ne pas redemander avant</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={nsReviewCooldownDays}
+                        onChange={(e) => setNsReviewCooldownDays(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">jours, et jamais plus de</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={nsReviewMaxAsks}
+                        onChange={(e) => setNsReviewMaxAsks(e.target.value)}
+                        style={{ width: 56, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">fois au total par client</span>
+                    </div>
+                    <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
+                      Jamais envoyée à un client qui a déjà laissé un avis (déclaré
+                      en caisse) ni à un client bloqué.
+                    </p>
+                  </>
+                )}
+
+                <p className="subtitle icon-heading" style={{ marginTop: 22, marginBottom: 6 }}>
+                  <Icon name="bell" size={13} /> Relance client inactif
+                </p>
+                <label className="channel" style={{ marginBottom: 10 }}>
+                  <input type="checkbox" checked={nsWinbackEnabled} onChange={(e) => setNsWinbackEnabled(e.target.checked)} />
+                  Activer la relance automatique
+                </label>
+                {nsWinbackEnabled && (
+                  <>
+                    <div className="points-config-row" style={{ marginBottom: 8 }}>
+                      <span className="points-config-label">Relancer après</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={nsWinbackInactivityDays}
+                        onChange={(e) => setNsWinbackInactivityDays(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">jours sans passage, pas plus d'une fois tous les</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={nsWinbackCooldownDays}
+                        onChange={(e) => setNsWinbackCooldownDays(e.target.value)}
+                        style={{ width: 64, marginBottom: 0 }}
+                      />
+                      <span className="points-config-label">jours</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={nsWinbackTitle}
+                      onChange={(e) => setNsWinbackTitle(e.target.value)}
+                      placeholder="Titre (ex : On ne vous a pas vu récemment ! 👋)"
+                      maxLength={60}
+                    />
+                    <input
+                      type="text"
+                      value={nsWinbackBody}
+                      onChange={(e) => setNsWinbackBody(e.target.value)}
+                      placeholder="Message (ex : Revenez vite, votre carte de fidélité vous attend toujours.)"
+                      maxLength={300}
+                    />
+                    <p className="subtitle" style={{ marginTop: -8, marginBottom: 0, fontSize: 12.5 }}>
+                      Vérifiée une fois par jour — pas besoin de précision à l'heure
+                      près pour une absence de plusieurs jours.
+                    </p>
+                  </>
+                )}
+
+                <button className="primary" style={{ marginTop: 16 }} onClick={saveNotifSettings} disabled={savingNotifSettings}>
+                  {savingNotifSettings ? "Enregistrement…" : "Enregistrer les automatisations"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {(role !== "owner" || activeTab === "clients") && (
           <div className="card">
             <h2>Scanner un client</h2>
@@ -4213,15 +4547,34 @@ export default function Commercant() {
                 />
 
                 <p className="subtitle" style={{ marginTop: 6, marginBottom: 6 }}>Avis Google</p>
-                <input
-                  type="url"
-                  value={estGoogleReviewUrl}
-                  onChange={(e) => setEstGoogleReviewUrl(e.target.value)}
-                  placeholder="Lien « laisser un avis » de ta fiche Google (ex : https://g.page/r/.../review)"
-                />
-                <p className="subtitle" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>
+                <div className="review-link-row">
+                  <input
+                    type="url"
+                    value={estGoogleReviewUrl}
+                    onChange={(e) => setEstGoogleReviewUrl(e.target.value)}
+                    placeholder="Lien « laisser un avis » de ta fiche Google (ex : https://g.page/r/.../review)"
+                    style={{ marginBottom: 0 }}
+                  />
+                  <button
+                    type="button"
+                    className="secondary small"
+                    onClick={() => setShowReviewLinkHelp(true)}
+                  >
+                    Comment trouver mon lien ?
+                  </button>
+                </div>
+                {estGoogleReviewUrl && /\/maps\/place\//.test(estGoogleReviewUrl) && (
+                  <p className="subtitle" style={{ marginTop: 6, marginBottom: 0, fontSize: 12.5, color: "#b45309" }}>
+                    Ce lien ressemble à ta fiche Google Maps générale, pas à ton lien
+                    d'avis direct — tes clients arriveraient sur ta fiche au lieu
+                    d'écrire leur avis directement. Utilise le bouton « Comment
+                    trouver mon lien ? » ci-dessus pour récupérer le bon lien.
+                  </p>
+                )}
+                <p className="subtitle" style={{ marginTop: 6, marginBottom: 12, fontSize: 12.5 }}>
                   Affiché sur la carte Wallet de tes clients et sur ta page d'inscription, avec le
-                  bonus de points — retrouve ton lien sur ta fiche Google Business Profile, bouton
+                  bonus de points, et utilisé par la demande d'avis automatique (onglet
+                  Notifications) — retrouve ton lien sur ta fiche Google Business Profile, bouton
                   « Obtenir plus d'avis ».
                 </p>
 
@@ -4304,6 +4657,49 @@ export default function Commercant() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {showReviewLinkHelp && (
+          <div className="modal-overlay" onClick={() => setShowReviewLinkHelp(false)}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2 style={{ margin: 0 }}>Trouver mon lien Google Review</h2>
+                <button type="button" className="modal-close" onClick={() => setShowReviewLinkHelp(false)}>
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+              <p className="subtitle" style={{ marginBottom: 10 }}>
+                C'est le lien qui ouvre directement l'écran où le client choisit
+                ses étoiles et écrit son avis — pas ta fiche Google Maps
+                générale (celle avec tes horaires, ta carte, tes photos).
+              </p>
+              <ol className="modal-steps">
+                <li>
+                  Va sur{" "}
+                  <a href="https://business.google.com" target="_blank" rel="noreferrer">
+                    business.google.com
+                  </a>{" "}
+                  et connecte-toi avec le compte Google de ton établissement.
+                </li>
+                <li>Choisis ton établissement s'il t'en propose plusieurs.</li>
+                <li>
+                  Dans le menu de gauche (ou l'accueil), clique sur{" "}
+                  <strong>« Demander des avis »</strong> (parfois affiché{" "}
+                  <strong>« Obtenir plus d'avis »</strong>).
+                </li>
+                <li>
+                  Un lien court apparaît (ex : <code>g.page/r/.../review</code>)
+                  avec un bouton <strong>« Copier »</strong> — clique dessus.
+                </li>
+                <li>Reviens ici et colle ce lien dans le champ ci-dessus.</li>
+              </ol>
+              <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
+                Pas encore de fiche Google Business Profile ? Crée-la d'abord
+                gratuitement depuis le même site — c'est aussi ce qui te fait
+                apparaître sur Google Maps.
+              </p>
+            </div>
           </div>
         )}
 
@@ -4490,7 +4886,7 @@ export default function Commercant() {
                   type="password"
                   value={pwNewPassword}
                   onChange={(e) => setPwNewPassword(e.target.value)}
-                  placeholder="Nouveau mot de passe (4 caractères minimum)"
+                  placeholder="Nouveau mot de passe (8 caractères min., 1 lettre + 1 chiffre)"
                 />
                 <div className="pw-flow-actions">
                   <button type="button" className="secondary" onClick={pwCancelToIdle} disabled={pwSubmitting}>
@@ -5168,6 +5564,8 @@ const styles = `
     justify-content: center;
   }
   .auth-page {
+    position: relative;
+    overflow: hidden;
     min-height: 100vh;
     background:
       radial-gradient(1100px 520px at 12% -8%, rgba(116, 20, 244, 0.10), transparent 60%),
@@ -5181,6 +5579,8 @@ const styles = `
     justify-content: center;
   }
   .auth-page .card {
+    position: relative;
+    z-index: 1;
     width: 100%;
     max-width: 440px;
     text-align: center;
@@ -5294,49 +5694,130 @@ const styles = `
   }
   .split-login {
     width: 100%;
-    max-width: 940px;
+    max-width: 980px;
     background: #fff;
-    border-radius: 28px;
+    border-radius: 30px;
     overflow: hidden;
     display: flex;
-    min-height: 520px;
-    box-shadow: 0 24px 60px -12px rgba(76, 20, 149, 0.22), 0 4px 16px rgba(0,0,0,0.04);
+    min-height: 560px;
+    box-shadow: 0 30px 80px -16px rgba(76, 20, 149, 0.28), 0 6px 20px rgba(0,0,0,0.05);
+    animation: card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .split-panel {
+    position: relative;
     flex: 1;
-    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    overflow: hidden;
+    background:
+      radial-gradient(120% 140% at 8% 0%, rgba(255, 100, 220, 0.35), transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, rgba(70, 10, 200, 0.9), transparent 60%),
+      linear-gradient(160deg, #8a1ffb 0%, ${PURPLE} 45%, #3c0a8f 100%);
     color: #fff;
-    padding: 48px 40px;
+    padding: 44px 40px;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
+  .split-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/></svg>");
+    pointer-events: none;
+  }
+  .split-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(30px);
+    pointer-events: none;
+    animation: orb-float 9s ease-in-out infinite;
+  }
+  .split-orb.orb-a {
+    width: 190px;
+    height: 190px;
+    top: -60px;
+    right: -50px;
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .split-orb.orb-b {
+    width: 140px;
+    height: 140px;
+    bottom: -40px;
+    left: -30px;
+    background: rgba(255, 130, 230, 0.25);
+    animation-delay: -4s;
+  }
+  @keyframes orb-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-16px) scale(1.06); }
+  }
+  .split-logo-link {
+    position: relative;
+    z-index: 1;
+  }
   .split-logo {
-    width: 64px;
-    height: 80px;
-    border-radius: 14px;
-    margin-bottom: 24px;
+    width: 52px;
+    height: 65px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
   }
   .split-title {
-    font-size: 24px;
-    margin: 0 0 20px;
+    position: relative;
+    z-index: 1;
+    font-size: 27px;
+    font-weight: 800;
+    margin: 0 0 6px;
     color: #fff;
+    letter-spacing: -0.01em;
+  }
+  .split-title-accent {
+    background: linear-gradient(100deg, #ffd9f5, #ffffff 60%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .split-lead {
+    position: relative;
+    z-index: 1;
+    font-size: 13.5px;
+    color: rgba(255,255,255,0.75);
+    margin: 0 0 22px;
+    line-height: 1.5;
   }
   .split-benefits {
+    position: relative;
+    z-index: 1;
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 22px 0 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 11px;
   }
   .split-benefits li {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 13.5px;
-    color: #f0eaff;
+    font-size: 13px;
+    color: #f5f0ff;
     line-height: 1.4;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 9px 12px;
+    backdrop-filter: blur(6px);
+  }
+  .split-benefit-icon {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.16);
   }
   .split-form-panel {
     flex: 1.1;
@@ -5353,9 +5834,149 @@ const styles = `
     .split-panel {
       padding: 32px 26px;
     }
+    .split-mockcard {
+      display: none;
+    }
     .split-form-panel {
       padding: 32px 26px;
     }
+  }
+
+  /* --- Maquette de carte de fidélité (MockLoyaltyCard) --- */
+  .mockcard {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 260px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 18px;
+    padding: 16px 16px 14px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+  }
+  .split-mockcard {
+    margin: 4px 0 4px;
+    animation: mockcard-float 5s ease-in-out infinite;
+  }
+  @keyframes mockcard-float {
+    0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+    50% { transform: translateY(-8px) rotate(0.6deg); }
+  }
+  .mockcard-glow {
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 60%;
+    height: 60%;
+    background: radial-gradient(circle, rgba(255,255,255,0.35), transparent 70%);
+    pointer-events: none;
+  }
+  .mockcard-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .mockcard-brand {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .mockcard-badge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #3c0a8f;
+    background: #ffd54a;
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .mockcard-stamps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+  .mockcard-stamps .stamp {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1.5px dashed rgba(255, 255, 255, 0.4);
+    color: #fff;
+  }
+  .mockcard-stamps .stamp.filled {
+    background: linear-gradient(135deg, #ffd54a, #ff9d3d);
+    border: 1.5px solid transparent;
+    color: #4a1400;
+    box-shadow: 0 3px 8px rgba(255, 160, 60, 0.5);
+  }
+  .mockcard-reward {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+  }
+  .bg-mockcard {
+    display: none;
+  }
+  @media (min-width: 900px) {
+    .bg-mockcard {
+      display: block;
+      position: absolute;
+      width: 220px;
+      opacity: 0.5;
+      filter: blur(0.4px) saturate(1.1);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-mockcard-1 {
+      top: 8%;
+      left: calc(50% - 430px);
+      transform: rotate(-14deg);
+      background: linear-gradient(160deg, ${PURPLE}, #3c0a8f);
+      animation: mockcard-float 7s ease-in-out infinite;
+    }
+    .bg-mockcard-2 {
+      bottom: 10%;
+      left: calc(50% + 220px);
+      transform: rotate(11deg);
+      background: linear-gradient(160deg, #ff6ec7, #8a1ffb);
+      animation: mockcard-float 8s ease-in-out infinite;
+      animation-delay: -3s;
+    }
+  }
+  .page-orb {
+    z-index: 0;
+    width: 320px;
+    height: 320px;
+  }
+  .page-orb.orb-a {
+    top: -80px;
+    right: -60px;
+    left: auto;
+    bottom: auto;
+    background: rgba(116, 20, 244, 0.14);
+  }
+  .page-orb.orb-b {
+    bottom: -90px;
+    left: -70px;
+    top: auto;
+    right: auto;
+    background: rgba(255, 110, 199, 0.16);
   }
   .wrap {
     width: 100%;
@@ -5431,6 +6052,78 @@ const styles = `
     padding: 8px 14px;
     font-size: 13px;
     white-space: nowrap;
+  }
+  button.secondary.small {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    margin-top: 0;
+  }
+  .review-link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .review-link-row input {
+    flex: 1;
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 12, 40, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+  }
+  .modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 440px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px -12px rgba(20, 12, 40, 0.35);
+  }
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    margin: 0;
+    width: auto;
+    cursor: pointer;
+    color: #888;
+    flex-shrink: 0;
+  }
+  .modal-close:hover {
+    color: #333;
+  }
+  .modal-steps {
+    margin: 0 0 4px;
+    padding-left: 20px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #333;
+  }
+  .modal-steps li {
+    margin-bottom: 6px;
+  }
+  .modal-steps code {
+    background: #f2f2f2;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
   }
   button.secondary {
     background: #eee;
@@ -5624,17 +6317,19 @@ const styles = `
   .step-dots {
     display: flex;
     justify-content: center;
-    gap: 6px;
-    margin-bottom: 18px;
+    gap: 5px;
+    margin-bottom: 22px;
   }
   .step-dots span {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #e0dcee;
+    width: 24px;
+    height: 4px;
+    border-radius: 999px;
+    background: #ece7f7;
+    transition: background 0.3s, box-shadow 0.3s;
   }
   .step-dots span.active {
-    background: ${PURPLE};
+    background: linear-gradient(90deg, ${PURPLE}, #b046f0);
+    box-shadow: 0 0 8px rgba(116, 20, 244, 0.45);
   }
   .signup-step {
     display: flex;

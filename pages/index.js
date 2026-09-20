@@ -25,7 +25,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Head from "next/head";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
+
+// Titre/description/image affichés dans les résultats Google et les
+// aperçus de lien partagé (WhatsApp, réseaux sociaux) — sans ça, un lien
+// Fidélions partagé n'affiche que l'URL nue, ce qui inspire moins
+// confiance qu'une carte avec titre + accroche + logo.
+const SEO_TITLE = "Fidélions — Programme de fidélité sur Google & Apple Wallet";
+const SEO_DESCRIPTION =
+  "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
+const SEO_IMAGE = "/logo-full.png";
 
 const PURPLE = "#7414F4";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
@@ -180,6 +190,15 @@ export default function Home() {
 
   return (
     <div className="home">
+      <Head>
+        <title>{SEO_TITLE}</title>
+        <meta name="description" content={SEO_DESCRIPTION} />
+        <meta property="og:title" content={SEO_TITLE} />
+        <meta property="og:description" content={SEO_DESCRIPTION} />
+        <meta property="og:image" content={SEO_IMAGE} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary" />
+      </Head>
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/" className="nav-brand">

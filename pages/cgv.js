@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Head from "next/head";
 
 const PURPLE = "#7414F4";
 
@@ -13,6 +14,10 @@ const PURPLE = "#7414F4";
 export default function CGV() {
   return (
     <div className="page">
+      <Head>
+        <title>Conditions Générales de Vente — Fidélions</title>
+        <meta name="description" content="Conditions générales de vente du programme de fidélité Fidélions." />
+      </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>

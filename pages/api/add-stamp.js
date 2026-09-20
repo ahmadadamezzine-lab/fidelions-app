@@ -24,6 +24,7 @@ import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
 import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
 import { sendEmail } from "../../lib/email";
+import { maybeScheduleReviewRequest } from "../../lib/notifications";
 
 // Le bonus (en points) accordé une seule fois par client quand un avis
 // Google est déclaré en caisse (case "Avis Google laissé" côté scan) — pas
@@ -119,7 +120,7 @@ export default async function handler(req, res) {
     // Garde-fou final, quel que soit le mode.
     delta = Math.min(delta, MAX_DELTA);
 
-    const updated = await addPoints(merchantId, objectId, delta);
+    const updated = await addPoints(merchantId, objectId, delta, { countVisit: true });
 
     // Un seul palier défini → carte classique, la récompense se
     // redéclenche à chaque multiple du seuil (comportement historique,
@@ -218,6 +219,13 @@ export default async function handler(req, res) {
         console.error("Email de secours non envoyé :", err);
       }
     }
+
+    // Demande d'avis Google automatique (onglet Notifications >
+    // Automatisations) : programmée pour partir plus tard (1h par défaut),
+    // jamais tout de suite — voir lib/notifications.js pour les
+    // conditions exactes. Jamais bloquant, même logique que les deux
+    // canaux ci-dessus.
+    maybeScheduleReviewRequest({ req, merchantId, objectId, client: updated }).catch(() => {});
 
     return res.status(200).json({ client: updated, rewardReached, notificationSent, delta, reviewBonusApplied });
   } catch (err) {

@@ -21,9 +21,10 @@ import {
   updateLoyaltySettings,
   saveSubscriptionChoice,
   checkRateLimit,
+  markSignupLeadCompleted,
 } from "../../lib/db";
 import { insertLoyaltyClass, describeWalletError } from "../../lib/walletObjects";
-import { signSession } from "../../lib/session";
+import { signSession, buildSessionCookie } from "../../lib/session";
 import { uploadBrandingImage } from "../../lib/blob";
 import { getClientIp } from "../../lib/auth";
 
@@ -197,7 +198,12 @@ export default async function handler(req, res) {
     console.error("Formule tarifaire initiale non enregistrée :", err);
   }
 
+  // Le lead (voir save-signup-lead.js) n'a plus lieu d'être relancé par
+  // email vu qu'il vient de finaliser son inscription lui-même.
+  markSignupLeadCompleted(email).catch(() => {});
+
   const token = signSession({ merchantId: merchant.id });
+  res.setHeader("Set-Cookie", buildSessionCookie(token)); // voir le commentaire équivalent dans auth-login.js
   return res.status(200).json({
     token,
     merchantId: merchant.id,

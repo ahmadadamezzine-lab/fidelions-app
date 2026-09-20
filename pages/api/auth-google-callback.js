@@ -10,7 +10,7 @@
 //    d'inscription ouvert et l'email déjà rempli, à la dernière étape.
 
 import { getMerchantByEmail } from "../../lib/db";
-import { signSession } from "../../lib/session";
+import { signSession, buildSessionCookie } from "../../lib/session";
 import { exchangeGoogleCode, verifyGoogleIdToken, getRedirectUri } from "../../lib/googleAuth";
 
 function parseCookie(req, name) {
@@ -22,8 +22,10 @@ function parseCookie(req, name) {
   return match ? match.slice(name.length + 1) : null;
 }
 
+const CLEAR_STATE_COOKIE = "fid_g_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax";
+
 function clearStateCookie(res) {
-  res.setHeader("Set-Cookie", "fid_g_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+  res.setHeader("Set-Cookie", CLEAR_STATE_COOKIE);
 }
 
 export default async function handler(req, res) {
@@ -55,7 +57,20 @@ export default async function handler(req, res) {
     const merchant = await getMerchantByEmail(email);
     if (merchant) {
       const token = signSession({ merchantId: merchant.id });
-      res.writeHead(302, { Location: `/commercant?oauth_token=${encodeURIComponent(token)}` });
+      // Le jeton part directement dans un cookie httpOnly plutôt que dans
+      // l'URL de redirection : une URL avec un jeton de connexion dedans se
+      // retrouve dans l'historique du navigateur, les logs serveur, et le
+      // Referer envoyé à d'éventuelles ressources externes de la page — un
+      // cookie httpOnly n'apparaît dans aucun de ces endroits. Le paramètre
+      // `oauth=success` n'est qu'un signal, sans donnée sensible : il dit au
+      // client de vérifier sa session (voir tryAuth dans commercant.js), qui
+      // la retrouve via ce cookie.
+      // Deux cookies à envoyer dans la même réponse (celui qui efface
+      // fid_g_state ET celui qui pose la session) — setHeader avec un
+      // tableau envoie bien deux en-têtes Set-Cookie distincts, alors que
+      // l'appeler deux fois de suite écraserait le premier.
+      res.setHeader("Set-Cookie", [CLEAR_STATE_COOKIE, buildSessionCookie(token)]);
+      res.writeHead(302, { Location: "/commercant?oauth=success" });
       res.end();
       return;
     }
