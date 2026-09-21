@@ -60,17 +60,29 @@ export default function Confidentialite() {
         <p>Vos données peuvent être transmises aux prestataires techniques suivants, strictement nécessaires au fonctionnement du Service :</p>
         <ul>
           <li>Google (Google Wallet) — États-Unis — création et mise à jour de la carte de fidélité numérique ;</li>
-          <li>Google (Gemini) — États-Unis — analyse automatique de menu réalisée par l'Établissement (ne concerne pas les données des clients finaux) ;</li>
+          <li>Google (Gemini) — États-Unis — analyse automatique du menu (texte, PDF ou photo) réalisée par l'Établissement (ne concerne pas les données des clients finaux) ;</li>
+          <li>Groq Inc. — États-Unis — service de secours pour cette même analyse de menu, utilisé automatiquement lorsque Google Gemini n'est pas disponible, afin que cette fonctionnalité reste utilisable en toutes circonstances ;</li>
           <li>Vercel Inc. — États-Unis — hébergement du site et stockage des images (logo/bannière) ;</li>
           <li>Upstash — hébergement de la base de données ;</li>
           <li>Resend — États-Unis — envoi des emails (création de carte, campagnes) ;</li>
           <li>l'API Adresse du gouvernement français (api-adresse.data.gouv.fr) — recherche d'adresse de l'Établissement (aucune donnée personnelle d'un Client final n'y est transmise).</li>
         </ul>
         <p>Ces prestataires n'utilisent vos données que pour exécuter les services demandés et ne sont pas autorisés à les exploiter à d'autres fins. Vos données ne sont ni vendues, ni cédées, ni échangées à des fins publicitaires.</p>
+        <p>
+          Précision sur l'analyse de menu : le texte, le PDF ou la photo du menu que l'Établissement
+          soumet pour cette fonctionnalité est envoyé, sur Internet, au service d'intelligence
+          artificielle utilisé au moment de la demande (Google Gemini, ou Groq en secours — voir
+          ci-dessus) afin que celui-ci puisse le lire et l'analyser. Lorsqu'une photo ne peut pas être
+          analysée directement, une étape de reconnaissance de texte (OCR) est d'abord exécutée
+          localement, dans le navigateur de l'Établissement, avant tout envoi — cette étape-là ne
+          transmet rien à un tiers. Cette fonctionnalité est réservée à l'analyse du menu de
+          l'établissement ; elle ne doit pas être utilisée pour soumettre un autre type de document ou
+          des données personnelles de clients finaux.
+        </p>
 
         <h2>5. Transferts hors Union européenne</h2>
         <p>
-          Certains prestataires mentionnés ci-dessus (Google, Vercel, Resend) sont établis aux
+          Certains prestataires mentionnés ci-dessus (Google, Groq, Vercel, Resend) sont établis aux
           États-Unis. Ces transferts sont encadrés par les garanties prévues par le RGPD (clauses
           contractuelles types de la Commission européenne et/ou mécanismes de certification
           équivalents mis en place par ces prestataires).

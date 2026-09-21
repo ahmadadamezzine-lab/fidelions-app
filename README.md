@@ -21,7 +21,7 @@ Un seul site, plusieurs restaurants : chaque commerçant crée son propre compte
 13. `/commercant` affiche aussi une "Analyse automatique" : quelques phrases générées à partir des propres données du restaurant (croissance des inscriptions, client le plus fidèle, clients à 1-2 tampons de la récompense, clients qu'il faudrait relancer). Ce n'est pas un vrai modèle d'IA payant — ce sont des règles simples qui lisent les chiffres du compte.
 14. Chaque client de la liste ("Ou recherchez un client") a un menu "⋮" : ✏️ Renommer (corrige aussi le nom affiché sur sa carte Wallet), 🔒 Bloquer (grisé, exclu des stats/classement/campagnes mais gardé pour trace), 🗑️ Supprimer (définitif, avec un deuxième clic de confirmation).
 15. Le champ récompense a des présets en un clic ("1 café offert", "10% de réduction"...) et un aperçu en direct de ce que ça donnera.
-16. Carte "Analyse du menu & suggestions (IA)", rangée dans l'onglet **Statistiques** : importe le menu tel quel — texte collé/écrit, ou glisse-dépose un fichier `.txt`, PDF, ou simple photo prise au téléphone — et une vraie IA (Google Gemini, gratuite) le lit et le comprend toute seule, puis propose des idées de promotions concrètes qui citent les propres plats et prix du restaurant. Juste en dessous, "Ton offre actuelle" est un texte 100% libre. Voir l'étape 3ter ci-dessous pour activer la clé IA (gratuite, sans carte bancaire) ; tant qu'elle n'est pas configurée, une analyse basique (règles simples) prend le relais automatiquement pour le texte collé/écrit — mais PDF et photo demandent la vraie clé IA. En cas de pic de charge chez Google (erreur 503), le site réessaie automatiquement une fois avant d'abandonner.
+16. Carte "Analyse du menu & suggestions (IA)", rangée dans l'onglet **Statistiques** : importe le menu tel quel — texte collé/écrit, ou glisse-dépose un fichier `.txt`, PDF, ou simple photo prise au téléphone — et une vraie IA (Google Gemini, gratuite, avec secours automatique Groq) le lit et le comprend toute seule, puis propose des idées de promotions concrètes qui citent les propres plats et prix du restaurant. Juste en dessous, "Ton offre actuelle" est un texte 100% libre. Voir l'étape 3ter ci-dessous pour activer la vraie IA (gratuite, sans carte bancaire) et le paragraphe "Fiabilité de l'analyse du menu" juste après : même sans aucune clé configurée, l'analyse aboutit toujours (texte, PDF ou photo), avec au minimum une analyse basique par règles en tout dernier recours.
 17. `/commercant` est organisé en rubriques dans un vrai menu latéral fixé tout à gauche de l'écran sur ordinateur/tablette, et en rangée d'onglets défilante sur mobile. Rubriques : **Aperçu**, **Partager**, **Clients**, **Notifications**, **Ma carte**, **Récompenses**, **Employés**, **Géolocalisation**, **Statistiques**, **API & développeurs**, puis un groupe **Compte** séparé : **Établissement**, **Abonnement**, **Support**, **Paramètres**.
 18. Onglet **Partager** : le QR code d'inscription et le lien public **propre à ce restaurant** (`/r/son-slug`), affichés directement dans le tableau de bord (avec un bouton pour télécharger l'image à imprimer et un bouton pour copier le lien).
 19. Onglet **Récompenses** : choisit juste le mot affiché ("tampons" ou "points"), puis écrit librement autant de récompenses que voulu, chacune avec son propre seuil (ex : 20 tampons → pizza offerte, 30 → pizza + boisson offertes). Il y a toujours au moins une récompense modifiable (impossible de tout supprimer).
@@ -91,7 +91,7 @@ Sans domaine à toi, il n'existe pas de raccourci — c'est une limite du servic
 
 ## Étape 3ter — Activer la vraie IA pour l'analyse du menu (gratuit, sans carte bancaire)
 
-Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand même pour du texte collé/écrit (avec une analyse basique par règles), mais ne peut pas lire un PDF ou une photo de menu. Cette clé est gratuite chez Google, sans carte bancaire à saisir.
+Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand même (voir "Fiabilité de l'analyse du menu" ci-dessous — elle marche toujours, même sans aucune clé), mais avec seulement l'analyse basique par règles, moins fine qu'une vraie IA. Cette clé est gratuite chez Google, sans carte bancaire à saisir.
 
 1. Va sur `aistudio.google.com/apikey`
 2. Connecte-toi avec un compte Google (le même que pour Wallet ou un autre, peu importe).
@@ -101,11 +101,11 @@ Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand mê
 
 Tu ajouteras cette clé comme variable `GEMINI_API_KEY` à l'étape 4 juste en dessous.
 
-**⚠️ Le quota gratuit de Gemini se partage entre TOUS les commerces du site** et se mesure par minute — s'il est atteint, l'analyse affiche "Limite gratuite Gemini atteinte" et réessaie toute seule 60 secondes plus tard (rien à faire). Pour ne plus jamais dépendre uniquement de ça, ajoute aussi le filet de secours ci-dessous : dès que `GROQ_API_KEY` existe, le site bascule automatiquement dessus le temps que Gemini se libère, sans qu'aucun commerçant s'en aperçoive.
+**⚠️ Le quota gratuit de Gemini se partage entre TOUS les commerces du site** et se mesure par minute — s'il est atteint, le site bascule automatiquement sur le filet de secours ci-dessous, sans rien demander au commerçant.
 
 ### Filet de secours "IA open source" (Groq, gratuit, sans carte bancaire)
 
-Groq héberge gratuitement plusieurs IA à poids ouverts (Meta Llama — contrairement à Gemini ou ChatGPT qui sont propriétaires), sur un quota totalement séparé de celui de Google. Dès que la clé ci-dessous est ajoutée, le site l'utilise **automatiquement** si Gemini est à quota ou indisponible — pas de bouton ni de réglage, ça se fait tout seul. Limite honnête à connaître : ce filet de secours sait lire du texte collé et des photos, mais pas encore un PDF directement (dans ce cas rare, le site le dit clairement et propose de coller le texte ou de prendre une photo à la place).
+Groq héberge gratuitement plusieurs IA à poids ouverts (Meta Llama — contrairement à Gemini ou ChatGPT qui sont propriétaires), sur un quota totalement séparé de celui de Google. Dès que la clé ci-dessous est ajoutée, le site l'utilise **automatiquement** si Gemini est à quota ou indisponible — pas de bouton ni de réglage, ça se fait tout seul.
 
 1. Va sur `console.groq.com` → connecte-toi (email ou compte Google, gratuit, aucune carte demandée).
 2. Menu de gauche → `API Keys`.
@@ -113,6 +113,16 @@ Groq héberge gratuitement plusieurs IA à poids ouverts (Meta Llama — contrai
 4. Copie la clé affichée (elle commence par `gsk_...`) — comme pour Gemini, elle ne sera plus jamais réaffichée en entier.
 
 Tu ajouteras cette clé comme variable `GROQ_API_KEY` à l'étape 4 juste en dessous.
+
+### Fiabilité de l'analyse du menu — trois niveaux, toujours un résultat
+
+Le commerçant peut coller n'importe quel texte, ou déposer n'importe quelle photo/PDF de menu : l'analyse aboutit toujours, sans jamais rester bloquée sur un message d'erreur. Trois techniques s'enchaînent automatiquement, chacune ne servant que si la précédente échoue :
+
+1. **La vraie IA telle quelle** — Gemini, avec bascule automatique sur Groq (ci-dessus) si Gemini est à quota ou indisponible.
+2. **Pour une photo** : si l'étape 1 échoue, le texte de la photo est lu directement dans le navigateur du commerçant (reconnaissance de texte/OCR, via la bibliothèque open source Tesseract.js — aucun serveur, aucun quota), puis la vraie IA est retentée en mode texte, qui dispose d'un quota bien plus large qu'en mode photo.
+3. **Filet de secours final** — une analyse basique par règles, exécutée entièrement dans le navigateur (aucun réseau, aucun quota), qui renvoie toujours au moins des suggestions génériques utilisables, même sans aucune IA configurée et même sans texte détectable dans la photo.
+
+Rien à configurer pour ce comportement : il est actif d'office, avec ou sans `GEMINI_API_KEY`/`GROQ_API_KEY`. Conformément à la politique de confidentialité (`/confidentialite`), le texte/photo soumis pour l'analyse peut être transmis sur Internet au service IA utilisé (Gemini ou Groq) — seule l'étape de lecture de photo (OCR) se fait localement, sans rien envoyer à un tiers.
 
 ## Étape 3quater — Activer le stockage d'images pour "Ma carte" (gratuit)
 
@@ -328,9 +338,7 @@ Le mode hors-ligne du lien employé (`/scan/[token]`) reste volontairement basiq
 - "Google Wallet API has not been used in project ... or it is disabled" quand un tampon est ajouté → l'API Wallet doit être activée sur le projet Google Cloud du compte de service. Ouvre le lien exact donné dans le message d'erreur (il contient `?project=<numéro>`) et clique `Activer`, attends 2-3 minutes, puis réessaie.
 - La caméra reste noire ou refuse de s'activer → l'autorisation caméra du site a été refusée. Sur le téléphone : appuie sur l'icône 🔒/ⓘ à côté de l'adresse du site dans le navigateur → Autorisations (ou Paramètres du site) → Caméra → Autoriser, puis recharge la page.
 - La case "Email" de la campagne échoue → vérifie que `RESEND_API_KEY` est bien définie dans Vercel (étape 3bis) et qu'un redeploy a été fait après. Le compteur "(X avec email)" doit être supérieur à 0 — sinon, aucun client inscrit n'a renseigné son email.
-- "Analyser avec l'IA" échoue ou dit "GEMINI_API_KEY manquant" → l'étape 3ter n'a pas été faite, ou un redeploy n'a pas suivi l'ajout de la clé dans Vercel. Pour du texte collé/écrit, une analyse basique prend le relais automatiquement ; pour un PDF ou une photo, la clé est indispensable.
-- L'analyse IA dit "Limite gratuite Gemini atteinte" → le quota gratuit (par minute/jour) est temporairement dépassé, réessaie dans quelques minutes.
-- L'analyse IA dit "service IA de Google temporairement surchargé" → pic de charge chez Google sur le modèle gratuit (erreur 503), rien à voir avec le site — le site réessaie déjà une fois tout seul ; si ça persiste, réessaie manuellement dans une minute.
+- "Analyser avec l'IA" ne renvoie jamais d'erreur bloquante côté commerçant (voir "Fiabilité de l'analyse du menu" ci-dessus) — mais si le résultat est marqué "analyse basique" au lieu d'une vraie analyse IA, c'est que ni Gemini ni Groq n'ont répondu (clé manquante, quota des deux atteint en même temps, ou service temporairement surchargé). Vérifie `GEMINI_API_KEY`/`GROQ_API_KEY` dans Vercel (étape 3ter), ou réessaie simplement quelques minutes plus tard.
 - Le client ne voit pas la notification (popup écran de verrouillage) → deux causes possibles : (1) sur le téléphone du client, il faut que les notifications soient activées pour l'app Google Wallet (Réglages du téléphone → Applications → Google Wallet → Notifications → Activer) ; (2) Google limite à 3 notifications-popup par carte et par 24h — au-delà, le tampon/l'email partent quand même, mais sans popup ce jour-là pour cette carte précise.
 - Onglet "Ma carte" : erreur "Stockage d'images non configuré" en envoyant un logo/bannière → l'étape 3quater (Vercel Blob) n'a pas été faite, ou un redeploy n'a pas suivi la connexion du stockage.
 - Onglet "Proximité" : "Adresse introuvable" → vérifie l'orthographe de l'adresse, ou précise la ville et le code postal (ex. "12 rue de Metz, 31000 Toulouse" plutôt que juste "12 rue de Metz").

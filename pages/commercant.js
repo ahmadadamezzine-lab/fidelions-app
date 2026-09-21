@@ -317,8 +317,24 @@ function parseMenu(text) {
 
 function analyzeMenu(menuText, rewardLabel, rewardThreshold) {
   const items = parseMenu(menuText);
+
   if (items.length === 0) {
-    return { items: [], suggestions: [] };
+    // Aucune ligne au format "Nom ... prix€" détectée (prix écrits
+    // autrement, ou pas indiqués dans le texte collé) — plutôt que de
+    // renvoyer un résultat vide (ce qui renvoyait tout droit vers l'attente
+    // de 60s sans jamais rien montrer au commerçant), on propose des
+    // suggestions génériques qui ne dépendent d'aucun prix détecté : ça
+    // garantit un résultat à tous les coups dès qu'il y a du texte.
+    return {
+      items: [],
+      suggestions: [
+        `Formule du midi à prix réduit sur 2-3 plats phares de ta carte — attire les habitués du quartier en semaine.`,
+        `Offre "lundi tranquille" : une réduction sur ton plat signature pour remplir la salle en début de semaine.`,
+        `Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} points — mets une petite affiche en caisse pour donner envie de commencer la carte.`,
+        `Mets ton plat le plus populaire en avant sur tes réseaux — c'est souvent lui qui donne le plus envie de venir.`,
+        `Astuce : ajoute le prix suivi de "€" à côté de chaque plat dans ton texte (ex : "Salade César 9€") pour que l'analyse détecte aussi automatiquement tes plats et leurs prix.`,
+      ],
+    };
   }
 
   const sorted = [...items].sort((a, b) => a.price - b.price);
@@ -828,16 +844,18 @@ export default function Commercant() {
   const [menuDragOver, setMenuDragOver] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  // Minuteur affiché quand Gemini renvoie "quota dépassé" (plan gratuit,
-  // partagé par tous les commerces Fidélions — voir lib/ai.js) : plutôt
-  // que de laisser le commerçant deviner combien de temps attendre,
-  // `quotaRetryAt` retient l'horodatage où on retente automatiquement, et
-  // le useEffect juste en dessous fait défiler le compte à rebours affiché
-  // à côté du bouton "Analyser avec l'IA".
-  const [quotaRetryAt, setQuotaRetryAt] = useState(null);
-  const [quotaSecondsLeft, setQuotaSecondsLeft] = useState(0);
+  // Texte affiché dans le bouton "Analyser avec l'IA" pendant l'analyse —
+  // change au fil des étapes (vraie IA, puis lecture de photo, puis
+  // nouvelle tentative...) pour que le commerçant voie que ça avance au
+  // lieu d'un simple "Analyse en cours…" figé (voir analyzeWithAI plus bas).
+  const [analyzingLabel, setAnalyzingLabel] = useState("");
   const [aiResult, setAiResult] = useState(null); // { items, suggestions, fallback? }
   const menuFileInputRef = useRef(null);
+  // Worker OCR (Tesseract.js, 100% dans le navigateur, aucun serveur ni
+  // quota) — instancié à la demande dans ocrImageToText ci-dessous, réutilisé
+  // pour les nouvelles instances à installer via l'import dynamique. On ne
+  // le charge que si une photo doit vraiment être lue (voir analyzeWithAI).
+  const tesseractCreateWorkerRef = useRef(null);
   const [offerText, setOfferText] = useState("");
   const [savingOffer, setSavingOffer] = useState(false);
 
@@ -1693,38 +1711,85 @@ export default function Commercant() {
     setMenuFile(null);
   }
 
-  // Vraie analyse IA côté serveur (Gemini, avec secours Groq — voir
-  // lib/menuAnalysis.js). Les DEUX peuvent être à quota en même temps (ex :
-  // beaucoup d'essais rapprochés en peu de temps, quota gratuit partagé
-  // entre tous les commerces) : plutôt que de faire attendre le commerçant
-  // sans certitude que ça marche mieux ensuite, on retombe TOUT DE SUITE
-  // sur l'analyse locale par règles dès qu'il y a du texte collé/écrit —
-  // aucun réseau, aucun quota, ça répond toujours (Adam : "je veux que ça
-  // marche à tous les coups"). Seul un PDF/photo SANS texte collé n'a pas
-  // d'alternative locale possible (l'analyse par règles ne lit pas une
-  // image) — dans ce cas seulement, on affiche un compte à rebours et on
-  // retente automatiquement la vraie IA (voir le useEffect juste après).
+  // Lit le texte d'une photo entièrement dans le navigateur (OCR, via
+  // Tesseract.js — bibliothèque open source, chargée à la demande comme
+  // jsQR pour le scanner caméra, voir plus bas dans ce fichier). Aucun
+  // appel réseau vers un tiers pour CETTE étape : ni serveur Fidélions, ni
+  // quota Gemini/Groq — donc ça marche même quand les deux IA sont
+  // indisponibles. Utilisé par analyzeWithAI comme technique de repli
+  // avant l'analyse locale par règles (voir plus bas).
+  async function ocrImageToText(base64, mimeType) {
+    if (!tesseractCreateWorkerRef.current) {
+      const mod = await import("tesseract.js");
+      tesseractCreateWorkerRef.current = mod.createWorker;
+    }
+    // "fra" : reconnaissance en français, langue de toute l'interface et,
+    // très probablement, des menus des commerces inscrits sur Fidélions.
+    const worker = await tesseractCreateWorkerRef.current("fra");
+    try {
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+      const { data } = await worker.recognize(dataUrl);
+      return String(data?.text || "").trim();
+    } finally {
+      // Toujours libérer le worker (il tourne dans un Web Worker séparé) —
+      // même si la reconnaissance a échoué en cours de route.
+      await worker.terminate().catch(() => {});
+    }
+  }
+
+  // Un seul appel réseau vers /api/analyze-menu, réutilisé par les
+  // différentes tentatives d'analyzeWithAI (texte/fichier d'origine, puis
+  // texte lu par OCR le cas échéant) pour ne pas dupliquer le fetch.
+  async function callAnalyzeApi(analyzeText, analyzeFile) {
+    const res = await fetch("/api/analyze-menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-merchant-password": password },
+      body: JSON.stringify({
+        text: analyzeText || "",
+        fileBase64: analyzeFile?.base64 || null,
+        mimeType: analyzeFile?.mimeType || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erreur");
+    return data;
+  }
+
+  // Analyse du menu — entièrement repensée pour marcher À TOUS LES COUPS,
+  // texte collé OU photo/PDF envoyé (demande explicite d'Adam : le
+  // commerçant doit pouvoir coller ce qu'il veut, y compris des photos, et
+  // obtenir un résultat systématiquement). Trois techniques essayées dans
+  // l'ordre, chacune ne servant que si la précédente échoue :
+  //   1. La vraie IA telle quelle (Gemini, avec secours automatique Groq —
+  //      IA à poids ouverts, "open source" — voir lib/menuAnalysis.js),
+  //      avec exactement ce que le commerçant a fourni (texte et/ou fichier).
+  //   2. Si une PHOTO a été envoyée et que l'étape 1 a échoué (ex : quota
+  //      des deux IA atteint en même temps) : lecture du texte de la photo
+  //      directement dans le navigateur par OCR (Tesseract.js, gratuit,
+  //      sans réseau ni quota — voir ocrImageToText ci-dessus), puis
+  //      NOUVELLE tentative de la vraie IA mais en mode texte cette fois
+  //      (quota bien plus large qu'en mode "photo", donc de bonnes chances
+  //      que ça passe même si le mode photo était à quota).
+  //   3. Analyse locale par règles (aucun réseau, aucun quota, ne peut PAS
+  //      échouer) sur le texte collé et/ou celui lu par OCR — renvoie
+  //      toujours au moins des suggestions génériques, même sans texte du
+  //      tout (voir analyzeMenu plus haut dans ce fichier).
+  // Adam : "je veux que ça marche à tous les coups" — avec ces 3 niveaux,
+  // le commerçant obtient toujours un résultat, jamais un message d'erreur
+  // sec ni une attente sans garantie.
   async function analyzeWithAI() {
     if (!menuText.trim() && !menuFile) {
       setMessage({ type: "error", text: "Écris ton menu, ou importe un fichier, avant d'analyser." });
       return;
     }
     setAnalyzing(true);
+    setAnalyzingLabel("Analyse en cours…");
     setMessage(null);
     setAiResult(null);
-    setQuotaRetryAt(null);
+
+    // --- 1. Vraie IA, tel quel ---
     try {
-      const res = await fetch("/api/analyze-menu", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-merchant-password": password },
-        body: JSON.stringify({
-          text: menuText,
-          fileBase64: menuFile?.base64 || null,
-          mimeType: menuFile?.mimeType || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
+      const data = await callAnalyzeApi(menuText, menuFile);
       setAiResult({ items: data.items || [], suggestions: data.suggestions || [], provider: data.provider });
       setMessage({
         type: "success",
@@ -1733,49 +1798,60 @@ export default function Commercant() {
             ? "Analyse terminée — via l'IA de secours (open source, Gemini était indisponible)."
             : "Analyse IA terminée.",
       });
-    } catch (err) {
-      if (menuText.trim()) {
-        const fallback = analyzeMenu(menuText, rewardLabel, rewardThreshold);
-        if (fallback.items.length > 0) {
-          setAiResult({ items: fallback.items, suggestions: fallback.suggestions, fallback: true });
-          setMessage({
-            type: "error",
-            text: `${err.message} — analyse basique utilisée à la place (moins fine qu'une vraie IA, mais toujours disponible, sans quota).`,
-          });
-          setAnalyzing(false);
-          return;
+      setAnalyzing(false);
+      setAnalyzingLabel("");
+      return;
+    } catch (firstErr) {
+      // On continue vers les techniques de repli ci-dessous plutôt que
+      // d'afficher tout de suite une erreur.
+
+      // --- 2. Photo envoyée : OCR dans le navigateur, puis nouvel essai
+      //     de la vraie IA en mode texte ---
+      const isImage = menuFile && menuFile.mimeType && menuFile.mimeType.startsWith("image/");
+      let ocrText = "";
+      if (isImage) {
+        try {
+          setAnalyzingLabel("Lecture du texte de la photo…");
+          ocrText = await ocrImageToText(menuFile.base64, menuFile.mimeType);
+        } catch (ocrErr) {
+          console.error("Lecture automatique (OCR) de la photo échouée :", ocrErr);
         }
       }
-      setQuotaRetryAt(Date.now() + 60_000);
-      setMessage({ type: "error", text: `${err.message} Nouvel essai automatique dans 60s.` });
-    } finally {
+
+      if (ocrText) {
+        try {
+          setAnalyzingLabel("Nouvel essai avec le texte lu dans la photo…");
+          const data = await callAnalyzeApi(ocrText, null);
+          setAiResult({
+            items: data.items || [],
+            suggestions: data.suggestions || [],
+            provider: data.provider,
+            fromOcr: true,
+          });
+          setMessage({
+            type: "success",
+            text: "Analyse terminée à partir du texte lu automatiquement dans la photo.",
+          });
+          setAnalyzing(false);
+          setAnalyzingLabel("");
+          return;
+        } catch (secondErr) {
+          // On continue vers le filet de secours final ci-dessous.
+        }
+      }
+
+      // --- 3. Filet de secours final, toujours disponible ---
+      const textForFallback = menuText.trim() || ocrText || "";
+      const fallback = analyzeMenu(textForFallback, rewardLabel, rewardThreshold);
+      setAiResult({ items: fallback.items, suggestions: fallback.suggestions, fallback: true });
+      setMessage({
+        type: "error",
+        text: `${firstErr.message} — analyse basique utilisée à la place (moins fine qu'une vraie IA, mais toujours disponible, sans quota).`,
+      });
       setAnalyzing(false);
+      setAnalyzingLabel("");
     }
   }
-
-  // Fait défiler le compte à rebours affiché à côté du bouton "Analyser
-  // avec l'IA" quand analyzeWithAI n'a trouvé aucune alternative locale
-  // (voir plus haut — uniquement le cas PDF/photo sans texte collé), puis
-  // relance l'analyse toute seule à 0 — le commerçant n'a rien à cliquer,
-  // il voit juste "nouvel essai dans Xs".
-  useEffect(() => {
-    if (!quotaRetryAt) {
-      setQuotaSecondsLeft(0);
-      return;
-    }
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((quotaRetryAt - Date.now()) / 1000));
-      setQuotaSecondsLeft(remaining);
-      if (remaining <= 0) {
-        setQuotaRetryAt(null);
-        analyzeWithAI();
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotaRetryAt]);
 
   // Ajoute les suggestions IA au texte de l'offre — le commerçant garde la
   // main pour tout réécrire ensuite, rien n'est figé.
@@ -4039,12 +4115,10 @@ export default function Commercant() {
                 className="primary icon-heading"
                 type="button"
                 onClick={analyzeWithAI}
-                disabled={analyzing || quotaSecondsLeft > 0}
+                disabled={analyzing}
               >
-                {quotaSecondsLeft > 0
-                  ? `Nouvel essai dans ${quotaSecondsLeft}s…`
-                  : analyzing
-                  ? "Analyse en cours…"
+                {analyzing
+                  ? analyzingLabel || "Analyse en cours…"
                   : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
               </button>
             </div>
@@ -4054,6 +4128,7 @@ export default function Commercant() {
                 {aiResult.items.length > 1 ? "s" : ""}
                 {aiResult.fallback ? " (analyse basique, pas encore la vraie IA)" : ""}
                 {aiResult.provider === "groq" ? " (via l'IA de secours, open source)" : ""}
+                {aiResult.fromOcr ? " (texte lu automatiquement dans la photo)" : ""}
               </p>
             )}
             {aiResult && aiResult.suggestions && aiResult.suggestions.length > 0 && (
