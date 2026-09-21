@@ -70,6 +70,7 @@ const ICONS = {
   briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
   whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
+  send: <><path d="M4.5 12 20 4.5 12.8 20l-2-6.8Z" /><path d="M4.5 12 13 13" /></>,
   apple: <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>,
 };
 
@@ -291,89 +292,11 @@ const REWARD_PRESETS = [
   "10% de réduction",
 ];
 
-// Analyse du menu : la vraie analyse se fait maintenant côté serveur par
-// une IA (Google Gemini, voir lib/ai.js) qui lit le texte, le PDF ou la
-// photo envoyée et comprend le contenu toute seule. Les fonctions
-// ci-dessous (parseMenu/analyzeMenu, règles simples sur le texte) ne
-// servent plus que de filet de sécurité : si la clé IA n'est pas encore
-// configurée ou si l'appel échoue, on retombe dessus pour que la
-// fonctionnalité reste utilisable tout de suite (uniquement pour du texte
-// collé/écrit — un PDF ou une photo nécessitent la vraie IA).
-function parseMenu(text) {
-  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  const items = [];
-  for (const line of lines) {
-    const match = line.match(/^(.+?)[\s.\-–:]*?(\d+(?:[.,]\d{1,2})?)\s*€/);
-    if (match) {
-      const name = match[1].replace(/[-–.:]+$/, "").trim();
-      const price = parseFloat(match[2].replace(",", "."));
-      if (name && Number.isFinite(price)) {
-        items.push({ name, price });
-      }
-    }
-  }
-  return items;
-}
-
-function analyzeMenu(menuText, rewardLabel, rewardThreshold) {
-  const items = parseMenu(menuText);
-
-  if (items.length === 0) {
-    // Aucune ligne au format "Nom ... prix€" détectée (prix écrits
-    // autrement, ou pas indiqués dans le texte collé) — plutôt que de
-    // renvoyer un résultat vide (ce qui renvoyait tout droit vers l'attente
-    // de 60s sans jamais rien montrer au commerçant), on propose des
-    // suggestions génériques qui ne dépendent d'aucun prix détecté : ça
-    // garantit un résultat à tous les coups dès qu'il y a du texte.
-    return {
-      items: [],
-      suggestions: [
-        `Formule du midi à prix réduit sur 2-3 plats phares de ta carte — attire les habitués du quartier en semaine.`,
-        `Offre "lundi tranquille" : une réduction sur ton plat signature pour remplir la salle en début de semaine.`,
-        `Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} points — mets une petite affiche en caisse pour donner envie de commencer la carte.`,
-        `Mets ton plat le plus populaire en avant sur tes réseaux — c'est souvent lui qui donne le plus envie de venir.`,
-        `Astuce : ajoute le prix suivi de "€" à côté de chaque plat dans ton texte (ex : "Salade César 9€") pour que l'analyse détecte aussi automatiquement tes plats et leurs prix.`,
-      ],
-    };
-  }
-
-  const sorted = [...items].sort((a, b) => a.price - b.price);
-  const cheapest = sorted[0];
-  const priciest = sorted[sorted.length - 1];
-  const priceAvg = items.reduce((s, i) => s + i.price, 0) / items.length;
-
-  const suggestions = [];
-
-  suggestions.push(
-    `Menu du midi à ${(priceAvg * 0.85).toFixed(2)}€ (prix moyen actuel : ${priceAvg.toFixed(2)}€) — attire les habitués du quartier en semaine.`
-  );
-
-  if (items.length >= 2 && cheapest.name !== priciest.name) {
-    suggestions.push(
-      `Formule duo "${cheapest.name}" + "${priciest.name}" à prix réduit — pousse à commander plus qu'un seul plat.`
-    );
-  }
-
-  suggestions.push(
-    `Offre "lundi tranquille" : -20% sur "${priciest.name}" (ton plat le plus cher) pour remplir la salle en début de semaine.`
-  );
-
-  suggestions.push(
-    `Débloquez "${rewardLabel || "votre récompense"}" à ${rewardThreshold || 10} points — mets une petite affiche à côté de "${cheapest.name}" pour donner envie de commencer la carte.`
-  );
-
-  suggestions.push(
-    `Mets "${priciest.name}" en avant sur tes réseaux — c'est souvent le plat qui donne le plus envie de venir.`
-  );
-
-  return {
-    items,
-    priceMin: cheapest.price,
-    priceMax: priciest.price,
-    priceAvg,
-    suggestions,
-  };
-}
+// L'analyse du menu par règles simples (regex sur "nom ... prix€") a été
+// retirée avec la refonte du Conseiller IA (voir lib/advisor.js) : le filet
+// de secours final quand les deux IA (Gemini/Groq) échouent est maintenant
+// géré côté SERVEUR (askAdvisor renvoie toujours une réponse, jamais une
+// erreur sèche), donc ce parseur local n'a plus de raison d'exister ici.
 
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
@@ -836,28 +759,35 @@ export default function Commercant() {
   const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-  // --- Menu du restaurant (texte/PDF/photo) + analyse IA + offre éditable ---
+  // --- Menu du restaurant (texte/PDF/photo) + offre éditable ---
   // (Rangé dans l'onglet Notifications/Campagnes : l'offre qui en ressort
   // sert justement de base au message de campagne envoyé juste en dessous.)
   const [menuText, setMenuText] = useState("");
   const [menuFile, setMenuFile] = useState(null); // { base64, mimeType, name } ou null
   const [menuDragOver, setMenuDragOver] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  // Texte affiché dans le bouton "Analyser avec l'IA" pendant l'analyse —
-  // change au fil des étapes (vraie IA, puis lecture de photo, puis
-  // nouvelle tentative...) pour que le commerçant voie que ça avance au
-  // lieu d'un simple "Analyse en cours…" figé (voir analyzeWithAI plus bas).
-  const [analyzingLabel, setAnalyzingLabel] = useState("");
-  const [aiResult, setAiResult] = useState(null); // { items, suggestions, fallback? }
   const menuFileInputRef = useRef(null);
   // Worker OCR (Tesseract.js, 100% dans le navigateur, aucun serveur ni
   // quota) — instancié à la demande dans ocrImageToText ci-dessous, réutilisé
   // pour les nouvelles instances à installer via l'import dynamique. On ne
-  // le charge que si une photo doit vraiment être lue (voir analyzeWithAI).
+  // le charge que si une photo doit vraiment être lue (voir sendAdvisorMessage
+  // plus bas, appelé par le Conseiller IA).
   const tesseractCreateWorkerRef = useRef(null);
   const [offerText, setOfferText] = useState("");
   const [savingOffer, setSavingOffer] = useState(false);
+
+  // --- Conseiller IA : vrai fil de discussion (remplace l'ancienne analyse
+  // figée en un seul aller-retour) — voir sendAdvisorMessage plus bas et
+  // lib/advisor.js côté serveur. Le commerçant peut poser n'importe quelle
+  // question, joindre une photo à n'importe quel message (pas seulement le
+  // premier), et obtient toujours une réponse (vraie IA, ou repli local si
+  // les deux IA échouent — jamais un message d'erreur sec).
+  const [advisorMessages, setAdvisorMessages] = useState([]); // [{role:"user"|"assistant", text, provider?, fallback?, fromOcr?}]
+  const [advisorInput, setAdvisorInput] = useState("");
+  const [advisorSending, setAdvisorSending] = useState(false);
+  const [advisorLabel, setAdvisorLabel] = useState("");
+  const [advisorFile, setAdvisorFile] = useState(null); // { base64, mimeType, name } — pièce jointe du PROCHAIN message
+  const advisorFileInputRef = useRef(null);
 
   // --- Fidélité : paliers de récompense (système unique "points", voir
   // lib/loyalty.js) — un seul palier = carte classique, plusieurs = étapes.
@@ -1716,8 +1646,9 @@ export default function Commercant() {
   // jsQR pour le scanner caméra, voir plus bas dans ce fichier). Aucun
   // appel réseau vers un tiers pour CETTE étape : ni serveur Fidélions, ni
   // quota Gemini/Groq — donc ça marche même quand les deux IA sont
-  // indisponibles. Utilisé par analyzeWithAI comme technique de repli
-  // avant l'analyse locale par règles (voir plus bas).
+  // indisponibles. Utilisé par sendAdvisorMessage (le Conseiller IA, voir
+  // plus bas) comme technique de repli quand une photo est jointe et que
+  // les deux IA ont échoué.
   async function ocrImageToText(base64, mimeType) {
     if (!tesseractCreateWorkerRef.current) {
       const mod = await import("tesseract.js");
@@ -1737,17 +1668,52 @@ export default function Commercant() {
     }
   }
 
-  // Un seul appel réseau vers /api/analyze-menu, réutilisé par les
-  // différentes tentatives d'analyzeWithAI (texte/fichier d'origine, puis
-  // texte lu par OCR le cas échéant) pour ne pas dupliquer le fetch.
-  async function callAnalyzeApi(analyzeText, analyzeFile) {
-    const res = await fetch("/api/analyze-menu", {
+  // Pièce jointe du Conseiller IA : accepte PDF/photo pour n'importe quel
+  // message du fil (pas seulement le premier) — logique volontairement
+  // proche de processMenuFile ci-dessus, mais indépendante : cette pièce
+  // jointe est éphémère (attachée au PROCHAIN message envoyé), alors que
+  // menuFile sert à "Enregistrer le menu" pour les campagnes.
+  function processAdvisorFile(file) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Fichier trop lourd (8 Mo max) — réduis la taille de la photo ou du PDF." });
+      return;
+    }
+    const isPdfOrImage = file.type === "application/pdf" || file.type.startsWith("image/");
+    if (!isPdfOrImage) {
+      setMessage({ type: "error", text: "Format non reconnu — utilise un PDF ou une photo (JPG/PNG)." });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const base64 = dataUrl.split(",")[1] || "";
+      setAdvisorFile({ base64, mimeType: file.type, name: file.name });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleAdvisorFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    processAdvisorFile(file);
+  }
+
+  // Un seul appel réseau vers /api/advisor, réutilisé par la tentative
+  // d'origine et par le nouvel essai après OCR le cas échéant (voir
+  // sendAdvisorMessage ci-dessous).
+  async function callAdvisorApi(history, file) {
+    const res = await fetch("/api/advisor", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-merchant-password": password },
       body: JSON.stringify({
-        text: analyzeText || "",
-        fileBase64: analyzeFile?.base64 || null,
-        mimeType: analyzeFile?.mimeType || null,
+        messages: history,
+        fileBase64: file?.base64 || null,
+        mimeType: file?.mimeType || null,
+        menuText,
+        offerText,
+        rewardLabel,
+        rewardThreshold,
       }),
     });
     const data = await res.json();
@@ -1755,111 +1721,89 @@ export default function Commercant() {
     return data;
   }
 
-  // Analyse du menu — entièrement repensée pour marcher À TOUS LES COUPS,
-  // texte collé OU photo/PDF envoyé (demande explicite d'Adam : le
-  // commerçant doit pouvoir coller ce qu'il veut, y compris des photos, et
-  // obtenir un résultat systématiquement). Trois techniques essayées dans
-  // l'ordre, chacune ne servant que si la précédente échoue :
-  //   1. La vraie IA telle quelle (Gemini, avec secours automatique Groq —
-  //      IA à poids ouverts, "open source" — voir lib/menuAnalysis.js),
-  //      avec exactement ce que le commerçant a fourni (texte et/ou fichier).
-  //   2. Si une PHOTO a été envoyée et que l'étape 1 a échoué (ex : quota
-  //      des deux IA atteint en même temps) : lecture du texte de la photo
-  //      directement dans le navigateur par OCR (Tesseract.js, gratuit,
-  //      sans réseau ni quota — voir ocrImageToText ci-dessus), puis
-  //      NOUVELLE tentative de la vraie IA mais en mode texte cette fois
-  //      (quota bien plus large qu'en mode "photo", donc de bonnes chances
-  //      que ça passe même si le mode photo était à quota).
-  //   3. Analyse locale par règles (aucun réseau, aucun quota, ne peut PAS
-  //      échouer) sur le texte collé et/ou celui lu par OCR — renvoie
-  //      toujours au moins des suggestions génériques, même sans texte du
-  //      tout (voir analyzeMenu plus haut dans ce fichier).
-  // Adam : "je veux que ça marche à tous les coups" — avec ces 3 niveaux,
-  // le commerçant obtient toujours un résultat, jamais un message d'erreur
-  // sec ni une attente sans garantie.
-  async function analyzeWithAI() {
-    if (!menuText.trim() && !menuFile) {
-      setMessage({ type: "error", text: "Écris ton menu, ou importe un fichier, avant d'analyser." });
-      return;
-    }
-    setAnalyzing(true);
-    setAnalyzingLabel("Analyse en cours…");
+  // Conseiller IA — entièrement repensé en vrai fil de discussion (Adam :
+  // "intègre un conseiller IA, revois ça depuis la profondeur") plutôt
+  // qu'un bouton "Analyser" à sens unique. Le commerçant pose n'importe
+  // quelle question, éventuellement avec une photo/PDF joint(e) à N'IMPORTE
+  // QUEL message du fil, et obtient TOUJOURS une réponse :
+  //   1. La vraie IA (Gemini, secours automatique Groq — voir
+  //      lib/advisor.js) reçoit l'historique complet + le contexte du
+  //      commerce (menu/offre/récompense déjà enregistrés) + la pièce
+  //      jointe éventuelle.
+  //   2. Si le serveur a dû retomber sur sa réponse de secours locale
+  //      (les deux IA étaient indisponibles) ET qu'une PHOTO était jointe :
+  //      on lit son texte directement dans le navigateur par OCR
+  //      (Tesseract.js, gratuit, sans réseau ni quota — voir
+  //      ocrImageToText ci-dessus) et on retente la vraie IA en mode texte
+  //      (quota bien plus large qu'en mode photo) — une vraie chance
+  //      d'obtenir une vraie réponse IA plutôt que le repli générique.
+  //   3. Dans tous les cas, lib/advisor.js garantit déjà côté serveur une
+  //      réponse utilisable (jamais un message d'erreur sec) — cette
+  //      fonction ne fait donc qu'essayer d'obtenir MIEUX qu'un repli
+  //      générique quand c'est possible, jamais de bloquer le fil.
+  async function sendAdvisorMessage() {
+    const text = advisorInput.trim();
+    if (!text && !advisorFile) return;
+
+    const file = advisorFile;
+    const userMsg = { role: "user", text: text || "(photo jointe, sans question précise)" };
+    const history = [...advisorMessages, userMsg];
+
+    setAdvisorMessages(history);
+    setAdvisorInput("");
+    setAdvisorFile(null);
+    setAdvisorSending(true);
+    setAdvisorLabel("Réflexion en cours…");
     setMessage(null);
-    setAiResult(null);
 
-    // --- 1. Vraie IA, tel quel ---
     try {
-      const data = await callAnalyzeApi(menuText, menuFile);
-      setAiResult({ items: data.items || [], suggestions: data.suggestions || [], provider: data.provider });
-      setMessage({
-        type: "success",
-        text:
-          data.provider === "groq"
-            ? "Analyse terminée — via l'IA de secours (open source, Gemini était indisponible)."
-            : "Analyse IA terminée.",
-      });
-      setAnalyzing(false);
-      setAnalyzingLabel("");
-      return;
-    } catch (firstErr) {
-      // On continue vers les techniques de repli ci-dessous plutôt que
-      // d'afficher tout de suite une erreur.
+      let data = await callAdvisorApi(history, file);
 
-      // --- 2. Photo envoyée : OCR dans le navigateur, puis nouvel essai
-      //     de la vraie IA en mode texte ---
-      const isImage = menuFile && menuFile.mimeType && menuFile.mimeType.startsWith("image/");
-      let ocrText = "";
-      if (isImage) {
+      const isImage = file && file.mimeType && file.mimeType.startsWith("image/");
+      if (data.fallback && isImage) {
         try {
-          setAnalyzingLabel("Lecture du texte de la photo…");
-          ocrText = await ocrImageToText(menuFile.base64, menuFile.mimeType);
+          setAdvisorLabel("Lecture du texte de la photo, nouvel essai…");
+          const ocrText = await ocrImageToText(file.base64, file.mimeType);
+          if (ocrText) {
+            const retryHistory = [
+              ...advisorMessages,
+              { role: "user", text: `${userMsg.text}\n\n(Texte lu automatiquement dans la photo jointe :)\n${ocrText}`.trim() },
+            ];
+            const retryData = await callAdvisorApi(retryHistory, null);
+            if (!retryData.fallback) {
+              data = { ...retryData, fromOcr: true };
+            }
+          }
         } catch (ocrErr) {
           console.error("Lecture automatique (OCR) de la photo échouée :", ocrErr);
         }
       }
 
-      if (ocrText) {
-        try {
-          setAnalyzingLabel("Nouvel essai avec le texte lu dans la photo…");
-          const data = await callAnalyzeApi(ocrText, null);
-          setAiResult({
-            items: data.items || [],
-            suggestions: data.suggestions || [],
-            provider: data.provider,
-            fromOcr: true,
-          });
-          setMessage({
-            type: "success",
-            text: "Analyse terminée à partir du texte lu automatiquement dans la photo.",
-          });
-          setAnalyzing(false);
-          setAnalyzingLabel("");
-          return;
-        } catch (secondErr) {
-          // On continue vers le filet de secours final ci-dessous.
-        }
-      }
-
-      // --- 3. Filet de secours final, toujours disponible ---
-      const textForFallback = menuText.trim() || ocrText || "";
-      const fallback = analyzeMenu(textForFallback, rewardLabel, rewardThreshold);
-      setAiResult({ items: fallback.items, suggestions: fallback.suggestions, fallback: true });
-      setMessage({
-        type: "error",
-        text: `${firstErr.message} — analyse basique utilisée à la place (moins fine qu'une vraie IA, mais toujours disponible, sans quota).`,
-      });
-      setAnalyzing(false);
-      setAnalyzingLabel("");
+      setAdvisorMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: data.reply, provider: data.provider, fallback: data.fallback, fromOcr: data.fromOcr },
+      ]);
+    } catch (err) {
+      // Ne devrait normalement jamais arriver (lib/advisor.js garantit déjà
+      // une réponse côté serveur) — filet de sécurité final pour ne jamais
+      // laisser le fil de discussion sans réponse.
+      setAdvisorMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Désolé, une erreur inattendue est survenue — réessaie ta question.", fallback: true },
+      ]);
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setAdvisorSending(false);
+      setAdvisorLabel("");
     }
   }
 
-  // Ajoute les suggestions IA au texte de l'offre — le commerçant garde la
-  // main pour tout réécrire ensuite, rien n'est figé.
-  function useAiSuggestions() {
-    if (!aiResult || !aiResult.suggestions || aiResult.suggestions.length === 0) return;
-    const block = aiResult.suggestions.map((s) => `• ${s}`).join("\n");
-    setOfferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${block}` : block));
-    setMessage({ type: "success", text: "Suggestions ajoutées à ton offre — modifie-les comme tu veux puis enregistre." });
+  // Ajoute la réponse du conseiller au texte de l'offre — le commerçant
+  // garde la main pour tout réécrire ensuite, rien n'est figé.
+  function useAdvisorReply(text) {
+    if (!text) return;
+    setOfferText((prev) => (prev.trim() ? `${prev.trim()}\n\n${text}` : text));
+    setMessage({ type: "success", text: "Réponse ajoutée à ton offre — modifie-la comme tu veux puis enregistre." });
   }
 
   // L'offre est un texte 100% libre : le commerçant peut tout écrire ou
@@ -4052,13 +3996,12 @@ export default function Commercant() {
 
         {role === "owner" && activeTab === "campagnes" && (
           <div className="card">
-            <h2>Analyse du menu & suggestions (IA)</h2>
+            <h2>Ton menu</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Écris ton menu, ou importe-le directement — texte (.txt), PDF, ou
-              simple photo prise au téléphone. Une IA (gratuite) le lit et le
-              comprend toute seule, puis propose des idées de promotions basées
-              sur tes propres plats — c'est notre plus par rapport à la
-              concurrence, gardé ici avec le reste des campagnes.
+              simple photo prise au téléphone. Le Conseiller IA juste en dessous
+              s'en sert automatiquement pour te répondre avec tes propres plats
+              et prix.
             </p>
             <textarea
               className="menu-textarea"
@@ -4089,7 +4032,7 @@ export default function Commercant() {
             >
               {menuFile ? (
                 <p className="subtitle icon-heading" style={{ margin: 0 }}>
-                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à analyser —{" "}
+                  <Icon name="paperclip" size={14} /> {menuFile.name} prêt à enregistrer —{" "}
                   <button
                     type="button"
                     className="link-btn"
@@ -4111,42 +4054,102 @@ export default function Commercant() {
               <button className="secondary icon-heading" type="button" onClick={saveMenu} disabled={savingMenu}>
                 {savingMenu ? "Enregistrement…" : (<><Icon name="save" size={15} /> Enregistrer le menu</>)}
               </button>
+            </div>
+
+            <h2 style={{ marginTop: 28 }}>Conseiller IA</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Pose n'importe quelle question sur ton activité — menu, promos,
+              fidélisation — et obtiens une vraie réponse, pas juste une analyse
+              figée. Tu peux joindre une photo ou un PDF à n'importe quel
+              message. Une réponse arrive toujours, même si les deux IA sont
+              temporairement indisponibles.
+            </p>
+            <div className="advisor-thread">
+              {advisorMessages.length === 0 && !advisorSending && (
+                <p className="subtitle" style={{ fontStyle: "italic", margin: 0 }}>
+                  Exemple : « Analyse mon menu et propose-moi 3 idées de
+                  promotions » — ou joins directement une photo de ton menu.
+                </p>
+              )}
+              {advisorMessages.map((m, i) => (
+                <div className={"advisor-msg " + m.role} key={i}>
+                  {m.role === "assistant" && (
+                    <div className="advisor-avatar">
+                      <Icon name="robot" size={14} />
+                    </div>
+                  )}
+                  <div className="advisor-bubble">
+                    {m.text}
+                    {m.role === "assistant" && (m.fallback || m.provider === "groq" || m.fromOcr) && (
+                      <div className="advisor-meta">
+                        {m.fallback ? "Réponse de repli (les deux IA étaient indisponibles)" : ""}
+                        {!m.fallback && m.provider === "groq" ? "Via l'IA de secours, open source" : ""}
+                        {m.fromOcr ? " — texte lu automatiquement dans la photo" : ""}
+                      </div>
+                    )}
+                    {m.role === "assistant" && m.text && !m.fallback && (
+                      <button className="link-btn advisor-use-btn" type="button" onClick={() => useAdvisorReply(m.text)}>
+                        Utiliser dans mon offre
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {advisorSending && (
+                <div className="advisor-msg assistant">
+                  <div className="advisor-avatar">
+                    <Icon name="robot" size={14} />
+                  </div>
+                  <div className="advisor-bubble advisor-typing">{advisorLabel || "Réflexion en cours…"}</div>
+                </div>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              ref={advisorFileInputRef}
+              style={{ display: "none" }}
+              onChange={handleAdvisorFile}
+            />
+            {advisorFile && (
+              <p className="subtitle icon-heading" style={{ margin: "0 0 8px" }}>
+                <Icon name="paperclip" size={14} /> {advisorFile.name} sera joint à ton prochain message —{" "}
+                <button type="button" className="link-btn" onClick={() => setAdvisorFile(null)}>
+                  retirer
+                </button>
+              </p>
+            )}
+            <div className="advisor-input-row">
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => advisorFileInputRef.current?.click()}
+                title="Joindre une photo ou un PDF"
+              >
+                <Icon name="paperclip" size={16} />
+              </button>
+              <textarea
+                className="advisor-textarea"
+                placeholder="Écris ta question… (ex : quelles promos pour attirer plus de monde le lundi midi ?)"
+                value={advisorInput}
+                onChange={(e) => setAdvisorInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendAdvisorMessage();
+                  }
+                }}
+                rows={2}
+              />
               <button
                 className="primary icon-heading"
                 type="button"
-                onClick={analyzeWithAI}
-                disabled={analyzing}
+                onClick={sendAdvisorMessage}
+                disabled={advisorSending || (!advisorInput.trim() && !advisorFile)}
               >
-                {analyzing
-                  ? analyzingLabel || "Analyse en cours…"
-                  : (<><Icon name="robot" size={15} /> Analyser avec l'IA</>)}
+                <Icon name="send" size={15} /> Envoyer
               </button>
             </div>
-            {aiResult && aiResult.items && aiResult.items.length > 0 && (
-              <p className="subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
-                {aiResult.items.length} plat{aiResult.items.length > 1 ? "s" : ""} détecté
-                {aiResult.items.length > 1 ? "s" : ""}
-                {aiResult.fallback ? " (analyse basique, pas encore la vraie IA)" : ""}
-                {aiResult.provider === "groq" ? " (via l'IA de secours, open source)" : ""}
-                {aiResult.fromOcr ? " (texte lu automatiquement dans la photo)" : ""}
-              </p>
-            )}
-            {aiResult && aiResult.suggestions && aiResult.suggestions.length > 0 && (
-              <>
-                <div className="insights">
-                  {aiResult.suggestions.map((s, i) => (
-                    <div className="insight-row" key={i}>
-                      {s}
-                    </div>
-                  ))}
-                </div>
-                <div className="menu-actions" style={{ marginTop: 10 }}>
-                  <button className="secondary icon-heading" type="button" onClick={useAiSuggestions}>
-                    <Icon name="download" size={15} /> Utiliser ces suggestions dans mon offre
-                  </button>
-                </div>
-              </>
-            )}
 
             <h2 style={{ marginTop: 28 }}>Ton offre actuelle</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
@@ -5018,14 +5021,16 @@ export default function Commercant() {
               </p>
             </details>
             <details className="faq-item">
-              <summary>"Analyser avec l'IA" échoue</summary>
+              <summary>Le Conseiller IA répond, mais dit "réponse de repli"</summary>
               <p>
-                Pour du texte collé/écrit, une analyse basique prend le relais
-                automatiquement en attendant ; pour un PDF ou une photo, la clé
-                IA est indispensable. Si le message parle d'un service
-                "temporairement surchargé", c'est un pic de charge chez Google
-                (pas un bug du site) — le site réessaie déjà une fois tout
-                seul ; si ça persiste, réessaie manuellement dans une minute.
+                Le Conseiller IA répond toujours — il ne reste jamais bloqué
+                sur une erreur. Si une réponse est marquée comme réponse de
+                repli plutôt qu'une vraie réponse IA, c'est que ni Gemini ni
+                Groq n'étaient joignables au moment de la question (clé
+                manquante, quota des deux atteint en même temps, ou service
+                temporairement surchargé chez le fournisseur — pas un bug du
+                site). Repose la même question quelques minutes plus tard
+                pour une vraie réponse IA.
               </p>
             </details>
             <details className="faq-item">
@@ -5191,6 +5196,97 @@ const styles = `
     flex: 1;
     min-width: 110px;
     padding: 10px 10px;
+    font-size: 12.5px;
+    margin-top: 0;
+  }
+  .advisor-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 4px 2px 10px;
+    margin-bottom: 10px;
+  }
+  .advisor-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .advisor-msg.user {
+    justify-content: flex-end;
+  }
+  .advisor-avatar {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 99px;
+    background: #f3ecff;
+    color: ${PURPLE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .advisor-bubble {
+    max-width: 82%;
+    background: #faf9fd;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: #262626;
+    white-space: pre-wrap;
+  }
+  .advisor-msg.user .advisor-bubble {
+    background: ${PURPLE};
+    color: #fff;
+  }
+  .advisor-typing {
+    color: #8a8a8a;
+    font-style: italic;
+  }
+  .advisor-meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #9a9a9a;
+  }
+  .advisor-use-btn {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .advisor-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .advisor-textarea {
+    flex: 1;
+    min-height: 40px;
+    max-height: 120px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid #e0e0e0;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .advisor-textarea:focus {
+    outline: none;
+    border-color: ${PURPLE};
+  }
+  .advisor-input-row .icon-btn {
+    width: auto;
+    flex-shrink: 0;
+    padding: 10px;
+    margin-top: 0;
+  }
+  .advisor-input-row button.primary {
+    width: auto;
+    flex-shrink: 0;
+    padding: 10px 14px;
     font-size: 12.5px;
     margin-top: 0;
   }
