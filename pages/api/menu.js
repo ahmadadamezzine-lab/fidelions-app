@@ -2,8 +2,8 @@
 //
 // Sauvegarde le menu du restaurant (collé ou écrit une fois par le
 // commerçant) pour qu'il soit toujours là au prochain login, sur
-// n'importe quel appareil. Ce texte sert ensuite de contexte au Conseiller
-// IA (voir pages/api/advisor.js et lib/advisor.js).
+// n'importe quel appareil. L'analyse et les suggestions de promotions se
+// font côté frontend (lib/menuAnalysis, pas d'IA payante ici).
 
 import { getMenuText, saveMenuText } from "../../lib/db";
 import { getRole, getMerchantId } from "../../lib/auth";
