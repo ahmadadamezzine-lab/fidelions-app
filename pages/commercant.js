@@ -1693,10 +1693,17 @@ export default function Commercant() {
     setMenuFile(null);
   }
 
-  // Vraie analyse IA côté serveur (Gemini). Si la clé n'est pas encore
-  // configurée (ou que l'appel échoue) ET qu'on a du texte, on retombe sur
-  // l'analyse par règles pour que le commerçant ait quand même un résultat
-  // tout de suite, avec un message clair sur la raison.
+  // Vraie analyse IA côté serveur (Gemini, avec secours Groq — voir
+  // lib/menuAnalysis.js). Les DEUX peuvent être à quota en même temps (ex :
+  // beaucoup d'essais rapprochés en peu de temps, quota gratuit partagé
+  // entre tous les commerces) : plutôt que de faire attendre le commerçant
+  // sans certitude que ça marche mieux ensuite, on retombe TOUT DE SUITE
+  // sur l'analyse locale par règles dès qu'il y a du texte collé/écrit —
+  // aucun réseau, aucun quota, ça répond toujours (Adam : "je veux que ça
+  // marche à tous les coups"). Seul un PDF/photo SANS texte collé n'a pas
+  // d'alternative locale possible (l'analyse par règles ne lit pas une
+  // image) — dans ce cas seulement, on affiche un compte à rebours et on
+  // retente automatiquement la vraie IA (voir le useEffect juste après).
   async function analyzeWithAI() {
     if (!menuText.trim() && !menuFile) {
       setMessage({ type: "error", text: "Écris ton menu, ou importe un fichier, avant d'analyser." });
@@ -1705,6 +1712,7 @@ export default function Commercant() {
     setAnalyzing(true);
     setMessage(null);
     setAiResult(null);
+    setQuotaRetryAt(null);
     try {
       const res = await fetch("/api/analyze-menu", {
         method: "POST",
@@ -1725,42 +1733,31 @@ export default function Commercant() {
             ? "Analyse terminée — via l'IA de secours (open source, Gemini était indisponible)."
             : "Analyse IA terminée.",
       });
-      setQuotaRetryAt(null);
     } catch (err) {
-      // Quota Gemini gratuit dépassé (partagé par tous les commerces —
-      // voir lib/ai.js) : plutôt que de retomber tout de suite sur
-      // l'analyse basique, on affiche un compte à rebours et on relance
-      // automatiquement la VRAIE IA une fois le quota probablement
-      // reconstitué (60s — les limites gratuites de Google sont par
-      // minute), voir le useEffect juste après cette fonction.
-      if (err.message && err.message.includes("Limite gratuite Gemini")) {
-        setQuotaRetryAt(Date.now() + 60_000);
-        setMessage({ type: "error", text: `${err.message} Nouvel essai automatique dans 60s.` });
-        setAnalyzing(false);
-        return;
-      }
       if (menuText.trim()) {
         const fallback = analyzeMenu(menuText, rewardLabel, rewardThreshold);
         if (fallback.items.length > 0) {
           setAiResult({ items: fallback.items, suggestions: fallback.suggestions, fallback: true });
           setMessage({
             type: "error",
-            text: `${err.message} — analyse basique utilisée en attendant (moins précise qu'une vraie IA).`,
+            text: `${err.message} — analyse basique utilisée à la place (moins fine qu'une vraie IA, mais toujours disponible, sans quota).`,
           });
           setAnalyzing(false);
           return;
         }
       }
-      setMessage({ type: "error", text: err.message });
+      setQuotaRetryAt(Date.now() + 60_000);
+      setMessage({ type: "error", text: `${err.message} Nouvel essai automatique dans 60s.` });
     } finally {
       setAnalyzing(false);
     }
   }
 
   // Fait défiler le compte à rebours affiché à côté du bouton "Analyser
-  // avec l'IA" quand analyzeWithAI a détecté un quota Gemini dépassé
-  // (voir plus haut), puis relance l'analyse toute seule à 0 — le
-  // commerçant n'a rien à cliquer, il voit juste "nouvel essai dans Xs".
+  // avec l'IA" quand analyzeWithAI n'a trouvé aucune alternative locale
+  // (voir plus haut — uniquement le cas PDF/photo sans texte collé), puis
+  // relance l'analyse toute seule à 0 — le commerçant n'a rien à cliquer,
+  // il voit juste "nouvel essai dans Xs".
   useEffect(() => {
     if (!quotaRetryAt) {
       setQuotaSecondsLeft(0);
