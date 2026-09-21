@@ -1,12 +1,16 @@
 // pages/api/analyze-menu.js
 //
-// Vraie analyse IA (Google Gemini) du menu envoyé par le commerçant —
-// texte collé, PDF ou photo. L'IA comprend le document toute seule et
-// renvoie les plats détectés + des suggestions de promotions. Le
-// commerçant peut ensuite éditer librement le texte de son offre
-// (voir /api/offer) — l'IA ne fait que proposer un point de départ.
+// Vraie analyse IA du menu envoyé par le commerçant — texte collé, PDF ou
+// photo. L'IA comprend le document toute seule et renvoie les plats
+// détectés + des suggestions de promotions. Le commerçant peut ensuite
+// éditer librement le texte de son offre (voir /api/offer) — l'IA ne fait
+// que proposer un point de départ.
+//
+// Google Gemini en premier (lib/ai.js, qualité supérieure), avec un filet
+// de secours automatique sur Groq — IA à poids ouverts, quota séparé —
+// quand Gemini est à quota ou indisponible (voir lib/menuAnalysis.js).
 
-import { analyzeMenuWithAI } from "../../lib/ai";
+import { analyzeMenu } from "../../lib/menuAnalysis";
 import { getRole } from "../../lib/auth";
 
 // Une photo de menu ou un PDF peut peser plusieurs Mo une fois encodé en
@@ -32,7 +36,7 @@ export default async function handler(req, res) {
   try {
     const { text, fileBase64, mimeType } = req.body || {};
     const file = fileBase64 && mimeType ? { base64: fileBase64, mimeType } : null;
-    const result = await analyzeMenuWithAI({ text, file });
+    const result = await analyzeMenu({ text, file });
     return res.status(200).json(result);
   } catch (err) {
     console.error(err);

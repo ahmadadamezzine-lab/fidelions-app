@@ -1717,8 +1717,14 @@ export default function Commercant() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
-      setAiResult({ items: data.items || [], suggestions: data.suggestions || [] });
-      setMessage({ type: "success", text: "Analyse IA terminée." });
+      setAiResult({ items: data.items || [], suggestions: data.suggestions || [], provider: data.provider });
+      setMessage({
+        type: "success",
+        text:
+          data.provider === "groq"
+            ? "Analyse terminée — via l'IA de secours (open source, Gemini était indisponible)."
+            : "Analyse IA terminée.",
+      });
       setQuotaRetryAt(null);
     } catch (err) {
       // Quota Gemini gratuit dépassé (partagé par tous les commerces —
@@ -4050,6 +4056,7 @@ export default function Commercant() {
                 {aiResult.items.length} plat{aiResult.items.length > 1 ? "s" : ""} détecté
                 {aiResult.items.length > 1 ? "s" : ""}
                 {aiResult.fallback ? " (analyse basique, pas encore la vraie IA)" : ""}
+                {aiResult.provider === "groq" ? " (via l'IA de secours, open source)" : ""}
               </p>
             )}
             {aiResult && aiResult.suggestions && aiResult.suggestions.length > 0 && (

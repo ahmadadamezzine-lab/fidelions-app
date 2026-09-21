@@ -101,6 +101,19 @@ Sans cette étape, la carte "Analyse du menu & suggestions" fonctionne quand mê
 
 Tu ajouteras cette clé comme variable `GEMINI_API_KEY` à l'étape 4 juste en dessous.
 
+**⚠️ Le quota gratuit de Gemini se partage entre TOUS les commerces du site** et se mesure par minute — s'il est atteint, l'analyse affiche "Limite gratuite Gemini atteinte" et réessaie toute seule 60 secondes plus tard (rien à faire). Pour ne plus jamais dépendre uniquement de ça, ajoute aussi le filet de secours ci-dessous : dès que `GROQ_API_KEY` existe, le site bascule automatiquement dessus le temps que Gemini se libère, sans qu'aucun commerçant s'en aperçoive.
+
+### Filet de secours "IA open source" (Groq, gratuit, sans carte bancaire)
+
+Groq héberge gratuitement plusieurs IA à poids ouverts (Meta Llama — contrairement à Gemini ou ChatGPT qui sont propriétaires), sur un quota totalement séparé de celui de Google. Dès que la clé ci-dessous est ajoutée, le site l'utilise **automatiquement** si Gemini est à quota ou indisponible — pas de bouton ni de réglage, ça se fait tout seul. Limite honnête à connaître : ce filet de secours sait lire du texte collé et des photos, mais pas encore un PDF directement (dans ce cas rare, le site le dit clairement et propose de coller le texte ou de prendre une photo à la place).
+
+1. Va sur `console.groq.com` → connecte-toi (email ou compte Google, gratuit, aucune carte demandée).
+2. Menu de gauche → `API Keys`.
+3. `Create API Key` → donne-lui un nom (ex. `fidelions`) → `Submit`.
+4. Copie la clé affichée (elle commence par `gsk_...`) — comme pour Gemini, elle ne sera plus jamais réaffichée en entier.
+
+Tu ajouteras cette clé comme variable `GROQ_API_KEY` à l'étape 4 juste en dessous.
+
 ## Étape 3quater — Activer le stockage d'images pour "Ma carte" (gratuit)
 
 Sans cette étape, tout le reste fonctionne normalement — c'est juste l'onglet "Ma carte" (logo/bannière) qui affichera une erreur si on essaie d'envoyer une image. La couleur, elle, fonctionne sans rien à activer.
@@ -184,6 +197,7 @@ Tu ajouteras ce token comme variable `QSTASH_TOKEN` à l'étape 4 juste en desso
    - `SESSION_SECRET` → une longue valeur secrète et aléatoire, qui sert à sécuriser les connexions de tous les comptes — **ne la partage jamais**
    - `RESEND_API_KEY` → optionnel, la clé copiée à l'étape 3bis (pour les campagnes par email)
    - `GEMINI_API_KEY` → optionnel, la clé copiée à l'étape 3ter (pour la vraie analyse IA du menu — PDF/photo compris)
+   - `GROQ_API_KEY` → optionnel, la clé copiée juste en dessous à l'étape 3ter (filet de secours "IA open source" — prend le relais tout seul si Gemini est à quota)
    - `GOOGLE_REVIEW_URL` → optionnel, laisse vide pour l'instant (n'a plus vraiment de sens en multi-comptes, une future version le déplacera par restaurant)
    - `CARDS_ADMIN_PASSWORD` → un mot de passe de ton choix, pour toi seul — protège `/admin-cartes` (voir la section **Cartes NFC/QR physiques** plus bas)
    - `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` → optionnelles, pour le bouton "Continuer avec Google" (voir **Étape 3quinquies** ci-dessus) — sans elles le bouton affiche juste une erreur claire, rien d'autre ne casse
