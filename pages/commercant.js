@@ -1781,7 +1781,14 @@ export default function Commercant() {
 
       setAdvisorMessages((prev) => [
         ...prev,
-        { role: "assistant", text: data.reply, provider: data.provider, fallback: data.fallback, fromOcr: data.fromOcr },
+        {
+          role: "assistant",
+          text: data.reply,
+          provider: data.provider,
+          fallback: data.fallback,
+          fromOcr: data.fromOcr,
+          debugReason: data.debugReason,
+        },
       ]);
     } catch (err) {
       // Ne devrait normalement jamais arriver (lib/advisor.js garantit déjà
@@ -4087,6 +4094,12 @@ export default function Commercant() {
                         {m.fromOcr ? " — texte lu automatiquement dans la photo" : ""}
                       </div>
                     )}
+                    {m.role === "assistant" && m.fallback && m.debugReason && (
+                      <details className="advisor-debug">
+                        <summary>Détails techniques</summary>
+                        {m.debugReason}
+                      </details>
+                    )}
                     {m.role === "assistant" && m.text && !m.fallback && (
                       <button className="link-btn advisor-use-btn" type="button" onClick={() => useAdvisorReply(m.text)}>
                         Utiliser dans mon offre
@@ -5249,6 +5262,18 @@ const styles = `
     margin-top: 6px;
     font-size: 11px;
     color: #9a9a9a;
+  }
+  .advisor-debug {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #b3b3b3;
+  }
+  .advisor-debug summary {
+    cursor: pointer;
+    color: #9a9a9a;
+  }
+  .advisor-debug summary:hover {
+    color: #7414f4;
   }
   .advisor-use-btn {
     display: block;
