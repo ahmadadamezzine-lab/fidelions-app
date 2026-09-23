@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 740">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="960" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7414F4"/>
+      <stop offset="1" stop-color="#4a0ba3"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(155.2,2.0) scale(6.73)">
+    <g fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round">
+      <path d="M62 32a8 8 0 1 1 -0.01 0" />
+    </g>
+    <g fill="url(#g)">
+      <rect x="23" y="24.5" width="11" height="58" rx="5.5"/>
+      <rect x="23" y="24.5" width="32" height="11" rx="5.5"/>
+      <rect x="23" y="48.5" width="24" height="11" rx="5.5"/>
+    </g>
+  </g>
+  <text x="480" y="700" text-anchor="middle" font-family="Poppins" font-weight="800"
+        font-size="112" letter-spacing="16" fill="url(#g)">FIDÉLIONS</text>
+</svg>

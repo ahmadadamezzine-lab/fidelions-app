@@ -36,8 +36,8 @@ export default function Custom404() {
           background: #f6f5fc;
         }
         .logo {
-          width: 56px;
-          border-radius: 12px;
+          width: 90px;
+          height: auto;
           margin-bottom: 24px;
         }
         h1 {

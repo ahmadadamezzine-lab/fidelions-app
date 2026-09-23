@@ -5468,6 +5468,7 @@ const styles = `
     width: 30px;
     height: 30px;
     border-radius: 8px;
+    object-fit: contain;
     flex: none;
   }
   .sb-wordmark {
@@ -5959,9 +5960,8 @@ const styles = `
   .split-logo {
     width: 52px;
     height: 65px;
-    border-radius: 12px;
+    object-fit: contain;
     margin-bottom: 20px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
   }
   .split-title {
     position: relative;
@@ -6496,7 +6496,7 @@ const styles = `
   .auth-logo {
     width: 108px;
     height: 135px;
-    border-radius: 20px;
+    object-fit: contain;
     margin-bottom: 14px;
   }
   .auth-switch {
