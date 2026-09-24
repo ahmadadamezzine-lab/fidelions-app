@@ -19,12 +19,14 @@ import {
   getMerchantById,
   getSubscriptionAccess,
   getBranding,
+  removeClientPushSubscription,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync } from "../../lib/auth";
 import { computeSingleTierReward, computePointsRewards } from "../../lib/loyalty";
 import { sendEmail } from "../../lib/email";
 import { maybeScheduleReviewRequest } from "../../lib/notifications";
+import { sendPushNotification } from "../../lib/webpush";
 
 // Le bonus (en points) accordé une seule fois par client quand un avis
 // Google est déclaré en caisse (case "Avis Google laissé" côté scan) — pas
@@ -217,6 +219,25 @@ export default async function handler(req, res) {
         // (RESEND_API_KEY absente, quota dépassé...) ne doit jamais
         // faire échouer l'ajout du point lui-même.
         console.error("Email de secours non envoyé :", err);
+      }
+    }
+
+    // Notification push web (norme du navigateur, voir lib/webpush.js) :
+    // canal en plus de Wallet/email, pour un client qui a cliqué "Activer
+    // les notifications" sur sa page carte (/r/[slug]) — jamais bloquant,
+    // même logique que les deux canaux ci-dessus. Si l'abonnement n'est
+    // plus valide (téléphone changé, notifications désactivées...), on
+    // l'oublie pour ne pas réessayer indéfiniment.
+    if (existing.pushSubscription) {
+      try {
+        const { sent, gone } = await sendPushNotification(existing.pushSubscription, {
+          title: notifHeader,
+          body: notifBody,
+        });
+        if (gone) await removeClientPushSubscription(merchantId, objectId);
+        if (!sent && !gone) console.error("Notification push non envoyée pour", objectId);
+      } catch (err) {
+        console.error("Notification push non envoyée :", err);
       }
     }
 

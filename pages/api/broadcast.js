@@ -5,10 +5,11 @@
 // choisit. C'est l'équivalent de la fonction "notification push à tous
 // les clients" montrée dans la vidéo Fidelix.
 
-import { listClients, getMerchantById, getBranding } from "../../lib/db";
+import { listClients, getMerchantById, getBranding, removeClientPushSubscription } from "../../lib/db";
 import { sendWalletMessage } from "../../lib/walletObjects";
 import { sendEmail } from "../../lib/email";
 import { getRoleAsync, hasPermission } from "../../lib/auth";
+import { sendPushNotification } from "../../lib/webpush";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
     const cleanBody = (body || "").trim();
     const sendWallet = channels?.wallet !== false;
     const sendMail = channels?.email === true;
+    const sendPush = channels?.push === true;
 
     if (!cleanHeader || !cleanBody) {
       return res.status(400).json({ error: "Le titre et le message sont obligatoires." });
@@ -39,8 +41,8 @@ export default async function handler(req, res) {
     if (cleanBody.length > 300) {
       return res.status(400).json({ error: "Le message est trop long (300 caractères max)." });
     }
-    if (!sendWallet && !sendMail) {
-      return res.status(400).json({ error: "Choisis au moins un canal d'envoi (notification et/ou email)." });
+    if (!sendWallet && !sendMail && !sendPush) {
+      return res.status(400).json({ error: "Choisis au moins un canal d'envoi (notification, email ou push)." });
     }
 
     // Les clients bloqués ne reçoivent aucune campagne.
@@ -65,7 +67,10 @@ export default async function handler(req, res) {
     let walletFailed = 0;
     let emailSent = 0;
     let emailFailed = 0;
+    let pushSent = 0;
+    let pushFailed = 0;
     const clientsWithEmail = clients.filter((c) => c.email);
+    const clientsWithPush = clients.filter((c) => c.pushSubscription);
 
     for (let i = 0; i < clients.length; i += CHUNK_SIZE) {
       const chunk = clients.slice(i, i + CHUNK_SIZE);
@@ -96,6 +101,22 @@ export default async function handler(req, res) {
           );
         }
       }
+      if (sendPush) {
+        for (const c of chunk.filter((c) => c.pushSubscription)) {
+          tasks.push(
+            sendPushNotification(c.pushSubscription, { title: cleanHeader, body: cleanBody }).then(
+              ({ sent, gone }) => {
+                if (sent) {
+                  pushSent++;
+                } else {
+                  pushFailed++;
+                  if (gone) removeClientPushSubscription(auth.merchantId, c.objectId).catch(() => {});
+                }
+              }
+            )
+          );
+        }
+      }
 
       await Promise.allSettled(tasks);
     }
@@ -105,10 +126,14 @@ export default async function handler(req, res) {
       walletFailed,
       emailSent,
       emailFailed,
+      pushSent,
+      pushFailed,
       emailEligible: clientsWithEmail.length,
+      pushEligible: clientsWithPush.length,
       total: clients.length,
       sentWallet: sendWallet,
       sentEmail: sendMail,
+      sentPush: sendPush,
     });
   } catch (err) {
     console.error(err);

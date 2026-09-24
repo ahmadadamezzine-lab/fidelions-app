@@ -70,6 +70,9 @@ export default function RestaurantSignup({ initialMerchant }) {
   const [result, setResult] = useState(null); // { url, referralUrl, points }
   const [copied, setCopied] = useState(false);
   const [refCode, setRefCode] = useState("");
+  const [pushStatus, setPushStatus] = useState("idle"); // idle | loading | subscribed | denied | unsupported | error
+
+  const memberSince = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date());
 
   useEffect(() => {
     if (router.isReady && router.query.ref) {
@@ -106,6 +109,67 @@ export default function RestaurantSignup({ initialMerchant }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function shareReferral() {
+    if (!result?.referralUrl) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: merchant?.restaurantName || "Fidélions",
+          text: "Rejoins-moi sur le programme fidélité, on gagne chacun un point !",
+          url: result.referralUrl,
+        });
+        return;
+      } catch {
+        // Partage annulé/indisponible — on retombe sur le copier-coller.
+      }
+    }
+    copyReferral();
+  }
+
+  // Conversion de la clé publique VAPID (base64 URL-safe, format standard
+  // Web Push) au format Uint8Array attendu par pushManager.subscribe —
+  // conversion classique documentée par la spec, aucune lib dédiée requise.
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  async function handleActivateNotifications() {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !vapidPublicKey) {
+      setPushStatus("unsupported");
+      return;
+    }
+    setPushStatus("loading");
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushStatus("denied");
+        return;
+      }
+      const registration = await navigator.serviceWorker.register("/sw-push.js");
+      await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      const res = await fetch("/api/push-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, objectId: result.objectId, subscription: subscription.toJSON() }),
+      });
+      if (!res.ok) throw new Error("Échec de l'enregistrement de l'abonnement");
+      setPushStatus("subscribed");
+    } catch (err) {
+      console.error(err);
+      setPushStatus("error");
+    }
   }
 
   // --- Restaurant introuvable (mauvais lien / compte supprimé) ---
@@ -227,55 +291,135 @@ export default function RestaurantSignup({ initialMerchant }) {
               </>
             ) : (
               <>
-                <h1>Votre carte est prête !</h1>
-                <p className="subtitle">
-                  {result.points > 0
-                    ? `Vous démarrez avec ${result.points} point${result.points > 1 ? "s" : ""} !`
-                    : "Ajoutez-la à Google Wallet pour commencer à collectionner vos points."}
-                </p>
+                <p className="eyebrow">Carte de fidélité</p>
+                <h1>{merchant?.restaurantName || "Fidélions"}</h1>
 
-                <a className="walletBtn" href={result.url}>
-                  Ajouter à Google Wallet
-                </a>
-                <button
-                  type="button"
-                  className="appleWalletBtn"
-                  disabled
-                  title="Le support Apple Wallet arrive bientôt sur Fidélions"
-                >
-                  Apple Wallet — bientôt disponible
-                </button>
-
-                <div className="referralBox">
-                  <p className="referralTitle">Invitez un ami, gagnez un point</p>
-                  <p className="referralText">
-                    Partagez votre lien : vous gagnez chacun 1 point quand il s'inscrit.
+                <section className="panel">
+                  <p className="panelTitle">Programme fidélité</p>
+                  <p className="pointsLabel">Points</p>
+                  <p className="pointsValue">{result.points}</p>
+                  <p className="pointsGoal">
+                    points • objectif {result.rewardThreshold}
                   </p>
-                  <div className="referralRow">
-                    <input readOnly value={result.referralUrl} onFocus={(e) => e.target.select()} />
-                    <button type="button" onClick={copyReferral}>
-                      {copied ? "Copié !" : "Copier"}
+                  <div className="progressTrack">
+                    <div
+                      className="progressFill"
+                      style={{ width: `${Math.min(100, (result.points / (result.rewardThreshold || 1)) * 100)}%` }}
+                    />
+                  </div>
+                  {result.rewardLabel && <p className="rewardLabel">{result.rewardLabel}</p>}
+                  <div className="miniRow">
+                    <span className="miniLabel">Membre depuis</span>
+                    <span className="miniValue">{memberSince}</span>
+                  </div>
+                  <p className="codeChip">C-{result.referralCode}</p>
+                </section>
+
+                <section className="panel">
+                  <p className="panelTitle">Notifications</p>
+                  <p className="panelSubtitle">Ne ratez aucune offre</p>
+                  <p className="panelText">
+                    Promotions, récompenses débloquées, invitations : recevez tout directement sur
+                    votre téléphone.
+                  </p>
+                  <button type="button" onClick={handleActivateNotifications} disabled={pushStatus === "loading" || pushStatus === "subscribed"}>
+                    {pushStatus === "subscribed"
+                      ? "Notifications activées ✓"
+                      : pushStatus === "loading"
+                      ? "Un instant…"
+                      : "Activer les notifications"}
+                  </button>
+                  {pushStatus === "denied" && (
+                    <p className="pushHint">
+                      Notifications bloquées — autorisez-les dans les réglages de votre navigateur pour les
+                      activer.
+                    </p>
+                  )}
+                  {pushStatus === "unsupported" && (
+                    <p className="pushHint">
+                      Les notifications ne sont pas disponibles sur ce navigateur/appareil.
+                    </p>
+                  )}
+                  {pushStatus === "error" && (
+                    <p className="pushHint">Une erreur est survenue — réessayez.</p>
+                  )}
+                </section>
+
+                <section className="panel">
+                  <p className="panelTitle">Ajouter à votre wallet</p>
+                  <button
+                    type="button"
+                    className="appleWalletBtn"
+                    disabled
+                    title="Le support Apple Wallet arrive bientôt sur Fidélions"
+                  >
+                    Ajouter à Apple Wallet — bientôt disponible
+                  </button>
+                  <a className="walletBtn" href={result.url}>
+                    Ajouter à Google Wallet
+                  </a>
+                </section>
+
+                <section className="panel">
+                  <p className="panelTitle">Mon compte</p>
+                  <div className="accountRow">
+                    <span className="miniLabel">Code client</span>
+                    <span className="miniValue">C-{result.referralCode}</span>
+                  </div>
+                  {email && (
+                    <div className="accountRow">
+                      <span className="miniLabel">Email</span>
+                      <span className="miniValue">{email}</span>
+                    </div>
+                  )}
+                  <div className="accountRow">
+                    <span className="miniLabel">Membre depuis</span>
+                    <span className="miniValue">{memberSince}</span>
+                  </div>
+                  <p className="panelText">
+                    Votre carte est mise à jour automatiquement après chaque visite chez{" "}
+                    {merchant?.restaurantName || "ce commerce"}.
+                  </p>
+                </section>
+
+                <p className="poweredBy">Propulsé par Fidélions</p>
+
+                <section className="panel">
+                  <p className="panelTitle">Gagnez plus de récompenses</p>
+                  <div className="referralBox">
+                    <p className="referralTitle">Parrainage — Invitez un ami</p>
+                    <p className="referralText">
+                      Vous gagnez tous les deux 1 point dès son premier passage en caisse.
+                    </p>
+                    <div className="referralRow">
+                      <input readOnly value={result.referralUrl} onFocus={(e) => e.target.select()} />
+                      <button type="button" onClick={copyReferral}>
+                        {copied ? "Copié !" : "Copier"}
+                      </button>
+                    </div>
+                    <button type="button" className="shareBtn" onClick={shareReferral}>
+                      Partager mon invitation
                     </button>
                   </div>
-                </div>
 
-                {merchant?.googleReviewUrl && (
-                  <div className="reviewBox">
-                    <p className="referralTitle">★ Donnez votre avis Google, gagnez des points</p>
-                    <p className="referralText">
-                      Laissez un avis sur notre fiche Google, puis montrez-le en caisse lors de
-                      votre prochain passage pour recevoir vos points bonus.
-                    </p>
-                    <a
-                      className="reviewLinkBtn"
-                      href={merchant.googleReviewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Laisser un avis
-                    </a>
-                  </div>
-                )}
+                  {merchant?.googleReviewUrl && (
+                    <div className="reviewBox">
+                      <p className="referralTitle">★ Donnez votre avis Google, gagnez des points</p>
+                      <p className="referralText">
+                        Laissez un avis sur notre fiche Google, puis montrez-le en caisse lors de
+                        votre prochain passage pour recevoir vos points bonus.
+                      </p>
+                      <a
+                        className="reviewLinkBtn"
+                        href={merchant.googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Laisser un avis
+                      </a>
+                    </div>
+                  )}
+                </section>
               </>
             )}
 
@@ -457,6 +601,131 @@ export default function RestaurantSignup({ initialMerchant }) {
           font-size: 12px;
           color: #8a8a8a;
           margin-top: 24px;
+        }
+        .eyebrow {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: ${purple};
+          margin: 0 0 4px;
+        }
+        .panel {
+          background: #faf9fd;
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 16px;
+          text-align: left;
+        }
+        .panelTitle {
+          font-weight: 700;
+          font-size: 14px;
+          color: #1a1a1a;
+          margin: 0 0 12px;
+        }
+        .panelSubtitle {
+          font-weight: 700;
+          font-size: 13px;
+          color: #1a1a1a;
+          margin: 0 0 4px;
+        }
+        .panelText {
+          font-size: 12.5px;
+          color: #8a8a8a;
+          line-height: 1.5;
+          margin: 0;
+        }
+        .pointsLabel {
+          font-size: 12px;
+          color: #8a8a8a;
+          margin: 0;
+          text-align: center;
+        }
+        .pointsValue {
+          font-size: 44px;
+          font-weight: 800;
+          color: ${purple};
+          margin: 0;
+          text-align: center;
+          line-height: 1.1;
+        }
+        .pointsGoal {
+          font-size: 12.5px;
+          color: #8a8a8a;
+          margin: 0 0 12px;
+          text-align: center;
+        }
+        .progressTrack {
+          background: #e9e3f8;
+          border-radius: 999px;
+          height: 8px;
+          overflow: hidden;
+          margin-bottom: 14px;
+        }
+        .progressFill {
+          background: ${purple};
+          height: 100%;
+          border-radius: 999px;
+        }
+        .rewardLabel {
+          background: #f3ecff;
+          color: ${purple};
+          font-weight: 700;
+          font-size: 13px;
+          border-radius: 10px;
+          padding: 10px 14px;
+          text-align: center;
+          margin: 0 0 14px;
+        }
+        .miniRow,
+        .accountRow {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 13px;
+          padding: 8px 0;
+          border-bottom: 1px solid #ece7f7;
+        }
+        .accountRow:last-of-type {
+          border-bottom: none;
+          margin-bottom: 10px;
+        }
+        .miniLabel {
+          color: #8a8a8a;
+        }
+        .miniValue {
+          font-weight: 700;
+          color: #1a1a1a;
+        }
+        .codeChip {
+          display: inline-block;
+          margin: 10px 0 0;
+          background: #fff;
+          border: 1.5px solid #e0e0e0;
+          border-radius: 8px;
+          padding: 6px 12px;
+          font-family: "SFMono-Regular", Consolas, monospace;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+        }
+        .pushHint {
+          font-size: 12px;
+          color: #8a8a8a;
+          margin: 10px 0 0;
+        }
+        .poweredBy {
+          font-size: 11px;
+          color: #b3b3b3;
+          text-align: center;
+          margin: 0 0 16px;
+        }
+        .shareBtn {
+          width: 100%;
+          background: #fff;
+          color: ${purple};
+          border: 1.5px solid ${purple};
+          margin-top: 10px;
         }
       `}</style>
     </div>

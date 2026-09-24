@@ -913,6 +913,7 @@ export default function Commercant() {
   const [campaignSending, setCampaignSending] = useState(false);
   const [channelWallet, setChannelWallet] = useState(true);
   const [channelEmail, setChannelEmail] = useState(false);
+  const [channelPush, setChannelPush] = useState(false);
 
   // --- Notifications automatiques (demande d'avis Google + relance client
   // inactif) — voir pages/api/notification-settings.js et lib/db.js pour
@@ -2485,8 +2486,8 @@ export default function Commercant() {
       setMessage({ type: "error", text: "Écris un titre et un message avant d'envoyer." });
       return;
     }
-    if (!channelWallet && !channelEmail) {
-      setMessage({ type: "error", text: "Coche au moins un canal : notification et/ou email." });
+    if (!channelWallet && !channelEmail && !channelPush) {
+      setMessage({ type: "error", text: "Coche au moins un canal : notification, email et/ou push." });
       return;
     }
     setCampaignSending(true);
@@ -2501,7 +2502,7 @@ export default function Commercant() {
         body: JSON.stringify({
           header: campaignHeader,
           body: campaignBody,
-          channels: { wallet: channelWallet, email: channelEmail },
+          channels: { wallet: channelWallet, email: channelEmail, push: channelPush },
         }),
       });
       const data = await res.json();
@@ -2510,9 +2511,11 @@ export default function Commercant() {
       const parts = [];
       if (data.sentWallet) parts.push(`${data.walletSent} notification(s) Wallet`);
       if (data.sentEmail) parts.push(`${data.emailSent}/${data.emailEligible} email(s)`);
+      if (data.sentPush) parts.push(`${data.pushSent}/${data.pushEligible} push`);
       const failedParts = [];
       if (data.walletFailed > 0) failedParts.push(`${data.walletFailed} notification(s)`);
       if (data.emailFailed > 0) failedParts.push(`${data.emailFailed} email(s)`);
+      if (data.pushFailed > 0) failedParts.push(`${data.pushFailed} push`);
 
       setMessage({
         type: "success",
@@ -2723,6 +2726,7 @@ export default function Commercant() {
     .sort((a, b) => (b.points || 0) - (a.points || 0))
     .slice(0, 5);
   const emailEligibleCount = activeClients.filter((c) => c.email).length;
+  const pushEligibleCount = activeClients.filter((c) => c.pushSubscription).length;
   const insights = computeInsights(activeClients, safeThreshold);
 
   if (!authed) {
@@ -4221,6 +4225,14 @@ export default function Commercant() {
                   onChange={(e) => setChannelEmail(e.target.checked)}
                 />
                 Email ({emailEligibleCount} avec email)
+              </label>
+              <label className="channel">
+                <input
+                  type="checkbox"
+                  checked={channelPush}
+                  onChange={(e) => setChannelPush(e.target.checked)}
+                />
+                Push web ({pushEligibleCount} abonné{pushEligibleCount > 1 ? "s" : ""})
               </label>
             </div>
             <button

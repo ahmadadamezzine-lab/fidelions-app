@@ -158,14 +158,16 @@ export default async function handler(req, res) {
       }
     }
 
-    const { rewardThreshold } = await getSettings(merchant.id);
+    const { rewardThreshold, rewardLabel } = await getSettings(merchant.id);
 
     return res.status(200).json({
       url: finalUrl,
+      objectId,
       referralCode: record.referralCode,
       referralUrl: `${getBaseUrl(req)}/r/${merchant.slug}?ref=${record.referralCode}`,
       points: record.points,
       rewardThreshold,
+      rewardLabel,
     });
   } catch (err) {
     console.error(err);
