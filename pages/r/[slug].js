@@ -469,7 +469,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           margin-bottom: 28px;
         }
         .refNotice {
-          background: #f3ecff;
+          background: #E8F5EF;
           color: ${purple};
           font-size: 13px;
           font-weight: 600;
@@ -539,7 +539,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           margin-bottom: 24px;
         }
         .referralBox {
-          background: #faf9fd;
+          background: #F1EFE8;
           border-radius: 14px;
           padding: 18px;
           text-align: left;
@@ -611,7 +611,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           margin: 0 0 4px;
         }
         .panel {
-          background: #faf9fd;
+          background: #F1EFE8;
           border-radius: 16px;
           padding: 20px;
           margin-bottom: 16px;
@@ -656,7 +656,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           text-align: center;
         }
         .progressTrack {
-          background: #e9e3f8;
+          background: #E8F5EF;
           border-radius: 999px;
           height: 8px;
           overflow: hidden;
@@ -668,7 +668,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           border-radius: 999px;
         }
         .rewardLabel {
-          background: #f3ecff;
+          background: #E8F5EF;
           color: ${purple};
           font-weight: 700;
           font-size: 13px;
@@ -684,7 +684,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           align-items: center;
           font-size: 13px;
           padding: 8px 0;
-          border-bottom: 1px solid #ece7f7;
+          border-bottom: 1px solid #E4E1D8;
         }
         .accountRow:last-of-type {
           border-bottom: none;

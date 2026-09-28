@@ -1,6 +1,10 @@
 # Identité visuelle — Fidions
 
-Mise à jour le 28/09/2026 (rebranding complet depuis "Fidélions"). Ce document résume la charte pour rester cohérent si tu (ou quelqu'un d'autre) ajoutes des pages ou des visuels plus tard.
+Mise à jour le 28/09/2026 (refonte visuelle complète, au-delà du simple rebranding de couleurs). Ce document résume la charte et les principes de direction artistique pour rester cohérent si tu (ou quelqu'un d'autre) ajoutes des pages ou des visuels plus tard.
+
+## Contexte produit (pourquoi ces choix)
+
+Fidions sert des commerces de proximité (cafés, boulangeries, salons) — un public qui veut un outil sérieux, pas un gadget de start-up — pour un produit qui vit surtout hors écran : comptoir, QR code, carte de fidélité dans le portefeuille. Le design évite volontairement les tics visuels "SaaS générique" (voir plus bas) et s'ancre dans la culture de la carte à tamponner : dégradés de carte de fidélité, tampons ronds, motifs concrets plutôt que décoratifs.
 
 ## Nom
 
@@ -20,21 +24,40 @@ Sources vectorielles (éditables) dans `brand/` si tu veux les retoucher toi-mê
 
 ## Couleurs
 
-- **Noir encre (couleur principale)** : `#111114` — remplace le violet de marque et le texte principal de l'ancienne charte.
-- **Vert émeraude (couleur d'accent — boutons, liens actifs, éléments interactifs)** : `#16A673`
-- **Vert émeraude foncé (hover, dégradés)** : `#0F8C5F`
-- **Fond clair (sections claires)** : `#F7F8F7`
-- **Fond clair secondaire** : `#EFF2F0`
-- **Fond sombre (sections contrastées : stats, pied de page)** : `#0A0A0C`
-- **Texte principal** : `#111114`
-- **Texte secondaire / gris** : `#5B5F5D`
+Trois couleurs de marque fixes, étendues en une palette complète (uniquement des nuances des deux familles ci-dessous + un papier chaud neutre — jamais une teinte étrangère à la marque) :
+
+**Encre** (texte, fonds sombres) :
+- `#111114` — encre principale (texte, logo, fonds "premium" comme la carte fonctionnalité mise en avant)
+- `#2A2B30` — encre secondaire (cartes/bordures sur fond sombre, pour éviter le noir plat partout)
+- `#5B5F5D` — texte secondaire sur fond clair
+- `#B8BCB8` — texte secondaire sur fond sombre (jamais le même gris que sur fond clair — sinon le contraste casse)
+
+**Émeraude** (accent, boutons, éléments interactifs) :
+- `#16A673` — accent principal
+- `#0F8C5F` — accent foncé (hover, dégradés)
+- `#E8F5EF` — teinte très claire (badges "Nouveau", surbrillance douce)
+- `#CBEAD9` — bordure claire assortie
+- `#8FD6B8` — variante claire pour texte/liens sur fond sombre
+
+**Papier** (fonds clairs, jamais blanc pur) :
+- `#F7F8F7` — fond clair
+- `#F1EFE8` — fond clair secondaire, légèrement chaud (cartes, panneaux)
+- `#0A0A0C` — fond sombre (sections contrastées : stats, pied de page, calculateur de ROI)
 
 ## Typographie
 
 **Manrope** (Google Fonts, chargée sur tout le site via `pages/_document.js`) — une police sans-serif géométrique et lisible, cohérente avec le positionnement "outil pro" de Fidions. Graisses utilisées : 400 (texte courant), 500-600 (sous-titres, boutons), 700-800 (titres, logo).
 
+## Principes directeurs
+
+- **Varier le traitement des cartes selon leur importance** plutôt qu'un kit uniforme : sur la page d'accueil, la fonctionnalité phare (Wallet) a une carte plus grande et sombre, les nouveautés ont un fond émeraude clair, le reste reste neutre — pas trois douzaines de cartes identiques.
+- **Un fond clair n'est jamais blanc pur** : toujours une nuance de papier chaud (`#F7F8F7`/`#F1EFE8`), pour éviter l'effet "template".
+- **Le noir n'est jamais plat** : les sections sombres utilisent plusieurs nuances d'encre (`#111114`, `#2A2B30`, `#0A0A0C`), jamais une seule valeur uniforme.
+- **Pas de tics de générateur IA** : pas de bandeau "eyebrow" en majuscules au-dessus de chaque titre, pas de flèche "→" systématique sur les boutons, pas de kit de cartes identiques à ombre grise molle.
+- **Un texte secondaire change de couleur selon le fond** : `#5B5F5D` sur fond clair, `#B8BCB8` sur fond sombre — jamais la même valeur des deux côtés (repéré et corrigé plusieurs cas où ce n'était pas le cas).
+
 ## Où c'est appliqué
 
-Remplacé partout où l'ancienne identité "Fidélions" apparaissait (barre latérale du commerçant, écrans de connexion/inscription, page d'accueil, pied de page, page 404, favicon, emails de campagne, cartes Google/Apple Wallet). Les images du logo passent en `object-fit: contain` dans leur emplacement (au lieu d'être étirées) pour rester nettes quelle que soit la taille exacte du fichier.
+Remplacé partout où l'ancienne identité "Fidélions" (et son violet `#7414F4`/`#4a0ba3` et toutes ses variantes claires/foncées) apparaissait : barre latérale du commerçant, écrans de connexion/inscription (y compris le dégradé décoratif du panneau de connexion), page d'accueil (refonte structurelle : héro, cartes de fonctionnalités, calculateur, statistiques), pied de page, page 404, favicon, emails de campagne, cartes Google/Apple Wallet. Les images du logo passent en `object-fit: contain` dans leur emplacement pour rester nettes quelle que soit la taille exacte du fichier.
 
-Le domaine de production (`fidelions-app.vercel.app`) et le projet Vercel n'ont volontairement pas été renommés lors de ce rebranding — seuls le nom affiché, les couleurs, la police et le logo ont changé.
+Le domaine de production (`fidelions-app.vercel.app`) et le projet Vercel n'ont volontairement pas été renommés — seuls le nom affiché, les couleurs, la police, le logo et la mise en page ont changé.

@@ -220,9 +220,8 @@ export default function Home() {
       <header className="hero">
         <div className="hero-inner">
           <div className="hero-text">
-            <span className="eyebrow">Fidélisation client</span>
             <h1>
-              Le système de fidélisation clé en main pour faire revenir tous vos clients
+              La carte de fidélité que vos clients gardent vraiment dans leur poche
             </h1>
             <p className="hero-sub">
               Fidions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
@@ -323,7 +322,6 @@ export default function Home() {
 
       <section className="calculator">
         <div className="section-inner">
-          <span className="calc-eyebrow">Faites le calcul</span>
           <h2 className="section-title">Combien Fidions peut vous rapporter</h2>
           <p className="section-sub">
             Une estimation à partir de vos propres chiffres. Ajustez, comparez, décidez.
@@ -476,12 +474,15 @@ export default function Home() {
         <div className="section-inner">
           <h2 className="section-title">Tout ce qu'il faut pour fidéliser, dans un seul outil</h2>
           <div className="features-grid">
-            {FEATURES.map((f) => (
-              <div className="feature-card" key={f.title}>
-                {f.badge && <span className="feature-badge">{f.badge}</span>}
+            {FEATURES.map((f, i) => (
+              <div
+                className={`feature-card${i === 0 ? " feature-card-lead" : ""}${f.badge ? " feature-card-new" : ""}`}
+                key={f.title}
+              >
                 <div className="feature-icon">
                   <Icon name={f.icon} size={22} />
                 </div>
+                {f.badge && <span className="feature-tag">{f.badge}</span>}
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
                 {f.wallets && (
@@ -727,7 +728,7 @@ const styles = `
     transform: translateY(0);
   }
   .btn-primary {
-    background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
     color: #fff;
     box-shadow: 0 4px 14px rgba(22, 166, 115, 0.3);
   }
@@ -735,7 +736,7 @@ const styles = `
     box-shadow: 0 8px 22px rgba(22, 166, 115, 0.4);
   }
   .btn-secondary {
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     padding: 12px 30px;
     border-radius: 999px;
@@ -842,17 +843,6 @@ const styles = `
     flex: 1.1;
     min-width: 0;
   }
-  .eyebrow {
-    display: inline-block;
-    background: #f3ecff;
-    color: ${PURPLE};
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin-bottom: 18px;
-  }
   .hero h1 {
     font-size: 38px;
     line-height: 1.18;
@@ -941,7 +931,7 @@ const styles = `
   }
   .mock-pass-banner {
     height: 54px;
-    background: linear-gradient(135deg, #f3ecff, #e6d9ff);
+    background: linear-gradient(135deg, #E8F5EF, #CBEAD9);
   }
   .mock-pass-body {
     padding: 10px 12px 14px;
@@ -966,7 +956,7 @@ const styles = `
     display: flex;
     justify-content: center;
     color: ${PURPLE};
-    background: #faf9fd;
+    background: #F1EFE8;
     border-radius: 8px;
     padding: 8px 0 4px;
   }
@@ -1032,7 +1022,7 @@ const styles = `
     gap: 6px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   }
-  .mock-notif :global(svg) {
+  .mock-notif svg {
     color: #f5a623;
   }
 
@@ -1057,7 +1047,7 @@ const styles = `
     font-weight: 800;
   }
   .fact-label {
-    color: #b8aee0;
+    color: #8FD6B8;
     font-size: 12px;
   }
 
@@ -1094,7 +1084,7 @@ const styles = `
     margin: 0 0 12px;
   }
   .stats-proof-sub {
-    color: #b8aee0;
+    color: #8FD6B8;
     text-align: center;
     font-size: 14.5px;
     margin: 0 auto 40px;
@@ -1106,8 +1096,8 @@ const styles = `
     gap: 18px;
   }
   .stat-proof-card {
-    background: #1e1830;
-    border: 1px solid #322a49;
+    background: #1A1B1F;
+    border: 1px solid #2A2B30;
     border-radius: 16px;
     padding: 24px 18px;
     text-align: center;
@@ -1118,7 +1108,7 @@ const styles = `
   }
   .stat-proof-card:hover {
     transform: translateY(-4px);
-    border-color: #4a3d70;
+    border-color: #3A3B40;
   }
   .stat-proof-value {
     color: ${PURPLE};
@@ -1126,13 +1116,13 @@ const styles = `
     font-weight: 800;
   }
   .stat-proof-label {
-    color: #d8d0ec;
+    color: #B8BCB8;
     font-size: 12.5px;
     margin: 0;
     line-height: 1.45;
   }
   .stat-proof-source {
-    color: #8a80ab;
+    color: #B8BCB8;
     font-size: 11px;
     margin-top: auto;
     padding-top: 4px;
@@ -1156,8 +1146,8 @@ const styles = `
     border: 1.5px solid #eee;
   }
   .compare-after {
-    background: #f6f1ff;
-    border: 1.5px solid #e6d9ff;
+    background: #E8F5EF;
+    border: 1.5px solid #CBEAD9;
   }
   .compare-col h3 {
     margin: 0 0 16px;
@@ -1192,24 +1182,14 @@ const styles = `
     align-items: center;
     gap: 8px;
   }
-  .compare-after li :global(svg) {
+  .compare-after li svg {
     color: ${PURPLE};
     flex: none;
   }
 
   .calculator {
-    background: #faf9fd;
+    background: #F1EFE8;
     padding: 72px 0;
-  }
-  .calc-eyebrow {
-    display: block;
-    text-align: center;
-    color: ${PURPLE};
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
   }
   .calc-box {
     display: grid;
@@ -1254,8 +1234,8 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    background: #f4effc;
-    border: 1px solid #e3d7fa;
+    background: #F1EFE8;
+    border: 1px solid #F1EFE8;
     border-radius: 8px;
     padding: 2px 6px;
   }
@@ -1289,7 +1269,7 @@ const styles = `
     appearance: none;
     height: 5px;
     border-radius: 999px;
-    background: #ece4fb;
+    background: #F1EFE8;
     outline: none;
   }
   .calc-slider-row input[type="range"]::-webkit-slider-thumb {
@@ -1325,7 +1305,7 @@ const styles = `
   .calc-result-tag {
     align-self: flex-start;
     background: rgba(255,255,255,0.12);
-    color: #cfc6e8;
+    color: #CBEAD9;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.03em;
@@ -1337,7 +1317,7 @@ const styles = `
   .calc-result-heading {
     margin: 0 0 4px;
     font-size: 12.5px;
-    color: #b8aee0;
+    color: #8FD6B8;
   }
   .calc-result-big {
     font-size: 32px;
@@ -1347,7 +1327,7 @@ const styles = `
   .calc-result-big span {
     font-size: 14px;
     font-weight: 600;
-    color: #b8aee0;
+    color: #8FD6B8;
   }
   .calc-result-rows {
     display: flex;
@@ -1361,7 +1341,7 @@ const styles = `
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #cfc6e8;
+    color: #CBEAD9;
   }
   .calc-result-row strong {
     color: #fff;
@@ -1371,7 +1351,7 @@ const styles = `
   }
   .calc-result-fine {
     font-size: 10.5px;
-    color: #8a80ab;
+    color: #B8BCB8;
     line-height: 1.5;
     margin: -8px 0 14px;
   }
@@ -1381,7 +1361,7 @@ const styles = `
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 12.5px;
-    color: #f0eaff;
+    color: #F1EFE8;
     line-height: 1.5;
   }
   .calc-result-annual strong {
@@ -1392,8 +1372,8 @@ const styles = `
   }
   .pricing-addon {
     margin-top: 32px;
-    background: #faf9fd;
-    border: 1.5px solid #e6d9ff;
+    background: #F1EFE8;
+    border: 1.5px solid #CBEAD9;
     border-radius: 16px;
     padding: 22px 24px;
     display: flex;
@@ -1405,7 +1385,7 @@ const styles = `
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1462,8 +1442,8 @@ const styles = `
   }
   .feature-card {
     position: relative;
-    background: #faf9fd;
-    border: 1.5px solid #f0edf8;
+    background: #F1EFE8;
+    border: 1.5px solid #F1EFE8;
     border-radius: 16px;
     padding: 22px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -1471,29 +1451,54 @@ const styles = `
   .feature-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #e6d9ff;
+    border-color: #CBEAD9;
   }
-  .feature-badge {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: ${PURPLE};
+  .feature-card-lead {
+    grid-column: span 2;
+    background: #111114;
+    border-color: #111114;
+  }
+  .feature-card-lead:hover {
+    border-color: #2A2B30;
+  }
+  .feature-card-lead .feature-icon {
+    background: rgba(255,255,255,0.1);
+    color: #16A673;
+  }
+  .feature-card-lead h3,
+  .feature-card-lead p {
     color: #fff;
-    font-size: 10px;
+  }
+  .feature-card-lead p {
+    color: #B8BCB8;
+  }
+  .feature-card-new {
+    background: #E8F5EF;
+    border-color: #E8F5EF;
+  }
+  .feature-card-new:hover {
+    border-color: #CBEAD9;
+  }
+  .feature-tag {
+    display: inline-block;
+    color: #0F8C5F;
+    font-size: 10.5px;
     font-weight: 800;
-    padding: 3px 8px;
-    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
   }
   .feature-icon {
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 14px;
+    flex: none;
   }
   .feature-card h3 {
     font-size: 15px;
@@ -1522,8 +1527,8 @@ const styles = `
   }
   .wallet-tag-soon {
     color: ${PURPLE};
-    background: #f3ecff;
-    border-color: #e6d9ff;
+    background: #E8F5EF;
+    border-color: #CBEAD9;
   }
 
   .steps {
@@ -1574,7 +1579,7 @@ const styles = `
     height: 34px;
     border-radius: 10px;
     background: rgba(255,255,255,0.08);
-    color: #cfc6e8;
+    color: #CBEAD9;
   }
   .step-card h3 {
     color: #fff;
@@ -1582,7 +1587,7 @@ const styles = `
     margin: 0 0 8px;
   }
   .step-card p {
-    color: #cfc6e8;
+    color: #CBEAD9;
     font-size: 13px;
     line-height: 1.5;
     margin: 0;
@@ -1595,7 +1600,7 @@ const styles = `
     display: flex;
     justify-content: center;
     gap: 6px;
-    background: #f3f0fa;
+    background: #F1EFE8;
     border-radius: 10px;
     padding: 4px;
     max-width: 360px;
@@ -1637,7 +1642,7 @@ const styles = `
   .price-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #e6d9ff;
+    border-color: #CBEAD9;
   }
   .price-card h3 {
     font-size: 14.5px;
@@ -1693,7 +1698,7 @@ const styles = `
     margin: 0;
   }
   .cta-banner p {
-    color: #e6d9ff;
+    color: #CBEAD9;
     font-size: 14.5px;
     margin: 0 0 8px;
   }
@@ -1731,7 +1736,7 @@ const styles = `
     border-radius: 7px;
   }
   .footer-tagline {
-    color: #948bb0;
+    color: #B8BCB8;
     font-size: 13px;
     line-height: 1.6;
     margin: 0 0 12px;
@@ -1741,7 +1746,7 @@ const styles = `
     font-size: 12.5px;
   }
   .footer-contact a {
-    color: #cfc6e8;
+    color: #CBEAD9;
     text-decoration: none;
     font-weight: 600;
   }
@@ -1756,15 +1761,15 @@ const styles = `
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #6b6280;
+    color: #8FD6B8;
     margin-bottom: 4px;
   }
-  .footer-nav-col :global(a) {
-    color: #b8aee0;
+  .footer-nav-col a {
+    color: #8FD6B8;
     text-decoration: none;
     font-size: 13.5px;
   }
-  .footer-nav-col :global(a:hover) {
+  .footer-nav-col a:hover {
     color: #fff;
   }
 
@@ -1787,7 +1792,7 @@ const styles = `
   }
   .footer-payments-label {
     font-size: 11.5px;
-    color: #8f86ab;
+    color: #B8BCB8;
   }
   .payment-badges {
     display: flex;
@@ -1798,7 +1803,7 @@ const styles = `
   .payment-badge {
     font-size: 11.5px;
     font-weight: 700;
-    color: #cfc6e8;
+    color: #CBEAD9;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.14);
     padding: 5px 12px;
@@ -1813,12 +1818,12 @@ const styles = `
   }
   .footer-copyright {
     font-size: 11.5px;
-    color: #6b6280;
+    color: #B8BCB8;
     margin: 0;
   }
   .footer-madein {
     font-size: 11.5px;
-    color: #6b6280;
+    color: #B8BCB8;
   }
 
   @media (max-width: 900px) {

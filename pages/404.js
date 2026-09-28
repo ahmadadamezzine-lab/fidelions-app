@@ -51,7 +51,7 @@ export default function Custom404() {
           margin: 8px 0 28px;
         }
         .btn {
-          background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
+          background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
           color: #fff;
           text-decoration: none;
           font-weight: 700;
