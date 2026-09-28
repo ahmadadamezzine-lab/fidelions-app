@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       const settings = await updateLoyaltySettings(merchantId, { tiers, mode, pointsConfig, reviewBonusPoints });
 
       // Non bloquant : si Google refuse (ex : quota), le réglage reste
-      // valable côté Fidélions, seul le libellé affiché sur Wallet ne
+      // valable côté Fidions, seul le libellé affiché sur Wallet ne
       // change pas tout de suite.
       try {
         const merchant = await getMerchantById(merchantId);

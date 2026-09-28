@@ -1,40 +1,40 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 // Page publique des CGV. À la demande d'Adam, les zones [À COMPLÉTER]
 // visibles (raison sociale, forme juridique, SIRET, adresse du siège,
 // statut TVA) ont été retirées de l'affichage plutôt que remplies par des
 // informations inventées — il les ajoutera lui-même une fois son entreprise
 // immatriculée. Pour rester valable en l'état, l'article 1 ne mentionne
-// donc pour l'instant que le nom commercial « Fidélions », sans numéro
+// donc pour l'instant que le nom commercial « Fidions », sans numéro
 // SIRET ni adresse de siège ; à compléter dès que ces informations
 // existent (idem pages/confidentialite.js).
 export default function CGV() {
   return (
     <div className="page">
       <Head>
-        <title>Conditions Générales de Vente — Fidélions</title>
-        <meta name="description" content="Conditions générales de vente du programme de fidélité Fidélions." />
+        <title>Conditions Générales de Vente — Fidions</title>
+        <meta name="description" content="Conditions générales de vente du programme de fidélité Fidions." />
       </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : 11 septembre 2026</p>
+        <p className="subtitle">Fidions — dernière mise à jour : 11 septembre 2026</p>
 
         <h2>Article 1 — Objet</h2>
         <p>
           Les présentes conditions générales de vente (ci-après « CGV ») ont pour objet de définir
-          les modalités et conditions dans lesquelles Fidélions (ci-après « le Prestataire » ou{" "}
-          « Fidélions »), propose et fournit à ses clients professionnels
+          les modalités et conditions dans lesquelles Fidions (ci-après « le Prestataire » ou{" "}
+          « Fidions »), propose et fournit à ses clients professionnels
           (ci-après « le Client » ou « l'Établissement ») un service de fidélisation client digitale
           accessible en ligne (ci-après « le Service »).
         </p>
         <p>Toute souscription au Service implique l'acceptation sans réserve des présentes CGV par le Client.</p>
 
         <h2>Article 2 — Description du service</h2>
-        <p>Fidélions est un outil en ligne (SaaS) permettant à un commerce de :</p>
+        <p>Fidions est un outil en ligne (SaaS) permettant à un commerce de :</p>
         <ul>
           <li>générer une carte de fidélité numérique ajoutable directement au portefeuille mobile (Google Wallet) de ses clients, sans installation d'application dédiée ;</li>
           <li>gérer un programme de fidélité par points, à paliers personnalisables ;</li>
@@ -73,7 +73,7 @@ export default function CGV() {
         <p>Le tarif applicable est celui en vigueur au jour de la souscription, rappelé au Client avant tout premier paiement.</p>
         <p>
           Le paiement s'effectue par prélèvement automatique via Stripe, prestataire de paiement
-          sécurisé (aucune donnée bancaire n'est collectée ni conservée directement par Fidélions),
+          sécurisé (aucune donnée bancaire n'est collectée ni conservée directement par Fidions),
           au début de chaque période choisie (mensuelle, semestrielle ou annuelle), puis renouvelé
           automatiquement à chaque échéance jusqu'à résiliation par le Client ou fin de la période
           d'engagement choisie.
@@ -120,7 +120,7 @@ export default function CGV() {
 
         <h2>Article 9 — Utilisation par les clients finaux (titulaires d'une carte de fidélité)</h2>
         <p>
-          La création d'une carte de fidélité auprès d'un Établissement utilisant Fidélions est
+          La création d'une carte de fidélité auprès d'un Établissement utilisant Fidions est
           gratuite pour le titulaire de la carte (« le Client final ») et réservée aux personnes
           âgées d'au moins 15 ans, ou disposant de l'accord préalable de leur représentant légal.
         </p>
@@ -157,7 +157,7 @@ export default function CGV() {
         <p>Les données propres au compte du Client (identité du commerce, moyens de contact, employés qu'il enregistre) sont quant à elles traitées par le Prestataire en qualité de responsable de traitement, dans les conditions décrites dans sa Politique de confidentialité.</p>
 
         <h2>Article 11 — Propriété intellectuelle</h2>
-        <p>Le Prestataire demeure titulaire de l'ensemble des droits de propriété intellectuelle attachés au Service (logiciel, interface, marque « Fidélions », etc.). Le Client bénéficie d'un droit d'usage personnel, non exclusif et non cessible, pour la durée du contrat.</p>
+        <p>Le Prestataire demeure titulaire de l'ensemble des droits de propriété intellectuelle attachés au Service (logiciel, interface, marque « Fidions », etc.). Le Client bénéficie d'un droit d'usage personnel, non exclusif et non cessible, pour la durée du contrat.</p>
         <p>Les contenus fournis par le Client (logo, textes, visuels de la carte) restent sa propriété ; il garantit disposer des droits nécessaires à leur utilisation et en autorise l'usage par le Prestataire aux seules fins de fourniture du Service.</p>
 
         <h2>Article 12 — Responsabilité</h2>
@@ -189,7 +189,7 @@ const styles = `
   .page {
     min-height: 100vh;
     background: #f5f4fb;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 40px 20px;
     display: flex;
     justify-content: center;
@@ -221,7 +221,7 @@ const styles = `
     margin-bottom: 28px;
   }
   h2 {
-    color: #1a1a1a;
+    color: #111114;
     font-size: 16px;
     margin: 28px 0 10px;
   }

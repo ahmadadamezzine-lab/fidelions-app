@@ -52,13 +52,13 @@ export default async function handler(req, res) {
     }
 
     // Le client final doit reconnaître SON commerce dans sa boîte mail, pas
-    // "Fidélions" (voir lib/email.js) — récupéré une seule fois, pas à
+    // "Fidions" (voir lib/email.js) — récupéré une seule fois, pas à
     // chaque email de la campagne.
     const [merchant, branding] = await Promise.all([
       getMerchantById(auth.merchantId),
       getBranding(auth.merchantId),
     ]);
-    const restaurantName = merchant?.restaurantName || "Fidélions";
+    const restaurantName = merchant?.restaurantName || "Fidions";
 
     // On envoie par petits groupes pour ne pas saturer les API d'un coup
     // si la base de clients grossit un jour.

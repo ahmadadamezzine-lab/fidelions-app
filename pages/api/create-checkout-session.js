@@ -74,7 +74,7 @@ export default async function handler(req, res) {
       merchantId,
       customerEmail: merchant.email,
       stripeCustomerId: currentSub.stripeCustomerId || undefined,
-      productName: `Fidélions — ${tier.label} (${cycle.label})`,
+      productName: `Fidions — ${tier.label} (${cycle.label})`,
       unitAmountCents: Math.round(price * 100),
       commitmentDays: getCommitmentDays(cycle.id),
       successUrl: `${baseUrl}/commercant?checkout=success`,

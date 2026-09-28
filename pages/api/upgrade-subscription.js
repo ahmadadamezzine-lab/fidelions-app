@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     await updateSubscriptionItemPrice({
       subscriptionId: sub.stripeSubscriptionId,
       unitAmountCents: Math.round(price * 100),
-      productName: `Fidélions — ${newTier.label} (${cycle.label})`,
+      productName: `Fidions — ${newTier.label} (${cycle.label})`,
     });
     await saveSubscriptionChoice(merchantId, { posCount: newTier.id });
 

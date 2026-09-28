@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       return res.status(402).json({
         error:
           access.status === "suspendu"
-            ? "Ce commerce a un abonnement Fidélions suspendu — impossible de créer une carte pour le moment."
+            ? "Ce commerce a un abonnement Fidions suspendu — impossible de créer une carte pour le moment."
             : "L'essai gratuit de ce commerce est terminé — impossible de créer une nouvelle carte tant que l'abonnement n'est pas activé.",
         subscriptionBlocked: true,
         subscriptionStatus: access.status,
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     }
 
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;
-    const accountName = (prenom || "").trim() || "Client Fidélions";
+    const accountName = (prenom || "").trim() || "Client Fidions";
     const { googleReviewUrl } = await getEstablishmentInfo(merchant.id);
 
     const { url, objectId } = buildSaveToWalletUrl({

@@ -12,7 +12,7 @@
 // Parcourt CHAQUE commerce (voir listAllMerchantIds dans lib/db.js) puis
 // chacun de ses clients : pour un site avec beaucoup de commerces/clients,
 // ça grossira avec le temps, mais reste raisonnable pour une exécution
-// quotidienne au stade actuel — à surveiller si Fidélions grossit
+// quotidienne au stade actuel — à surveiller si Fidions grossit
 // beaucoup (voir le README).
 //
 // Protégé par CRON_SECRET, exactement comme la relance des inscriptions
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         candidates += due.length;
 
         const [merchant, branding] = await Promise.all([getMerchantById(merchantId), getBranding(merchantId)]);
-        const restaurantName = merchant?.restaurantName || "Fidélions";
+        const restaurantName = merchant?.restaurantName || "Fidions";
 
         for (const client of due) {
           try {

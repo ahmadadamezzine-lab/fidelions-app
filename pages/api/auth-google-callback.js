@@ -2,7 +2,7 @@
 //
 // Retour du flux "Continuer avec Google" (voir auth-google-start.js) :
 // échange le code contre un jeton Google, vérifie l'email, puis :
-//  - email déjà connu -> connexion directe (jeton de session Fidélions,
+//  - email déjà connu -> connexion directe (jeton de session Fidions,
 //    exactement comme /api/auth-login), retour vers /commercant.
 //  - email inconnu -> pas de création automatique du compte (l'inscription
 //    a besoin du nom du commerce, du type d'activité, de la formule

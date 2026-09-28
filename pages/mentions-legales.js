@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 // Page publique des mentions légales (obligation LCEN pour tout éditeur de
 // site). Même logique que pages/cgv.js et pages/confidentialite.js : à la
@@ -15,18 +15,18 @@ export default function MentionsLegales() {
   return (
     <div className="page">
       <Head>
-        <title>Mentions légales — Fidélions</title>
-        <meta name="description" content="Mentions légales du site Fidélions." />
+        <title>Mentions légales — Fidions</title>
+        <meta name="description" content="Mentions légales du site Fidions." />
       </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Mentions légales</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : 11 septembre 2026</p>
+        <p className="subtitle">Fidions — dernière mise à jour : 11 septembre 2026</p>
 
         <h2>Éditeur</h2>
         <p>
           Le site accessible à l'adresse fidelions-app.vercel.app (ci-après « le Site ») est édité
-          sous le nom commercial « Fidélions ».
+          sous le nom commercial « Fidions ».
         </p>
         <p>Contact : ahmadadamezzine@gmail.com.</p>
 
@@ -38,7 +38,7 @@ export default function MentionsLegales() {
 
         <h2>Propriété intellectuelle</h2>
         <p>
-          Le nom « Fidélions », son logo et l'ensemble des éléments du Site (textes, interface,
+          Le nom « Fidions », son logo et l'ensemble des éléments du Site (textes, interface,
           code) sont la propriété de son éditeur, sauf mention contraire. Toute reproduction sans
           autorisation préalable est interdite.
         </p>
@@ -66,7 +66,7 @@ const styles = `
   .page {
     min-height: 100vh;
     background: #f5f4fb;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 40px 20px;
     display: flex;
     justify-content: center;
@@ -98,7 +98,7 @@ const styles = `
     margin-bottom: 28px;
   }
   h2 {
-    color: #1a1a1a;
+    color: #111114;
     font-size: 16px;
     margin: 28px 0 10px;
   }

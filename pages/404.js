@@ -8,17 +8,17 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 export default function Custom404() {
   return (
     <>
       <Head>
-        <title>Page introuvable — Fidélions</title>
+        <title>Page introuvable — Fidions</title>
         <meta name="robots" content="noindex" />
       </Head>
       <div className="wrap">
-        <img src="/logo-full.png" alt="Fidélions" className="logo" />
+        <img src="/logo-full.svg" alt="Fidions" className="logo" />
         <h1>404</h1>
         <p>Cette page n'existe pas ou plus.</p>
         <Link href="/" className="btn">Retour à l'accueil</Link>
@@ -32,8 +32,8 @@ export default function Custom404() {
           justify-content: center;
           text-align: center;
           padding: 24px;
-          font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          background: #f6f5fc;
+          font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          background: #EFF2F0;
         }
         .logo {
           width: 90px;
@@ -57,7 +57,7 @@ export default function Custom404() {
           font-weight: 700;
           padding: 12px 26px;
           border-radius: 999px;
-          box-shadow: 0 8px 20px -8px rgba(116, 20, 244, 0.55);
+          box-shadow: 0 8px 20px -8px rgba(22, 166, 115, 0.55);
         }
       `}</style>
     </>

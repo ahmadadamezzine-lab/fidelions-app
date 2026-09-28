@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     if (!client) {
       return res
         .status(404)
-        .json({ error: "Client introuvable — ce QR ne correspond à aucune carte Fidélions." });
+        .json({ error: "Client introuvable — ce QR ne correspond à aucune carte Fidions." });
     }
 
     return res.status(200).json({

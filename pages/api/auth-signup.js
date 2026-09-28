@@ -1,6 +1,6 @@
 // pages/api/auth-signup.js
 //
-// Inscription en libre-service d'un nouveau restaurant sur Fidélions : un
+// Inscription en libre-service d'un nouveau restaurant sur Fidions : un
 // seul site, chaque commerçant crée son propre compte (email + mot de
 // passe) au lieu d'un déploiement dédié par restaurant (voir l'ancien
 // fonctionnement dans le README). Reçoit en une seule fois tout ce que le
@@ -86,12 +86,12 @@ export default async function handler(req, res) {
   } = req.body || {};
 
   // Couleur de carte choisie à l'étape "Mécanique de fidélité" de
-  // l'inscription (facultative — le violet Fidélions reste la valeur par
+  // l'inscription (facultative — le violet Fidions reste la valeur par
   // défaut si rien n'est envoyé ou si le format est invalide).
   const safeCardColor =
     typeof cardColor === "string" && /^#[0-9a-fA-F]{6}$/.test(cardColor.trim())
       ? cardColor.trim()
-      : "#7414F4";
+      : "#16A673";
 
   let merchant;
   try {
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
 
   // Logo envoyé à l'étape 1 de l'inscription (facultatif) : on le
   // téléverse AVANT de créer la classe Wallet pour pouvoir lui donner
-  // directement la bonne image — sinon on garde le logo Fidélions par
+  // directement la bonne image — sinon on garde le logo Fidions par
   // défaut, exactement comme avant cette fonctionnalité.
   let logoUrl = `${getBaseUrl(req)}/logo.png`;
   let uploadedLogoUrl = null;
@@ -124,7 +124,7 @@ export default async function handler(req, res) {
   }
 
   // La classe Wallet de ce restaurant : un identifiant dérivé de son
-  // compte (unique), sous l'identifiant d'émetteur Fidélions (partagé,
+  // compte (unique), sous l'identifiant d'émetteur Fidions (partagé,
   // celui de la Wallet Business Console).
   const classId = `${issuerId}.fid_${merchant.id.replace(/-/g, "")}`;
 

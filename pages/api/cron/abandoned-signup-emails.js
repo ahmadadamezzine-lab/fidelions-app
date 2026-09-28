@@ -41,9 +41,9 @@ function buildEmailText({ restaurantName, continueUrl }) {
   const nom = restaurantName ? ` pour ${restaurantName}` : "";
   return `Bonjour,
 
-Vous avez commencé à créer votre compte Fidélions${nom} il y a peu, mais l'inscription n'a pas été terminée.
+Vous avez commencé à créer votre compte Fidions${nom} il y a peu, mais l'inscription n'a pas été terminée.
 
-Fidélions permet à vos clients de recevoir leur carte de fidélité directement sur leur téléphone (Google Wallet, Apple Wallet bientôt), sans aucune application à télécharger. Résultat : ils reviennent plus souvent, et ça se traduit directement par plus de chiffre d'affaires pour vous.
+Fidions permet à vos clients de recevoir leur carte de fidélité directement sur leur téléphone (Google Wallet, Apple Wallet bientôt), sans aucune application à télécharger. Résultat : ils reviennent plus souvent, et ça se traduit directement par plus de chiffre d'affaires pour vous.
 
 Il ne vous reste qu'une étape pour activer votre programme et commencer à fidéliser vos clients dès aujourd'hui :
 ${continueUrl}
@@ -52,7 +52,7 @@ Je suis disponible pour répondre à vos questions ou vous accompagner dans l'ac
 
 Cordialement,
 Ahmad Adam Ezzine
-Fondateur, Fidélions`;
+Fondateur, Fidions`;
 }
 
 export default async function handler(req, res) {
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
           to: lead.email,
           subject: "Il ne reste qu'une étape pour activer ton programme de fidélité",
           text: buildEmailText({ restaurantName: lead.restaurantName, continueUrl }),
-          fromName: "Adam de Fidélions",
+          fromName: "Adam de Fidions",
         });
         await markSignupLeadReminderSent(lead.email);
         sent += 1;
