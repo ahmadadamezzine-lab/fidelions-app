@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import LegalFooter from "../../components/LegalFooter";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 // --- Mode "marche sans connexion" (basique) ---------------------------
 // Pas de vraie synchronisation en arrière-plan (Background Sync) — ce
@@ -13,8 +13,8 @@ const PURPLE = "#7414F4";
 // même sans réseau), et une file d'actions "+1" en attente, rejouée dès
 // que la connexion revient. Clé de stockage préfixée par le token du lien
 // employé pour ne jamais mélanger deux restaurants sur le même appareil.
-const QUEUE_KEY_PREFIX = "fidelions_scan_queue_";
-const CACHE_KEY_PREFIX = "fidelions_scan_cache_";
+const QUEUE_KEY_PREFIX = "fidions_scan_queue_";
+const CACHE_KEY_PREFIX = "fidions_scan_cache_";
 
 function getQueue(token) {
   try {
@@ -235,7 +235,7 @@ export default function ScanPage() {
     return (
       <div className="page">
         <div className="wrap">
-          <h1>Fidélions — Équipe</h1>
+          <h1>Fidions — Équipe</h1>
           <p className="subtitle">Tape ton code personnel à 4 chiffres pour continuer.</p>
           <div className="card">
             <form onSubmit={submitPin}>
@@ -722,7 +722,7 @@ function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
   // aussi disponible ici, directement depuis la liste, plutôt que
   // seulement pendant un scan (voir ScannerSection plus haut, même
   // mécanique). Pas d'appel à une API Google : c'est une déclaration de
-  // l'employé, comme partout ailleurs dans Fidélions.
+  // l'employé, comme partout ailleurs dans Fidions.
   async function addStamp(objectId, { reviewGiven } = {}) {
     setMessage(null);
     let amount;
@@ -908,7 +908,7 @@ const styles = `
   .page {
     min-height: 100vh;
     background: #f5f4fb;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     justify-content: center;
@@ -932,7 +932,7 @@ const styles = `
   h2 {
     font-size: 18px;
     margin: 0 0 4px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .subtitle {
     color: #595959;

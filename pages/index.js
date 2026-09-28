@@ -1,6 +1,6 @@
 // pages/index.js
 //
-// Page d'accueil MARKETING de Fidélions — remplace l'ancienne redirection
+// Page d'accueil MARKETING de Fidions — remplace l'ancienne redirection
 // directe vers /commercant (gardée en mémoire ci-dessous). Adam a demandé
 // une page dans la dynamique du concurrent "Fidelix" (fidelix.ma, captures
 // fournies) : hero animé, bénéfices, calculateur de retour sur
@@ -10,15 +10,15 @@
 // point d'entrée applicatif — voir le useEffect sur router.query.mode dans
 // pages/commercant.js.
 //
-// Les chiffres affichés (section "Pourquoi Fidélions") sont des faits sur
+// Les chiffres affichés (section "Pourquoi Fidions") sont des faits sur
 // le produit lui-même (délai de mise en place, absence d'application à
-// installer, etc.), pas des statistiques clients inventées — Fidélions
+// installer, etc.), pas des statistiques clients inventées — Fidions
 // étant un service tout jeune, aucune fausse preuve sociale ("+10 000
 // clients") n'est affichée.
 //
 // La section "stats-proof" (juste avant les tarifs) est différente : ce
 // sont des chiffres sur la fidélisation client EN GÉNÉRAL, pas sur
-// Fidélions, chacun sourcé (Harvard Business Review, Bain & Company,
+// Fidions, chacun sourcé (Harvard Business Review, Bain & Company,
 // étude SumUp France 2024) et vérifié avant publication — jamais les
 // chiffres exacts d'un concurrent, toujours reformulés avec leur propre
 // source citée.
@@ -30,14 +30,14 @@ import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
 
 // Titre/description/image affichés dans les résultats Google et les
 // aperçus de lien partagé (WhatsApp, réseaux sociaux) — sans ça, un lien
-// Fidélions partagé n'affiche que l'URL nue, ce qui inspire moins
+// Fidions partagé n'affiche que l'URL nue, ce qui inspire moins
 // confiance qu'une carte avec titre + accroche + logo.
-const SEO_TITLE = "Fidélions — Programme de fidélité sur Google & Apple Wallet";
+const SEO_TITLE = "Fidions — Programme de fidélité sur Google & Apple Wallet";
 const SEO_DESCRIPTION =
   "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
-const SEO_IMAGE = "/logo-full.png";
+const SEO_IMAGE = "/logo.png";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 
@@ -122,7 +122,7 @@ const PRODUCT_FACTS = [
 ];
 
 // 4 statistiques vérifiées avant publication (voir le commentaire en tête
-// de fichier) — sur la fidélisation client en général, pas sur Fidélions.
+// de fichier) — sur la fidélisation client en général, pas sur Fidions.
 // Les deux stats SumUp (67% reviennent dans la même enseigne / 68% dépensent
 // plus que prévu près d'une récompense) sont volontairement regroupées en
 // une seule ("près de 70%") plutôt que présentées comme deux chiffres à
@@ -170,7 +170,7 @@ export default function Home() {
     // Estimation indicative, entièrement pilotée par les curseurs : le
     // curseur « gain de fréquentation » est l'hypothèse — prudente par
     // défaut (10%) — plutôt qu'un pourcentage caché dans le calcul (ce
-    // n'est pas une donnée mesurée sur de vrais clients Fidélions, le
+    // n'est pas une donnée mesurée sur de vrais clients Fidions, le
     // service étant récent).
     const caSupp = clients * jours * panier * gain;
     // Coût pris en compte : le tarif annuel engagé (le moins cher), pour donner
@@ -202,8 +202,8 @@ export default function Home() {
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/" className="nav-brand">
-            <img src="/logo.png" alt="Fidélions" />
-            <span>Fidélions</span>
+            <img src="/logo.png" alt="Fidions" />
+            <span>Fidions</span>
           </Link>
           <div className="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
@@ -225,7 +225,7 @@ export default function Home() {
               Le système de fidélisation clé en main pour faire revenir tous vos clients
             </h1>
             <p className="hero-sub">
-              Fidélions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
+              Fidions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
               notifications et statistiques, sans aucune application à faire installer.
             </p>
             <div className="hero-cta">
@@ -245,7 +245,7 @@ export default function Home() {
                 <div className="mock-pass">
                   <div className="mock-pass-top">
                     <div className="mock-pass-logo" />
-                    <span>Fidélions</span>
+                    <span>Fidions</span>
                   </div>
                   <div className="mock-pass-banner" />
                   <div className="mock-pass-body">
@@ -300,7 +300,7 @@ export default function Home() {
           <h2 className="section-title">Sans fidélisation, tu perds des clients sans le savoir</h2>
           <div className="compare-grid">
             <div className="compare-col compare-before">
-              <h3>Sans Fidélions</h3>
+              <h3>Sans Fidions</h3>
               <ul>
                 <li>Des cartes en papier perdues ou oubliées</li>
                 <li>Aucune idée de qui sont tes clients réguliers</li>
@@ -309,7 +309,7 @@ export default function Home() {
               </ul>
             </div>
             <div className="compare-col compare-after">
-              <h3>Avec Fidélions</h3>
+              <h3>Avec Fidions</h3>
               <ul>
                 <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
                 <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
@@ -324,7 +324,7 @@ export default function Home() {
       <section className="calculator">
         <div className="section-inner">
           <span className="calc-eyebrow">Faites le calcul</span>
-          <h2 className="section-title">Combien Fidélions peut vous rapporter</h2>
+          <h2 className="section-title">Combien Fidions peut vous rapporter</h2>
           <p className="section-sub">
             Une estimation à partir de vos propres chiffres. Ajustez, comparez, décidez.
           </p>
@@ -442,7 +442,7 @@ export default function Home() {
               </div>
               <div className="calc-result-rows">
                 <div className="calc-result-row">
-                  <span>Coût Fidélions</span>
+                  <span>Coût Fidions</span>
                   <strong>{roi.cout} € / mois</strong>
                 </div>
                 <div className="calc-result-row">
@@ -600,7 +600,7 @@ export default function Home() {
               </span>
               <a
                 href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                  "Bonjour, je souhaite commander une carte NFC Fidélions pour ma caisse."
+                  "Bonjour, je souhaite commander une carte NFC Fidions pour ma caisse."
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -627,8 +627,8 @@ export default function Home() {
         <div className="section-inner footer-top">
           <div className="footer-brand-col">
             <div className="footer-brand">
-              <img src="/logo.png" alt="Fidélions" />
-              <span>Fidélions</span>
+              <img src="/logo.png" alt="Fidions" />
+              <span>Fidions</span>
             </div>
             <p className="footer-tagline">
               Le système de fidélisation clé en main pour les commerces qui veulent que leurs
@@ -671,7 +671,7 @@ export default function Home() {
             </div>
           </div>
           <div className="footer-bottom-row">
-            <p className="footer-copyright">© {new Date().getFullYear()} Fidélions. Tous droits réservés.</p>
+            <p className="footer-copyright">© {new Date().getFullYear()} Fidions. Tous droits réservés.</p>
             <span className="footer-madein">Fait en France</span>
           </div>
         </div>
@@ -684,8 +684,8 @@ export default function Home() {
 
 const styles = `
   .home {
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #1a1a1a;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #111114;
     background: #fff;
     overflow-x: hidden;
   }
@@ -698,7 +698,7 @@ const styles = `
     font-size: 26px;
     text-align: center;
     margin: 0 0 12px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .section-sub {
     text-align: center;
@@ -729,10 +729,10 @@ const styles = `
   .btn-primary {
     background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(116, 20, 244, 0.3);
+    box-shadow: 0 4px 14px rgba(22, 166, 115, 0.3);
   }
   .btn-primary:hover {
-    box-shadow: 0 8px 22px rgba(116, 20, 244, 0.4);
+    box-shadow: 0 8px 22px rgba(22, 166, 115, 0.4);
   }
   .btn-secondary {
     background: #f3ecff;
@@ -746,7 +746,7 @@ const styles = `
   }
   .btn-ghost {
     background: #fff;
-    color: #1a1a1a;
+    color: #111114;
     border: 1.5px solid #e0e0e0;
   }
   .btn-ghost:hover {
@@ -827,7 +827,7 @@ const styles = `
   }
 
   .hero {
-    background: linear-gradient(180deg, #faf8ff 0%, #fff 65%);
+    background: linear-gradient(180deg, #F7F8F7 0%, #fff 65%);
     padding: 64px 0 40px;
   }
   .hero-inner {
@@ -857,7 +857,7 @@ const styles = `
     font-size: 38px;
     line-height: 1.18;
     margin: 0 0 18px;
-    color: #14101f;
+    color: #0A0A0C;
   }
   .hero-sub {
     font-size: 16px;
@@ -906,15 +906,15 @@ const styles = `
     50% { transform: rotate(9deg) translateY(8px); }
   }
   .mock-phone-shell {
-    background: #1a1a1a;
+    background: #111114;
     border-radius: 26px;
     padding: 8px;
-    box-shadow: 0 25px 55px rgba(20, 16, 31, 0.3);
+    box-shadow: 0 25px 55px rgba(10, 10, 12, 0.3);
   }
   .mock-phone-notch {
     width: 46px;
     height: 12px;
-    background: #1a1a1a;
+    background: #111114;
     border-radius: 0 0 8px 8px;
     margin: 0 auto;
   }
@@ -924,7 +924,7 @@ const styles = `
     overflow: hidden;
   }
   .mock-pass-top {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
     color: #fff;
     display: flex;
     align-items: center;
@@ -957,7 +957,7 @@ const styles = `
   .mock-pass-row-strong {
     font-size: 11px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: #111114;
     text-transform: none;
     letter-spacing: 0;
     margin: 4px 0 10px;
@@ -978,11 +978,11 @@ const styles = `
     font-weight: 700;
   }
   .mock-card {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
     border-radius: 20px;
     padding: 22px;
     color: #fff;
-    box-shadow: 0 20px 50px rgba(116, 20, 244, 0.35);
+    box-shadow: 0 20px 50px rgba(22, 166, 115, 0.35);
   }
   .mock-card-top {
     display: flex;
@@ -1022,7 +1022,7 @@ const styles = `
     bottom: -18px;
     right: -18px;
     background: #fff;
-    color: #1a1a1a;
+    color: #111114;
     border-radius: 12px;
     padding: 10px 14px;
     font-size: 12px;
@@ -1037,7 +1037,7 @@ const styles = `
   }
 
   .facts {
-    background: #14101f;
+    background: #0A0A0C;
     padding: 32px 0;
   }
   .facts-grid {
@@ -1062,7 +1062,7 @@ const styles = `
   }
 
   .stats-proof {
-    background: #14101f;
+    background: #0A0A0C;
     padding: 0 0 72px;
     position: relative;
   }
@@ -1298,7 +1298,7 @@ const styles = `
     height: 18px;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(116, 20, 244, 0.4);
+    box-shadow: 0 2px 6px rgba(22, 166, 115, 0.4);
     cursor: pointer;
   }
   .calc-slider-row input[type="range"]::-moz-range-thumb {
@@ -1307,7 +1307,7 @@ const styles = `
     border: none;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(116, 20, 244, 0.4);
+    box-shadow: 0 2px 6px rgba(22, 166, 115, 0.4);
     cursor: pointer;
   }
   .calc-hint {
@@ -1317,7 +1317,7 @@ const styles = `
     margin: 4px 0 0;
   }
   .calc-card-result {
-    background: #14101f;
+    background: #0A0A0C;
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -1377,7 +1377,7 @@ const styles = `
   }
   .calc-result-annual {
     margin-top: auto;
-    background: linear-gradient(135deg, ${PURPLE} 0%, #4a0ba3 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 12.5px;
@@ -1418,7 +1418,7 @@ const styles = `
   .pricing-addon-text h3 {
     font-size: 14.5px;
     margin: 0 0 4px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .pricing-addon-text p {
     font-size: 12.5px;
@@ -1436,7 +1436,7 @@ const styles = `
   .pricing-addon-price {
     font-size: 20px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: #111114;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1527,7 +1527,7 @@ const styles = `
   }
 
   .steps {
-    background: #14101f;
+    background: #0A0A0C;
     padding: 72px 0;
   }
   .steps .section-title {
@@ -1657,7 +1657,7 @@ const styles = `
   .price-number {
     font-size: 26px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: #111114;
   }
   .price-devis {
     font-size: 18px;
@@ -1677,7 +1677,7 @@ const styles = `
   }
 
   .cta-banner {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #4a0ba3 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
     padding: 64px 0;
     text-align: center;
   }
@@ -1703,7 +1703,7 @@ const styles = `
   }
 
   .footer {
-    background: #0d0a15;
+    background: #0A0A0C;
     padding: 56px 0 0;
   }
   .footer-top {

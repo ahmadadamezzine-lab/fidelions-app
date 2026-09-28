@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 // Page publique de la politique de confidentialité. À la demande d'Adam,
 // les zones [À COMPLÉTER] visibles (forme juridique, SIRET, adresse du
@@ -12,31 +12,31 @@ export default function Confidentialite() {
   return (
     <div className="page">
       <Head>
-        <title>Politique de Confidentialité — Fidélions</title>
-        <meta name="description" content="Politique de confidentialité et protection des données du programme de fidélité Fidélions." />
+        <title>Politique de Confidentialité — Fidions</title>
+        <meta name="description" content="Politique de confidentialité et protection des données du programme de fidélité Fidions." />
       </Head>
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Politique de Confidentialité</h1>
-        <p className="subtitle">Fidélions — dernière mise à jour : 11 septembre 2026</p>
+        <p className="subtitle">Fidions — dernière mise à jour : 11 septembre 2026</p>
 
         <h2>1. Qui sommes-nous</h2>
         <p>
-          Fidélions édite et exploite le service Fidélions, un outil de fidélisation client destiné
+          Fidions édite et exploite le service Fidions, un outil de fidélisation client destiné
           aux commerces.
         </p>
         <p>Pour toute question relative à vos données personnelles : ahmadadamezzine@gmail.com.</p>
 
         <h2>2. Deux rôles différents selon qui vous êtes</h2>
         <p>
-          Si vous êtes un commerce utilisant Fidélions (« l'Établissement ») : Fidélions est
+          Si vous êtes un commerce utilisant Fidions (« l'Établissement ») : Fidions est
           responsable du traitement des données liées à votre compte professionnel (identifiants,
           informations de contact, données des employés que vous enregistrez).
         </p>
         <p>
-          Si vous êtes client d'un commerce utilisant Fidélions et que vous créez une carte de
+          Si vous êtes client d'un commerce utilisant Fidions et que vous créez une carte de
           fidélité (« le Client final ») : l'Établissement chez qui vous avez créé votre carte est
-          responsable du traitement de vos données ; Fidélions intervient comme sous-traitant
+          responsable du traitement de vos données ; Fidions intervient comme sous-traitant
           technique, pour le compte de l'Établissement, conformément à l'article 28 du RGPD.
         </p>
 
@@ -46,7 +46,7 @@ export default function Confidentialite() {
           <li>Prénom — nécessaire à la personnalisation de la carte et à son identification par l'Établissement lors du scan.</li>
           <li>Adresse email — nécessaire à la création de la carte, à l'envoi des campagnes et notifications de l'Établissement, et au support.</li>
           <li>Numéro de téléphone (facultatif) — collecté pour un usage futur éventuel (notification par SMS), non utilisé activement à ce jour.</li>
-          <li>Données de localisation approximative — uniquement si l'Établissement a activé les notifications de proximité, et uniquement transmises à Google Wallet pour déclencher une notification native sur votre téléphone lorsque vous passez à proximité de l'établissement ; Fidélions ne suit pas votre position en continu et ne la reçoit pas directement.</li>
+          <li>Données de localisation approximative — uniquement si l'Établissement a activé les notifications de proximité, et uniquement transmises à Google Wallet pour déclencher une notification native sur votre téléphone lorsque vous passez à proximité de l'établissement ; Fidions ne suit pas votre position en continu et ne la reçoit pas directement.</li>
           <li>Historique de fidélité (nombre de points, récompenses obtenues) — nécessaire au fonctionnement du programme.</li>
         </ul>
         <p className="label">Données de l'Établissement (compte professionnel)</p>
@@ -104,14 +104,14 @@ export default function Confidentialite() {
         </p>
         <p>
           Pour les clients finaux d'un commerce : ces droits peuvent être exercés directement
-          auprès de l'Établissement concerné (responsable de traitement), ou auprès de Fidélions qui
+          auprès de l'Établissement concerné (responsable de traitement), ou auprès de Fidions qui
           transmettra votre demande, à l'adresse ahmadadamezzine@gmail.com.
         </p>
         <p>Vous disposez également du droit d'introduire une réclamation auprès de la Commission nationale de l'informatique et des libertés (CNIL) — www.cnil.fr.</p>
 
         <h2>8. Mineurs</h2>
         <p>
-          La création d'une carte de fidélité Fidélions est réservée aux personnes âgées d'au moins
+          La création d'une carte de fidélité Fidions est réservée aux personnes âgées d'au moins
           15 ans (âge à partir duquel la loi française permet de consentir seul au traitement de ses
           données en ligne). En deçà, elle suppose l'accord préalable d'un parent ou du représentant
           légal.
@@ -126,7 +126,7 @@ export default function Confidentialite() {
 
         <h2>10. Cookies et traceurs</h2>
         <p>
-          Fidélions n'utilise aucun outil de mesure d'audience, aucun traceur publicitaire et aucun
+          Fidions n'utilise aucun outil de mesure d'audience, aucun traceur publicitaire et aucun
           cookie de suivi.
         </p>
         <p>
@@ -140,7 +140,7 @@ export default function Confidentialite() {
         <p>Aucun consentement préalable n'étant requis pour ces usages, aucun bandeau de cookies n'est affiché.</p>
 
         <h2>11. Délégué à la protection des données</h2>
-        <p>Compte tenu de la taille et de l'activité de Fidélions, la désignation d'un délégué à la protection des données (DPO) n'est pas obligatoire à ce stade. Toute question peut être adressée au contact indiqué à la section 1.</p>
+        <p>Compte tenu de la taille et de l'activité de Fidions, la désignation d'un délégué à la protection des données (DPO) n'est pas obligatoire à ce stade. Toute question peut être adressée au contact indiqué à la section 1.</p>
 
         <h2>12. Modification de cette politique</h2>
         <p>Cette politique peut être mise à jour ; la version en vigueur est celle publiée sur cette page, avec sa date de dernière mise à jour ci-dessus.</p>
@@ -155,7 +155,7 @@ const styles = `
   .page {
     min-height: 100vh;
     background: #f5f4fb;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 40px 20px;
     display: flex;
     justify-content: center;
@@ -187,7 +187,7 @@ const styles = `
     margin-bottom: 28px;
   }
   h2 {
-    color: #1a1a1a;
+    color: #111114;
     font-size: 16px;
     margin: 28px 0 10px;
   }
@@ -199,7 +199,7 @@ const styles = `
   }
   .label {
     font-weight: 700;
-    color: #1a1a1a;
+    color: #111114;
   }
   ul {
     margin: 0 0 12px;

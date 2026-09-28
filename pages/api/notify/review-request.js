@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     }
 
     const [merchant, branding] = await Promise.all([getMerchantById(merchantId), getBranding(merchantId)]);
-    const restaurantName = merchant?.restaurantName || "Fidélions";
+    const restaurantName = merchant?.restaurantName || "Fidions";
 
     // Lien de suivi : passe par notre propre site avant de rediriger vers
     // le vrai lien Google (voir pages/api/review-redirect.js) — utile pour
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     // La notification Wallet ne peut pas contenir de bouton vers un lien
     // externe (l'API Google ne le permet pas sur un message push) — elle
     // sert donc de rappel visuel, le vrai bouton cliquable arrive par
-    // email ci-dessous. Comme partout ailleurs sur Fidélions, un échec ici
+    // email ci-dessous. Comme partout ailleurs sur Fidions, un échec ici
     // n'empêche jamais le reste.
     try {
       await sendWalletMessage(objectId, settings.reviewRequestTitle, settings.reviewRequestBody);

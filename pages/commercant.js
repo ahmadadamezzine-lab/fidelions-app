@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import LegalFooter from "../components/LegalFooter";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
 
-const PURPLE = "#7414F4";
+const PURPLE = "#16A673";
 
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
@@ -108,7 +108,7 @@ function Icon({ name, size = 18, className }) {
   );
 }
 
-// Mini-maquette d'une carte de fidélité Fidélions, purement décorative (pas
+// Mini-maquette d'une carte de fidélité Fidions, purement décorative (pas
 // de vraie donnée) — utilisée sur les écrans de connexion/inscription pour
 // montrer concrètement ce que le commerçant est en train de créer, plutôt
 // qu'une simple liste de bénéfices en texte. `filled` = nombre de tampons
@@ -464,7 +464,7 @@ function LogoCropper({ file, onCancel, onConfirm }) {
   );
 }
 
-// Petit graphe en barres, une seule teinte (violet Fidélions) — inutile
+// Petit graphe en barres, une seule teinte (violet Fidions) — inutile
 // d'avoir une légende ou un dégradé de couleurs pour une seule série.
 // Survol = tooltip avec la valeur exacte, comme sur les vrais tableaux de
 // bord (voir compétence dataviz : marques fines, coins arrondis, axe discret).
@@ -726,7 +726,7 @@ export default function Commercant() {
   // passage, historique) ou points (variable selon le montant dépensé) —
   // les deux s'appuient sur le même moteur (voir lib/loyalty.js et
   // lib/db.js/getLoyaltySettings). Couleur de carte facultative : sinon le
-  // violet Fidélions par défaut est gardé (voir CARD_COLOR_PRESETS).
+  // violet Fidions par défaut est gardé (voir CARD_COLOR_PRESETS).
   const [signupLoyaltyMode, setSignupLoyaltyMode] = useState("stamps"); // "stamps" | "points"
   const [signupPointsPerAmount, setSignupPointsPerAmount] = useState(1);
   const [signupAmountUnit, setSignupAmountUnit] = useState(10);
@@ -874,7 +874,7 @@ export default function Commercant() {
     QRCode.toDataURL(`${window.location.origin}/r/${merchantSlug}`, {
       width: 500,
       margin: 2,
-      color: { dark: "#1a1a1a" },
+      color: { dark: "#111114" },
     })
       .then(setSignupQrUrl)
       .catch(() => setSignupQrUrl(""));
@@ -1335,7 +1335,7 @@ export default function Commercant() {
     }
   }
 
-  // --- Déconnexion : clic sur le logo/wordmark Fidélions de la barre
+  // --- Déconnexion : clic sur le logo/wordmark Fidions de la barre
   // latérale (voir sidebar) — remet l'écran de pré-connexion sur le choix
   // initial plutôt que de rouvrir directement le formulaire de connexion.
   function handleLogout() {
@@ -1645,7 +1645,7 @@ export default function Commercant() {
   // Lit le texte d'une photo entièrement dans le navigateur (OCR, via
   // Tesseract.js — bibliothèque open source, chargée à la demande comme
   // jsQR pour le scanner caméra, voir plus bas dans ce fichier). Aucun
-  // appel réseau vers un tiers pour CETTE étape : ni serveur Fidélions, ni
+  // appel réseau vers un tiers pour CETTE étape : ni serveur Fidions, ni
   // quota Gemini/Groq — donc ça marche même quand les deux IA sont
   // indisponibles. Utilisé par sendAdvisorMessage (le Conseiller IA, voir
   // plus bas) comme technique de repli quand une photo est jointe et que
@@ -1656,7 +1656,7 @@ export default function Commercant() {
       tesseractCreateWorkerRef.current = mod.createWorker;
     }
     // "fra" : reconnaissance en français, langue de toute l'interface et,
-    // très probablement, des menus des commerces inscrits sur Fidélions.
+    // très probablement, des menus des commerces inscrits sur Fidions.
     const worker = await tesseractCreateWorkerRef.current("fra");
     try {
       const dataUrl = `data:${mimeType};base64,${base64}`;
@@ -2179,7 +2179,7 @@ export default function Commercant() {
 
   async function saveBranding() {
     if (brandHexColor && !/^#[0-9a-fA-F]{6}$/.test(brandHexColor)) {
-      setMessage({ type: "error", text: "Couleur invalide (format attendu : #7414F4)." });
+      setMessage({ type: "error", text: "Couleur invalide (format attendu : #16A673)." });
       return;
     }
     setSavingBranding(true);
@@ -2742,7 +2742,7 @@ export default function Commercant() {
               <div className="split-orb orb-a" />
               <div className="split-orb orb-b" />
               <Link href="/" className="logo-link split-logo-link">
-                <img src="/logo-full.png" alt="Fidélions" className="split-logo" />
+                <img src="/logo-full.svg" alt="Fidions" className="split-logo" />
               </Link>
               <h2 className="split-title">
                 Content de <span className="split-title-accent">te revoir</span>
@@ -2804,7 +2804,7 @@ export default function Commercant() {
                 {" · "}
                 Pas encore de compte ?{" "}
                 <button type="button" className="link-btn" onClick={startSignup}>
-                  Crée ton établissement sur Fidélions
+                  Crée ton établissement sur Fidions
                 </button>
               </p>
             </div>
@@ -2823,7 +2823,7 @@ export default function Commercant() {
         <MockLoyaltyCard filled={3} className="bg-mockcard bg-mockcard-2" />
         <div className="card">
           <Link href="/" className="logo-link">
-            <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+            <img src="/logo-full.svg" alt="Fidions" className="auth-logo" />
           </Link>
 
           {authMode === "choice" && (
@@ -2975,7 +2975,7 @@ export default function Commercant() {
                     type="text"
                     value={signupCardColorCustom}
                     onChange={(e) => setSignupCardColorCustom(e.target.value)}
-                    placeholder="Ou un code couleur personnalisé (ex : #7414F4)"
+                    placeholder="Ou un code couleur personnalisé (ex : #16A673)"
                     maxLength={7}
                   />
 
@@ -3210,17 +3210,17 @@ export default function Commercant() {
     const isSuspended = subscription.status === "suspendu";
     const contactHref = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
       isSuspended
-        ? `Bonjour, mon compte Fidélions (${restaurantName || ""}) est suspendu — je veux le réactiver.`
-        : `Bonjour, mon essai Fidélions est terminé (compte ${restaurantName || ""}) — je veux activer mon abonnement.`
+        ? `Bonjour, mon compte Fidions (${restaurantName || ""}) est suspendu — je veux le réactiver.`
+        : `Bonjour, mon essai Fidions est terminé (compte ${restaurantName || ""}) — je veux activer mon abonnement.`
     )}`;
     return (
       <div className="auth-page">
         <div className="card">
-          <img src="/logo-full.png" alt="Fidélions" className="auth-logo" />
+          <img src="/logo-full.svg" alt="Fidions" className="auth-logo" />
           <h2>{isSuspended ? "Abonnement suspendu" : "Ton essai gratuit est terminé"}</h2>
           <p className="subtitle">
             {isSuspended
-              ? "L'accès de ce commerce à Fidélions a été suspendu. Contacte-nous pour le réactiver."
+              ? "L'accès de ce commerce à Fidions a été suspendu. Contacte-nous pour le réactiver."
               : "Les 7 jours d'essai gratuit sont passés. Active ton abonnement pour continuer à ajouter des points et créer de nouvelles cartes — tes clients existants et leurs points sont conservés, rien n'est perdu."}
           </p>
           {isSuspended ? (
@@ -3294,10 +3294,10 @@ export default function Commercant() {
               className="sb-brand"
               onClick={handleLogout}
               title="Se déconnecter"
-              aria-label="Fidélions — se déconnecter et revenir à l'accueil"
+              aria-label="Fidions — se déconnecter et revenir à l'accueil"
             >
-              <img src="/logo.png" alt="Fidélions" className="sb-logo" />
-              <span className="sb-wordmark">Fidélions</span>
+              <img src="/logo.png" alt="Fidions" className="sb-logo" />
+              <span className="sb-wordmark">Fidions</span>
             </button>
             <div className="sb-topbar">
               <button
@@ -3429,7 +3429,7 @@ export default function Commercant() {
 
         {role === "owner" && activeTab === "partager" && (
           <div className="card">
-            <h2>Partager Fidélions</h2>
+            <h2>Partager Fidions</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
               Affiche ce QR code en caisse ou sur tes tables : tes clients le
               scannent avec leur téléphone pour créer leur carte de fidélité
@@ -3439,11 +3439,11 @@ export default function Commercant() {
               <div style={{ textAlign: "center" }}>
                 <img
                   src={signupQrUrl}
-                  alt="QR code d'inscription Fidélions"
+                  alt="QR code d'inscription Fidions"
                   style={{ width: 220, height: 220, borderRadius: 12, border: "1.5px solid #e6e2f2" }}
                 />
                 <p style={{ marginTop: 12 }}>
-                  <a href={signupQrUrl} download="qr-fidelions.png" className="link-btn icon-heading">
+                  <a href={signupQrUrl} download="qr-fidions.png" className="link-btn icon-heading">
                     <Icon name="download" size={14} /> Télécharger l'image à imprimer
                   </a>
                 </p>
@@ -3665,7 +3665,7 @@ export default function Commercant() {
                 value={brandHexColor}
                 onChange={(e) => setBrandHexColor(e.target.value)}
                 maxLength={7}
-                placeholder="#7414F4"
+                placeholder="#16A673"
               />
             </div>
 
@@ -3742,7 +3742,7 @@ export default function Commercant() {
               Message affiché en permanence sur la carte de tes clients (pas
               seulement quand ils sont à proximité — le popup natif de
               proximité, lui, est généré par Google et n'a pas de texte
-              personnalisable, c'est une limite de leur API, pas de Fidélions).
+              personnalisable, c'est une limite de leur API, pas de Fidions).
             </p>
             <textarea
               className="menu-textarea"
@@ -4885,7 +4885,7 @@ export default function Commercant() {
                                 isQuote
                                   ? window.open(
                                       `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                                        `Bonjour, je veux passer à la formule ${t.label} pour mon abonnement Fidélions.`
+                                        `Bonjour, je veux passer à la formule ${t.label} pour mon abonnement Fidions.`
                                       )}`,
                                       "_blank"
                                     )
@@ -4938,7 +4938,7 @@ export default function Commercant() {
                 className="secondary icon-heading"
                 style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
                 href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidions."
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -4949,7 +4949,7 @@ export default function Commercant() {
                 className="secondary icon-heading"
                 style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
                 href={`https://wa.me/${CONTACT_WHATSAPP_ASSOCIE}?text=${encodeURIComponent(
-                  "Bonjour, je vous contacte au sujet de mon abonnement Fidélions."
+                  "Bonjour, je vous contacte au sujet de mon abonnement Fidions."
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -4959,7 +4959,7 @@ export default function Commercant() {
               <a
                 className="secondary icon-heading"
                 style={{ width: "auto", display: "inline-flex", textDecoration: "none" }}
-                href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidélions")}`}
+                href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Abonnement Fidions")}`}
               >
                 <Icon name="mail" size={15} /> Nous contacter par email
               </a>
@@ -5119,7 +5119,7 @@ const styles = `
     flex: 1;
     font-size: 13.5px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: #111114;
   }
   .rank-points {
     font-size: 12.5px;
@@ -5285,7 +5285,7 @@ const styles = `
     color: #9a9a9a;
   }
   .advisor-debug summary:hover {
-    color: #7414f4;
+    color: #16A673;
   }
   .advisor-use-btn {
     display: block;
@@ -5338,7 +5338,7 @@ const styles = `
     align-items: center;
     gap: 8px;
     font-size: 13.5px;
-    color: #1a1a1a;
+    color: #111114;
     cursor: pointer;
   }
   .channel input {
@@ -5385,7 +5385,7 @@ const styles = `
   .chart-title {
     font-size: 12.5px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #111114;
     margin: 18px 0 6px;
   }
   .chart {
@@ -5614,7 +5614,7 @@ const styles = `
     padding: 10px 12px;
     font-size: 13px;
     font-weight: 500;
-    color: #1a1a1a;
+    color: #111114;
     cursor: pointer;
     border-radius: 0;
   }
@@ -5643,7 +5643,7 @@ const styles = `
     color: #fff;
     border-color: ${PURPLE};
     opacity: 1;
-    box-shadow: 0 2px 8px rgba(116, 20, 244, 0.35);
+    box-shadow: 0 2px 8px rgba(22, 166, 115, 0.35);
   }
   .day-chip-mark {
     display: inline-block;
@@ -5745,7 +5745,7 @@ const styles = `
     cursor: pointer;
     font-weight: 700;
     font-size: 13.5px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .faq-item p {
     margin: 8px 0 0;
@@ -5768,10 +5768,10 @@ const styles = `
   .page {
     min-height: 100vh;
     background:
-      radial-gradient(1100px 520px at 12% -8%, rgba(116, 20, 244, 0.08), transparent 60%),
-      radial-gradient(900px 480px at 100% 0%, rgba(116, 20, 244, 0.05), transparent 55%),
-      #f6f5fc;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 115, 0.08), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(22, 166, 115, 0.05), transparent 55%),
+      #EFF2F0;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     justify-content: center;
@@ -5781,10 +5781,10 @@ const styles = `
     overflow: hidden;
     min-height: 100vh;
     background:
-      radial-gradient(1100px 520px at 12% -8%, rgba(116, 20, 244, 0.10), transparent 60%),
-      radial-gradient(900px 480px at 100% 10%, rgba(116, 20, 244, 0.06), transparent 55%),
-      #f6f5fc;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 115, 0.10), transparent 60%),
+      radial-gradient(900px 480px at 100% 10%, rgba(22, 166, 115, 0.06), transparent 55%),
+      #EFF2F0;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
     display: flex;
     flex-direction: column;
@@ -5822,7 +5822,7 @@ const styles = `
   .auth-page input:focus {
     background: #fff;
     border-color: ${PURPLE};
-    box-shadow: 0 0 0 4px rgba(116, 20, 244, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 166, 115, 0.1);
   }
   .auth-page button.primary,
   .auth-page button.secondary {
@@ -5832,7 +5832,7 @@ const styles = `
   .auth-page .auth-logo {
     display: block;
     margin: 0 auto 18px;
-    filter: drop-shadow(0 8px 20px rgba(116, 20, 244, 0.22));
+    filter: drop-shadow(0 8px 20px rgba(22, 166, 115, 0.22));
   }
   .logo-link {
     display: inline-block;
@@ -5870,7 +5870,7 @@ const styles = `
     justify-content: center;
     gap: 6px;
     background: #fff;
-    color: #1a1a1a;
+    color: #111114;
     border: 1.5px solid #e7e1f5;
     border-radius: 999px;
     padding: 11px 12px;
@@ -5894,7 +5894,7 @@ const styles = `
     background: #fafafa;
   }
   .soon-badge {
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -6181,7 +6181,7 @@ const styles = `
     right: -60px;
     left: auto;
     bottom: auto;
-    background: rgba(116, 20, 244, 0.14);
+    background: rgba(22, 166, 115, 0.14);
   }
   .page-orb.orb-b {
     bottom: -90px;
@@ -6202,7 +6202,7 @@ const styles = `
   h2 {
     font-size: 16px;
     margin: 0 0 12px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .card {
     background: #fff;
@@ -6230,7 +6230,7 @@ const styles = `
   input:focus {
     outline: none;
     border-color: ${PURPLE};
-    box-shadow: 0 0 0 4px rgba(116, 20, 244, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 166, 115, 0.1);
   }
   button {
     cursor: pointer;
@@ -6245,11 +6245,11 @@ const styles = `
     color: #fff;
     padding: 12px 16px;
     width: 100%;
-    box-shadow: 0 8px 20px -8px rgba(116, 20, 244, 0.55);
+    box-shadow: 0 8px 20px -8px rgba(22, 166, 115, 0.55);
   }
   button.primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 12px 26px -8px rgba(116, 20, 244, 0.6);
+    box-shadow: 0 12px 26px -8px rgba(22, 166, 115, 0.6);
   }
   button.primary:active:not(:disabled) {
     transform: translateY(0);
@@ -6432,7 +6432,7 @@ const styles = `
     padding: 10px 12px;
     font-size: 13px;
     font-weight: 500;
-    color: #1a1a1a;
+    color: #111114;
     cursor: pointer;
     border-radius: 0;
   }
@@ -6541,7 +6541,7 @@ const styles = `
   }
   .step-dots span.active {
     background: linear-gradient(90deg, ${PURPLE}, #b046f0);
-    box-shadow: 0 0 8px rgba(116, 20, 244, 0.45);
+    box-shadow: 0 0 8px rgba(22, 166, 115, 0.45);
   }
   .signup-step {
     display: flex;
@@ -6605,7 +6605,7 @@ const styles = `
   .mode-card-title {
     font-weight: 700;
     font-size: 14px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .mode-card-desc {
     font-size: 12px;
@@ -6636,7 +6636,7 @@ const styles = `
     padding: 0;
   }
   .color-swatch.active {
-    border-color: #1a1a1a;
+    border-color: #111114;
     box-shadow: 0 0 0 2px #fff inset;
   }
   .billing-toggle {
@@ -6690,7 +6690,7 @@ const styles = `
   .pricing-card-title {
     font-weight: 700;
     font-size: 13.5px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .pricing-card-price {
     font-weight: 800;
@@ -6718,7 +6718,7 @@ const styles = `
     color: #595959;
   }
   .recap-row strong {
-    color: #1a1a1a;
+    color: #111114;
   }
   .rank-badge {
     flex: none;
@@ -6763,7 +6763,7 @@ const styles = `
     flex: none;
     font-size: 12.5px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #111114;
   }
   .hours-closed-toggle {
     flex: none;
@@ -6913,7 +6913,7 @@ const styles = `
   .crop-modal-head h3 {
     margin: 0;
     font-size: 16px;
-    color: #1a1a1a;
+    color: #111114;
   }
   .crop-close {
     background: none;
@@ -7101,7 +7101,7 @@ const styles = `
     }
     .sb-footer-name {
       font-size: 12.5px;
-      color: #1a1a1a;
+      color: #111114;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;

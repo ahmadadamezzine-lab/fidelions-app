@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   if (!isAppleWalletConfigured()) {
     return res.status(501).json({
       error:
-        "Apple Wallet arrive bientôt sur Fidélions — cette carte est pour l'instant disponible uniquement sur Google Wallet.",
+        "Apple Wallet arrive bientôt sur Fidions — cette carte est pour l'instant disponible uniquement sur Google Wallet.",
     });
   }
 

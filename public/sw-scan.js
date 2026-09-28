@@ -15,7 +15,7 @@
 // (voir enqueueStamp/flushQueue) qui gère la vraie logique hors-ligne pour
 // l'ajout de points, pas ce service worker.
 
-const CACHE_NAME = "fidelions-scan-v1";
+const CACHE_NAME = "fidions-scan-v1";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

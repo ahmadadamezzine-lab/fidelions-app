@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     return res.status(402).json({
       error:
         access.status === "suspendu"
-          ? "Abonnement suspendu — contacte Fidélions pour le réactiver."
+          ? "Abonnement suspendu — contacte Fidions pour le réactiver."
           : "Ton essai gratuit est terminé — active ton abonnement pour continuer à ajouter des points.",
       subscriptionBlocked: true,
       subscriptionStatus: access.status,
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     if (!existing) {
       return res
         .status(404)
-        .json({ error: "Client introuvable — le QR scanné ne correspond à aucune carte Fidélions." });
+        .json({ error: "Client introuvable — le QR scanné ne correspond à aucune carte Fidions." });
     }
     if (existing.blocked) {
       return res
@@ -205,7 +205,7 @@ export default async function handler(req, res) {
     if (existing.email) {
       try {
         const [merchant, branding] = await Promise.all([getMerchantById(merchantId), getBranding(merchantId)]);
-        const restaurantName = merchant?.restaurantName || "Fidélions";
+        const restaurantName = merchant?.restaurantName || "Fidions";
         await sendEmail({
           to: existing.email,
           subject: `${restaurantName} — ${notifHeader}`,

@@ -1,4 +1,4 @@
-# Fidélions — plateforme multi-restaurants
+# Fidions — plateforme multi-restaurants
 
 Un seul site, plusieurs restaurants : chaque commerçant crée son propre compte sur `/commercant` (email + mot de passe) et obtient son propre lien d'inscription client, sa propre carte Google Wallet, ses propres clients, ses propres réglages — tout est isolé par compte. Coût : 0 €, hébergé gratuitement sur Vercel.
 
@@ -36,10 +36,10 @@ Un seul site, plusieurs restaurants : chaque commerçant crée son propre compte
 Ce compte signe les cartes de TOUS les restaurants qui s'inscriront sur le site — comme un compte Stripe qui sert plusieurs marchands. Une seule fois, jamais à refaire par restaurant.
 
 1. Va sur console.cloud.google.com
-2. En haut, ouvre le sélecteur de projet. Si un projet existe déjà (créé automatiquement avec ta Wallet Business Console), sélectionne-le. Sinon "Nouveau projet" → nomme-le `fidelions` → Créer.
+2. En haut, ouvre le sélecteur de projet. Si un projet existe déjà (créé automatiquement avec ta Wallet Business Console), sélectionne-le. Sinon "Nouveau projet" → nomme-le `fidions` → Créer.
 3. Barre de recherche en haut → tape `Google Wallet API` → clique sur le résultat → clique `Activer` (si ce n'est pas déjà fait).
 4. Menu ☰ (en haut à gauche) → `IAM et administration` → `Comptes de service`.
-5. `Créer un compte de service` → nom : `fidelions-wallet-service` → `Continuer` → `Continuer` → `OK`/`Terminer` (pas besoin de rôle IAM ici).
+5. `Créer un compte de service` → nom : `fidions-wallet-service` → `Continuer` → `Continuer` → `OK`/`Terminer` (pas besoin de rôle IAM ici).
 6. Clique sur le compte de service que tu viens de créer → onglet `Clés` → `Ajouter une clé` → `Créer une clé` → format `JSON` → `Créer`.
 7. Un fichier `.json` se télécharge. **Garde-le précieusement, ne l'envoie à personne, ne le mets jamais en ligne.** Il contient une clé privée.
 
@@ -48,7 +48,7 @@ Ce compte signe les cartes de TOUS les restaurants qui s'inscriront sur le site 
 1. Retourne sur pay.google.com/business/console
 2. Menu de gauche → `Utilisateurs`.
 3. `Inviter un utilisateur` (ou le bouton `+`).
-4. Colle l'email du compte de service (champ `client_email` dans le fichier JSON téléchargé, ressemble à `fidelions-wallet-service@fidelions.iam.gserviceaccount.com`).
+4. Colle l'email du compte de service (champ `client_email` dans le fichier JSON téléchargé, ressemble à `fidions-wallet-service@fidions.iam.gserviceaccount.com`).
 5. Choisis le rôle `Administrateur`.
 6. Valide.
 
@@ -56,7 +56,7 @@ Ce compte signe les cartes de TOUS les restaurants qui s'inscriront sur le site 
 
 Chaque nouveau restaurant qui s'inscrit sur le site a besoin d'une classe de fidélité qui lui est propre, créée automatiquement. Pour ça, le site a besoin de ton identifiant d'émetteur (le même pour tous les restaurants) :
 
-1. Ouvre le fichier JSON de l'étape 1, ou regarde l'ID de classe que tu avais peut-être déjà créé à la main dans la Wallet Business Console (ex. `3388000000023199659.fidelions_loyalty`).
+1. Ouvre le fichier JSON de l'étape 1, ou regarde l'ID de classe que tu avais peut-être déjà créé à la main dans la Wallet Business Console (ex. `3388000000023199659.fidions_loyalty`).
 2. Ton `GOOGLE_WALLET_ISSUER_ID` est la partie AVANT le premier point : `3388000000023199659`.
 3. Si tu n'as jamais créé de classe manuellement, cet identifiant est aussi visible sur pay.google.com/business/console, page d'accueil (en général en haut, ou dans les infos du compte).
 
@@ -65,7 +65,7 @@ Chaque nouveau restaurant qui s'inscrit sur le site a besoin d'une classe de fid
 1. Va sur `vercel.com`, ouvre ton projet `fidelions-app`.
 2. Onglet `Storage` (en haut) → `Create Database`.
 3. Choisis `Upstash` puis `Redis` (offre gratuite).
-4. Donne-lui un nom (ex. `fidelions-db`) → `Create`.
+4. Donne-lui un nom (ex. `fidions-db`) → `Create`.
 5. Sur l'écran suivant, coche ton projet `fidelions-app` puis `Connect` — Vercel ajoute automatiquement les variables `KV_REST_API_URL` et `KV_REST_API_TOKEN` à ton projet, tu n'as rien à copier toi-même.
 
 ## Étape 3bis — Activer l'envoi d'emails pour les campagnes (optionnel, gratuit)
@@ -74,18 +74,18 @@ Sans cette étape, les campagnes partent quand même par notification Wallet —
 
 1. Va sur `resend.com` → `Sign up` → crée un compte gratuit.
 2. Une fois connecté, menu de gauche → `API Keys`.
-3. `Create API Key` → donne-lui un nom (ex. `fidelions`) → `Add`.
+3. `Create API Key` → donne-lui un nom (ex. `fidions`) → `Add`.
 4. Copie la clé affichée (elle commence par `re_`) — elle ne sera plus jamais réaffichée en entier.
 
 Tu ajouteras cette clé comme variable `RESEND_API_KEY` à l'étape 4 juste en dessous.
 
 **⚠️ Important, à ne pas sauter :** tant qu'aucun domaine n'est vérifié sur Resend, les emails partent depuis leur adresse partagée `onboarding@resend.dev` — celle-ci ne délivre de façon fiable QUE vers l'adresse email de ton propre compte Resend (toi). Concrètement : les emails de notification "+1 point" à tes clients, les campagnes par email, et la relance automatique des inscriptions abandonnées (voir plus bas) ne toucheront réellement personne d'autre que toi tant que cette étape n'est pas faite — ils partiront "avec succès" côté code, mais n'arriveront jamais vraiment chez le client. Pour les activer pour de vrai :
 
-1. Achète un nom de domaine si tu n'en as pas déjà un (ex. sur `namecheap.com` ou `ovh.com`, quelques euros/an) — par exemple `fidelions.fr` ou `fidelions.app`.
+1. Achète un nom de domaine si tu n'en as pas déjà un (ex. sur `namecheap.com` ou `ovh.com`, quelques euros/an) — par exemple `fidions.fr` ou `fidions.app`.
 2. Sur `resend.com`, menu de gauche → `Domains` → `Add Domain` → tape ton domaine.
 3. Resend affiche 3-4 enregistrements DNS (des lignes `TXT`/`MX`/`CNAME`) → va les ajouter chez ton fournisseur de domaine (l'endroit où tu l'as acheté, dans la zone DNS), en collant chaque valeur exactement comme affichée.
 4. Reviens sur Resend, clique `Verify` — ça peut prendre de quelques minutes à quelques heures selon le fournisseur.
-5. Une fois vérifié, ajoute la variable `RESEND_FROM_EMAIL` (étape 4 ci-dessous) avec une adresse de ce domaine, par exemple `contact@fidelions.fr`.
+5. Une fois vérifié, ajoute la variable `RESEND_FROM_EMAIL` (étape 4 ci-dessous) avec une adresse de ce domaine, par exemple `contact@fidions.fr`.
 
 Sans domaine à toi, il n'existe pas de raccourci — c'est une limite du service Resend lui-même (et de tous ses concurrents), pas quelque chose que le code peut contourner.
 
@@ -109,7 +109,7 @@ Groq héberge gratuitement plusieurs IA à poids ouverts (Meta Llama — contrai
 
 1. Va sur `console.groq.com` → connecte-toi (email ou compte Google, gratuit, aucune carte demandée).
 2. Menu de gauche → `API Keys`.
-3. `Create API Key` → donne-lui un nom (ex. `fidelions`) → `Submit`.
+3. `Create API Key` → donne-lui un nom (ex. `fidions`) → `Submit`.
 4. Copie la clé affichée (elle commence par `gsk_...`) — comme pour Gemini, elle ne sera plus jamais réaffichée en entier.
 
 Tu ajouteras cette clé comme variable `GROQ_API_KEY` à l'étape 4 juste en dessous.
@@ -133,7 +133,7 @@ Sans cette étape, tout le reste fonctionne normalement — c'est juste l'onglet
 1. Va sur `vercel.com`, ouvre ton projet `fidelions-app`.
 2. Onglet `Storage` (en haut) → `Create Database`.
 3. Choisis `Blob` (offre gratuite) → une fenêtre "Create Blob Store" s'ouvre.
-4. `Store Name` : remplace le texte par `fidelions-images`.
+4. `Store Name` : remplace le texte par `fidions-images`.
 5. `Region` : laisse la valeur par défaut.
 6. `Access` : choisis **`Public`** (PAS "Private" même si c'est marqué "Recommended" — Google Wallet doit pouvoir aller chercher lui-même le logo/la bannière, donc l'image doit être publique).
 7. Coche la case **`Add a read-write token env var to this connection`** — sans elle, la variable `BLOB_READ_WRITE_TOKEN` (celle dont le site a besoin) n'est pas créée.
@@ -147,12 +147,12 @@ Sans cette étape, tout fonctionne normalement — les boutons "Google" restent 
 Pas de connexion Apple pour l'instant : elle demande en plus un compte payant Apple Developer (~99 $/an), alors que Google est gratuit — activable plus tard sur le même principe si besoin.
 
 1. Va sur `console.cloud.google.com` (connecte-toi avec un compte Google).
-2. En haut, ouvre le sélecteur de projet → `Nouveau projet` → nom `Fidelions` → `Créer`. Une fois créé, sélectionne-le (en haut, vérifie qu'il est bien actif).
+2. En haut, ouvre le sélecteur de projet → `Nouveau projet` → nom `Fidions` → `Créer`. Une fois créé, sélectionne-le (en haut, vérifie qu'il est bien actif).
 3. Menu ☰ (en haut à gauche) → `API et services` → `Écran de consentement OAuth`.
 4. Type d'utilisateur : `Externe` → `Créer`.
-5. Renseigne : `Nom de l'application` → `Fidélions`, `E-mail d'assistance utilisateur` → ton email, en bas `Coordonnées du développeur` → ton email à nouveau → `Enregistrer et continuer` sur chaque écran suivant (Champs d'application : rien à changer, `Enregistrer et continuer` ; Utilisateurs test : rien à ajouter, `Enregistrer et continuer` ; puis `Retour au tableau de bord`).
+5. Renseigne : `Nom de l'application` → `Fidions`, `E-mail d'assistance utilisateur` → ton email, en bas `Coordonnées du développeur` → ton email à nouveau → `Enregistrer et continuer` sur chaque écran suivant (Champs d'application : rien à changer, `Enregistrer et continuer` ; Utilisateurs test : rien à ajouter, `Enregistrer et continuer` ; puis `Retour au tableau de bord`).
 6. Menu ☰ → `API et services` → `Identifiants` → en haut `+ Créer des identifiants` → `ID client OAuth`.
-7. `Type d'application` → `Application Web`. `Nom` → `Fidélions - commerçant`.
+7. `Type d'application` → `Application Web`. `Nom` → `Fidions - commerçant`.
 8. Sous `URI de redirection autorisés` → `+ Ajouter un URI` → colle exactement :
    `https://fidelions-app.vercel.app/api/auth-google-callback`
 9. `Créer`. Une fenêtre affiche `ID client` et `Code secret du client` — garde cette fenêtre ouverte (ou clique `Télécharger le fichier JSON`).
@@ -256,13 +256,13 @@ Toutes tes anciennes données (clients, réglages, équipe, personnalisation) so
 1. Une vraie notification Google Wallet (écran de verrouillage, "+1 point !"). C'est fait correctement côté code (API `addMessage`, `messageType: TEXT_AND_NOTIFY`, exactement comme documenté par Google).
 2. **Un email de secours**, envoyé en plus si le client a laissé son email à la création de sa carte — via Resend (`RESEND_API_KEY`, déjà utilisé pour les campagnes).
 
-Pourquoi les deux : Google prévient lui-même dans sa documentation que la notification Wallet n'apparaît que si "l'utilisateur a activé les notifications Wallet" — et en pratique, certains téléphones (Samsung en tête, avec sa gestion de batterie très agressive qui "endort" les applis en arrière-plan) ne la font jamais remonter, même quand tout fonctionne bien côté serveur. Ce n'est pas un bug corrigeable côté Fidélions — c'est une limite du système Android/Wallet. L'email de secours garantit que le client est prévenu quand même.
+Pourquoi les deux : Google prévient lui-même dans sa documentation que la notification Wallet n'apparaît que si "l'utilisateur a activé les notifications Wallet" — et en pratique, certains téléphones (Samsung en tête, avec sa gestion de batterie très agressive qui "endort" les applis en arrière-plan) ne la font jamais remonter, même quand tout fonctionne bien côté serveur. Ce n'est pas un bug corrigeable côté Fidions — c'est une limite du système Android/Wallet. L'email de secours garantit que le client est prévenu quand même.
 
 Si un commerçant te remonte "mon client ne reçoit jamais la notif", fais-lui vérifier sur le téléphone du client (Android) :
 - `Paramètres` → `Notifications` → `Wallet Google` (ou `Google Wallet`) → notifications autorisées.
 - `Paramètres` → `Batterie` → `Wallet Google` → pas classée en "app en veille" / "mise en veille profonde" (le réglage qui pose problème sur Samsung en particulier).
 
-**L'email de secours est aux couleurs du commerce, pas de Fidélions** : le nom affiché comme expéditeur, le logo et la couleur de l'email sont ceux du commerce (onglet "Ma carte"), pas "Fidélions" — c'est le commerce que le client final doit reconnaître dans sa boîte mail. Un commerce qui n'a pas encore mis de logo/couleur reçoit l'identité Fidélions par défaut, le temps qu'il personnalise sa carte. Même logique pour les campagnes envoyées par email (onglet Campagnes).
+**L'email de secours est aux couleurs du commerce, pas de Fidions** : le nom affiché comme expéditeur, le logo et la couleur de l'email sont ceux du commerce (onglet "Ma carte"), pas "Fidions" — c'est le commerce que le client final doit reconnaître dans sa boîte mail. Un commerce qui n'a pas encore mis de logo/couleur reçoit l'identité Fidions par défaut, le temps qu'il personnalise sa carte. Même logique pour les campagnes envoyées par email (onglet Campagnes).
 
 ## Relance automatique des inscriptions abandonnées
 
@@ -272,7 +272,7 @@ Beaucoup de commerçants commencent l'inscription (nom du commerce, mécanique d
 
 1. Dès qu'un email est tapé à la dernière étape de l'inscription, il est discrètement enregistré comme "lead" (sans bloquer ni ralentir la suite — un échec de cet enregistrement n'empêche jamais l'inscription elle-même).
 2. Si l'inscription se termine normalement, le lead est aussitôt marqué "terminé" et n'est plus jamais relancé.
-3. Sinon, un email automatique part entre 20h et 72h après (assez de temps pour finir seul, pas assez pour relancer quelqu'un qui a abandonné il y a des semaines) : "Il ne reste qu'une étape...", signé "Ahmad Adam Ezzine, Fondateur, Fidélions", avec un lien direct pour reprendre l'inscription.
+3. Sinon, un email automatique part entre 20h et 72h après (assez de temps pour finir seul, pas assez pour relancer quelqu'un qui a abandonné il y a des semaines) : "Il ne reste qu'une étape...", signé "Ahmad Adam Ezzine, Fondateur, Fidions", avec un lien direct pour reprendre l'inscription.
 4. Chaque lead n'est relancé qu'une seule fois — jamais de spam.
 5. Ça tourne tout seul une fois par jour via Vercel Cron (le plan gratuit Vercel limite à une fois par jour — largement suffisant pour une fenêtre de 20-72h).
 
@@ -321,7 +321,7 @@ Cette version ajoute plusieurs éléments inspirés d'un concurrent (Fidelix) : 
 
 Trois choses restent à faire de ton côté avant que tout soit 100 % actif :
 
-1. **Lien de paiement (abonnement)** — le paiement de l'abonnement se fait maintenant via un lien externe plutôt que par virement/RIB (aucune donnée bancaire n'est collectée par Fidélions). Tant que tu n'as pas fourni ton vrai lien, le bouton "Payer" ouvre WhatsApp avec un message pré-rempli à la place. Pour l'activer : crée un lien de paiement sur ton compte Revolut Business, puis colle-le dans `pages/commercant.js`, à la ligne `const REVOLUT_PAYMENT_LINK = "";` (remplace les guillemets vides par ton lien).
+1. **Lien de paiement (abonnement)** — le paiement de l'abonnement se fait maintenant via un lien externe plutôt que par virement/RIB (aucune donnée bancaire n'est collectée par Fidions). Tant que tu n'as pas fourni ton vrai lien, le bouton "Payer" ouvre WhatsApp avec un message pré-rempli à la place. Pour l'activer : crée un lien de paiement sur ton compte Revolut Business, puis colle-le dans `pages/commercant.js`, à la ligne `const REVOLUT_PAYMENT_LINK = "";` (remplace les guillemets vides par ton lien).
 2. **Apple Wallet** — la structure est prête (`lib/appleWallet.js`, bouton "bientôt disponible" affiché aux clients) mais Apple exige un compte Apple Developer Program (~99 $/an) et un certificat de type de pass, que le site n'a pas. Une fois ces éléments obtenus, renseigne `APPLE_TEAM_ID`, `APPLE_PASS_TYPE_ID`, `APPLE_PASS_CERT_BASE64` et `APPLE_PASS_CERT_PASSWORD` dans Vercel (voir les commentaires de `lib/appleWallet.js` pour le détail) ; le bouton se réactivera automatiquement.
 3. **Avis Google** — pas d'appel à l'API Google Business Profile ici (coûterait cher à mettre en place pour un seul restaurant) : c'est l'employé/le commerçant qui coche "avis Google laissé" en caisse au moment d'ajouter un point, ce qui déclenche un bonus de points. C'est une déclaration de confiance, pas une vérification automatique — à mentionner à l'équipe.
 

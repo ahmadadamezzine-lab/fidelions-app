@@ -15,7 +15,7 @@ import Head from "next/head";
 import LegalFooter from "../../components/LegalFooter";
 import { getMerchantBySlug, getBranding, getEstablishmentInfo } from "../../lib/db";
 
-const DEFAULT_PURPLE = "#7414F4";
+const DEFAULT_PURPLE = "#16A673";
 
 // Récupère le nom/couleur/logo du restaurant CÔTÉ SERVEUR, avant même
 // d'envoyer le HTML au navigateur — avant ce correctif, cette page
@@ -116,7 +116,7 @@ export default function RestaurantSignup({ initialMerchant }) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: merchant?.restaurantName || "Fidélions",
+          title: merchant?.restaurantName || "Fidions",
           text: "Rejoins-moi sur le programme fidélité, on gagne chacun un point !",
           url: result.referralUrl,
         });
@@ -177,13 +177,13 @@ export default function RestaurantSignup({ initialMerchant }) {
     return (
       <div className="page">
         <Head>
-          <title>Établissement introuvable — Fidélions</title>
+          <title>Établissement introuvable — Fidions</title>
           <meta name="robots" content="noindex" />
         </Head>
         <div className="card">
           <h1>Établissement introuvable</h1>
           <p className="subtitle">
-            Ce lien ne correspond à aucun établissement Fidélions. Vérifiez le
+            Ce lien ne correspond à aucun établissement Fidions. Vérifiez le
             lien ou le QR code auprès du commerce.
           </p>
           <LegalFooter />
@@ -194,9 +194,9 @@ export default function RestaurantSignup({ initialMerchant }) {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(160deg, ${DEFAULT_PURPLE} 0%, #4a0ba3 100%);
+            background: linear-gradient(160deg, ${DEFAULT_PURPLE} 0%, #0F8C5F 100%);
             padding: 24px;
-            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           }
           .card {
             background: #fff;
@@ -210,7 +210,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           h1 {
             font-size: 22px;
             margin: 0 0 8px;
-            color: #1a1a1a;
+            color: #111114;
           }
           .subtitle {
             color: #595959;
@@ -222,7 +222,7 @@ export default function RestaurantSignup({ initialMerchant }) {
     );
   }
 
-  const pageTitle = `${merchant?.restaurantName || "Fidélions"} — Carte de fidélité`;
+  const pageTitle = `${merchant?.restaurantName || "Fidions"} — Carte de fidélité`;
   const pageDescription = `Ajoutez votre carte de fidélité ${merchant?.restaurantName || ""} directement sur votre téléphone (Apple/Google Wallet), sans application à installer.`;
 
   return (
@@ -236,7 +236,7 @@ export default function RestaurantSignup({ initialMerchant }) {
         <meta property="og:type" content="website" />
       </Head>
       <div className="card">
-        <img src={logoSrc} alt={merchant?.restaurantName || "Fidélions"} className="logo" />
+        <img src={logoSrc} alt={merchant?.restaurantName || "Fidions"} className="logo" />
 
         {!result ? (
               <>
@@ -292,7 +292,7 @@ export default function RestaurantSignup({ initialMerchant }) {
             ) : (
               <>
                 <p className="eyebrow">Carte de fidélité</p>
-                <h1>{merchant?.restaurantName || "Fidélions"}</h1>
+                <h1>{merchant?.restaurantName || "Fidions"}</h1>
 
                 <section className="panel">
                   <p className="panelTitle">Programme fidélité</p>
@@ -351,7 +351,7 @@ export default function RestaurantSignup({ initialMerchant }) {
                     type="button"
                     className="appleWalletBtn"
                     disabled
-                    title="Le support Apple Wallet arrive bientôt sur Fidélions"
+                    title="Le support Apple Wallet arrive bientôt sur Fidions"
                   >
                     Ajouter à Apple Wallet — bientôt disponible
                   </button>
@@ -382,7 +382,7 @@ export default function RestaurantSignup({ initialMerchant }) {
                   </p>
                 </section>
 
-                <p className="poweredBy">Propulsé par Fidélions</p>
+                <p className="poweredBy">Propulsé par Fidions</p>
 
                 <section className="panel">
                   <p className="panelTitle">Gagnez plus de récompenses</p>
@@ -437,9 +437,9 @@ export default function RestaurantSignup({ initialMerchant }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(160deg, ${purple} 0%, #4a0ba3 100%);
+          background: linear-gradient(160deg, ${purple} 0%, #0F8C5F 100%);
           padding: 24px;
-          font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .card {
           background: #fff;
@@ -460,7 +460,7 @@ export default function RestaurantSignup({ initialMerchant }) {
         h1 {
           font-size: 22px;
           margin: 0 0 8px;
-          color: #1a1a1a;
+          color: #111114;
         }
         .subtitle {
           color: #595959;
@@ -486,7 +486,7 @@ export default function RestaurantSignup({ initialMerchant }) {
         label {
           font-size: 13px;
           font-weight: 600;
-          color: #1a1a1a;
+          color: #111114;
         }
         input {
           padding: 14px 16px;
@@ -565,7 +565,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           font-weight: 700;
           font-size: 14px;
           margin: 0 0 4px;
-          color: #1a1a1a;
+          color: #111114;
         }
         .referralText {
           font-size: 12px;
@@ -620,13 +620,13 @@ export default function RestaurantSignup({ initialMerchant }) {
         .panelTitle {
           font-weight: 700;
           font-size: 14px;
-          color: #1a1a1a;
+          color: #111114;
           margin: 0 0 12px;
         }
         .panelSubtitle {
           font-weight: 700;
           font-size: 13px;
-          color: #1a1a1a;
+          color: #111114;
           margin: 0 0 4px;
         }
         .panelText {
@@ -695,7 +695,7 @@ export default function RestaurantSignup({ initialMerchant }) {
         }
         .miniValue {
           font-weight: 700;
-          color: #1a1a1a;
+          color: #111114;
         }
         .codeChip {
           display: inline-block;

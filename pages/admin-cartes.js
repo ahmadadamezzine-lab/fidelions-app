@@ -13,8 +13,8 @@
 
 import { useEffect, useState } from "react";
 
-const TOKEN_KEY = "fidelions_admin_token";
-const PURPLE = "#7414F4";
+const TOKEN_KEY = "fidions_admin_token";
+const PURPLE = "#16A673";
 
 export default function AdminCartes() {
   const [token, setToken] = useState(null);
@@ -281,8 +281,8 @@ const styles = `
     max-width: 780px;
     margin: 0 auto;
     padding: 40px 20px 80px;
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #1a1a1a;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #111114;
   }
   .topbar {
     display: flex;
