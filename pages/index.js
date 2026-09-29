@@ -111,77 +111,51 @@ function useInView(threshold = 0.4) {
   return [ref, inView];
 }
 
-// Slider avant/après à glisser (souris, tactile, ou flèches clavier une fois
-// la poignée au focus) — deux panneaux superposés, celui du dessus ("avant")
-// est rogné via clip-path à la position du curseur pour révéler celui du
-// dessous ("après"). role="slider" + gestion clavier pour rester accessible.
-function CompareSlider({ before, after }) {
-  const containerRef = useRef(null);
-  const [pos, setPos] = useState(50);
-  const draggingRef = useRef(false);
-
-  function updateFromClientX(clientX) {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const pct = ((clientX - rect.left) / rect.width) * 100;
-    setPos(Math.min(100, Math.max(0, pct)));
-  }
-
-  useEffect(() => {
-    function onMove(e) {
-      if (!draggingRef.current) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      updateFromClientX(clientX);
-    }
-    function onUp() {
-      draggingRef.current = false;
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("touchmove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchend", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchend", onUp);
-    };
-  }, []);
-
+// Comparatif "Sans/Avec" par paires : chaque point du problème (gauche,
+// sombre) est directement apparié à sa solution (droite, émeraude) au même
+// index. Survoler ou toucher une ligne met en valeur sa paire des DEUX
+// côtés à la fois — un vrai effet interactif qui montre la transformation
+// point par point, sans dépendre d'un glissé (fragile sur du texte, et pas
+// le bon outil pour comparer deux listes plutôt que deux images).
+function PairedCompare({ pairs }) {
+  const [active, setActive] = useState(null);
   return (
-    <div
-      className="compare-slider"
-      ref={containerRef}
-      onMouseDown={(e) => {
-        draggingRef.current = true;
-        updateFromClientX(e.clientX);
-      }}
-      onTouchStart={(e) => {
-        draggingRef.current = true;
-        updateFromClientX(e.touches[0].clientX);
-      }}
-    >
-      <div className="compare-slider-layer compare-slider-after">{after}</div>
-      <div className="compare-slider-layer compare-slider-before" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
-        {before}
+    <div className="pair-compare">
+      <div className="pair-col pair-col-before">
+        <h3>Sans Fidions</h3>
+        <ul>
+          {pairs.map((p, i) => (
+            <li
+              key={p.before}
+              className={active === i ? "pair-active" : active !== null ? "pair-dim" : ""}
+              onMouseEnter={() => setActive(i)}
+              onMouseLeave={() => setActive(null)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              tabIndex={0}
+            >
+              {p.before}
+            </li>
+          ))}
+        </ul>
       </div>
-      <div
-        className="compare-slider-handle"
-        style={{ left: `${pos}%` }}
-        role="slider"
-        tabIndex={0}
-        aria-label="Faire glisser pour comparer avant et après Fidions"
-        aria-valuenow={Math.round(pos)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") setPos((p) => Math.max(0, p - 5));
-          if (e.key === "ArrowRight") setPos((p) => Math.min(100, p + 5));
-        }}
-      >
-        <span className="compare-slider-grip">
-          <Icon name="arrow" size={14} />
-        </span>
+      <div className="pair-col pair-col-after">
+        <h3>Avec Fidions</h3>
+        <ul>
+          {pairs.map((p, i) => (
+            <li
+              key={p.after}
+              className={active === i ? "pair-active" : active !== null ? "pair-dim" : ""}
+              onMouseEnter={() => setActive(i)}
+              onMouseLeave={() => setActive(null)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              tabIndex={0}
+            >
+              <Icon name="check" size={16} /> {p.after}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -235,6 +209,13 @@ const FEATURES = [
   { icon: "building", title: "Fiche établissement", desc: "Horaires, réseaux, photos : une vitrine publique pour ton commerce." },
   { icon: "robot", title: "Assistant IA menu", desc: "Analyse ton menu et suggère des offres pertinentes pour fidéliser." },
   { icon: "qr", title: "Lien & QR code de partage", desc: "Un lien unique et un QR code à afficher en caisse ou sur les tables : tes clients ajoutent leur carte en un scan." },
+];
+
+const COMPARE_PAIRS = [
+  { before: "Des cartes en papier perdues ou oubliées", after: "Une carte toujours dans le téléphone du client" },
+  { before: "Aucune idée de qui sont tes clients réguliers", after: "Une base de clients fidélisés, consultable à tout moment" },
+  { before: "Pas de moyen de les recontacter", after: "Des campagnes et notifications en un clic" },
+  { before: "Les avis Google restent rares", after: "Un bonus qui encourage les avis Google" },
 ];
 
 const STEPS = [
@@ -431,31 +412,8 @@ export default function Home() {
       <section className="compare">
         <div className="section-inner">
           <h2 className="section-title">Sans fidélisation, tu perds des clients sans le savoir</h2>
-          <p className="section-sub">Fais glisser pour comparer.</p>
-          <CompareSlider
-            before={
-              <div className="compare-col compare-before">
-                <h3>Sans Fidions</h3>
-                <ul>
-                  <li>Des cartes en papier perdues ou oubliées</li>
-                  <li>Aucune idée de qui sont tes clients réguliers</li>
-                  <li>Pas de moyen de les recontacter</li>
-                  <li>Les avis Google restent rares</li>
-                </ul>
-              </div>
-            }
-            after={
-              <div className="compare-col compare-after">
-                <h3>Avec Fidions</h3>
-                <ul>
-                  <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
-                  <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
-                  <li><Icon name="check" size={16} /> Des campagnes et notifications en un clic</li>
-                  <li><Icon name="check" size={16} /> Un bonus qui encourage les avis Google</li>
-                </ul>
-              </div>
-            }
-          />
+          <p className="section-sub">Survole un point pour voir sa transformation.</p>
+          <PairedCompare pairs={COMPARE_PAIRS} />
         </div>
       </section>
 
@@ -1261,99 +1219,83 @@ const styles = `
   .compare {
     padding: 72px 0;
   }
-  .compare-slider {
-    position: relative;
+  .pair-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
     margin-top: 28px;
-    height: 340px;
     border-radius: 20px;
     overflow: hidden;
-    cursor: ew-resize;
-    user-select: none;
     box-shadow: 0 20px 50px rgba(0,0,0,0.1);
   }
-  .compare-slider-layer {
-    position: absolute;
-    inset: 0;
-  }
-  .compare-slider-before {
-    will-change: clip-path;
-  }
-  .compare-slider-handle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: #fff;
-    transform: translateX(-50%);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-  }
-  .compare-slider-grip {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #fff;
-    color: #111114;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
-  }
-  .compare-col {
-    height: 100%;
+  .pair-col {
     padding: 32px;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
-  .compare-before {
+  .pair-col-before {
     background: #2A2B30;
   }
-  .compare-after {
+  .pair-col-after {
     background: linear-gradient(160deg, #111114 0%, #0F8C5F 130%);
   }
-  .compare-col h3 {
+  .pair-col h3 {
     margin: 0 0 16px;
-    font-size: 15px;
-  }
-  .compare-col h3 {
     font-size: 18px;
     color: #fff;
   }
-  .compare-col ul {
+  .pair-col ul {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
     max-width: 340px;
   }
-  .compare-before li {
+  .pair-col li {
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin: 0 -12px;
+    transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+    cursor: default;
+  }
+  .pair-col-before li {
     font-size: 14px;
     color: #B8BCB8;
-    padding-left: 18px;
+    padding-left: 30px;
     position: relative;
   }
-  .compare-before li::before {
+  .pair-col-before li::before {
     content: "–";
     position: absolute;
-    left: 0;
+    left: 12px;
     color: #6b6e6b;
   }
-  .compare-after li {
+  .pair-col-after li {
     font-size: 14px;
     color: #fff;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .compare-after li svg {
+  .pair-col-after li svg {
     color: #8FD6B8;
     flex: none;
+  }
+  .pair-col li.pair-active {
+    background: rgba(255,255,255,0.08);
+    transform: translateX(2px);
+  }
+  .pair-col-before li.pair-active {
+    color: #fff;
+  }
+  .pair-col-before li.pair-active::before {
+    color: #8FD6B8;
+  }
+  .pair-col li.pair-dim {
+    opacity: 0.4;
   }
 
   .calculator {
@@ -2001,8 +1943,8 @@ const styles = `
     .hero h1 { font-size: 28px; }
     .hero-visual { margin-top: 32px; min-height: 260px; }
     .facts-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .compare-slider { height: 420px; }
-    .compare-col { padding: 24px; }
+    .pair-compare { grid-template-columns: 1fr; }
+    .pair-col { padding: 24px; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }
