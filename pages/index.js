@@ -23,7 +23,7 @@
 // chiffres exacts d'un concurrent, toujours reformulés avec leur propre
 // source citée.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
@@ -82,6 +82,138 @@ function Icon({ name, size = 20 }) {
   );
 }
 
+// Déclenche une seule fois quand l'élément entre dans le viewport — sert au
+// compteur animé (facts, stats) et aux apparitions au scroll, sans dépendance
+// externe. Respecte prefers-reduced-motion : un utilisateur qui l'a activé
+// voit directement l'état final, jamais l'animation.
+function useInView(threshold = 0.4) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [threshold]);
+  return [ref, inView];
+}
+
+// Slider avant/après à glisser (souris, tactile, ou flèches clavier une fois
+// la poignée au focus) — deux panneaux superposés, celui du dessus ("avant")
+// est rogné via clip-path à la position du curseur pour révéler celui du
+// dessous ("après"). role="slider" + gestion clavier pour rester accessible.
+function CompareSlider({ before, after }) {
+  const containerRef = useRef(null);
+  const [pos, setPos] = useState(50);
+  const draggingRef = useRef(false);
+
+  function updateFromClientX(clientX) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    setPos(Math.min(100, Math.max(0, pct)));
+  }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!draggingRef.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      updateFromClientX(clientX);
+    }
+    function onUp() {
+      draggingRef.current = false;
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, []);
+
+  return (
+    <div
+      className="compare-slider"
+      ref={containerRef}
+      onMouseDown={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.clientX);
+      }}
+      onTouchStart={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.touches[0].clientX);
+      }}
+    >
+      <div className="compare-slider-layer compare-slider-after">{after}</div>
+      <div className="compare-slider-layer compare-slider-before" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
+        {before}
+      </div>
+      <div
+        className="compare-slider-handle"
+        style={{ left: `${pos}%` }}
+        role="slider"
+        tabIndex={0}
+        aria-label="Faire glisser pour comparer avant et après Fidions"
+        aria-valuenow={Math.round(pos)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") setPos((p) => Math.max(0, p - 5));
+          if (e.key === "ArrowRight") setPos((p) => Math.min(100, p + 5));
+        }}
+      >
+        <span className="compare-slider-grip">
+          <Icon name="arrow" size={14} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Anime un nombre entier de 0 jusqu'à `value` une fois l'élément visible.
+// Le préfixe/suffixe (ex: "min", "€") reste statique autour du nombre animé.
+function CountUp({ value, duration = 900, prefix = "", suffix = "" }) {
+  const [ref, inView] = useInView(0.5);
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    const start = performance.now();
+    let frame;
+    const tick = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(eased * value));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [inView, value, duration]);
+  return (
+    <span ref={ref}>
+      {prefix}
+      {display}
+      {suffix}
+    </span>
+  );
+}
+
 const FEATURES = [
   {
     icon: "wallet",
@@ -116,9 +248,9 @@ const STEPS = [
 // Notifications/Campagnes), donc ce n'était plus toujours vrai. Pas de
 // remplacement pour garder exactement 3 idées, comme demandé.
 const PRODUCT_FACTS = [
-  { value: "2 min", label: "pour créer ta carte de fidélité" },
-  { value: "0 appli", label: "à faire installer à tes clients" },
-  { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
+  { number: 2, suffix: " min", label: "pour créer ta carte de fidélité" },
+  { number: 0, suffix: " appli", label: "à faire installer à tes clients" },
+  { number: 49, suffix: " €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
 
 // 4 statistiques vérifiées avant publication (voir le commentaire en tête
@@ -220,9 +352,8 @@ export default function Home() {
       <header className="hero">
         <div className="hero-inner">
           <div className="hero-text">
-            <span className="eyebrow">Fidélisation client</span>
             <h1>
-              Le système de fidélisation clé en main pour faire revenir tous vos clients
+              La carte de fidélité que vos clients gardent vraiment dans leur poche
             </h1>
             <p className="hero-sub">
               Fidions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
@@ -288,7 +419,9 @@ export default function Home() {
         <div className="section-inner facts-grid">
           {PRODUCT_FACTS.map((f) => (
             <div className="fact" key={f.label}>
-              <span className="fact-value">{f.value}</span>
+              <span className="fact-value">
+                <CountUp value={f.number} suffix={f.suffix} />
+              </span>
               <span className="fact-label">{f.label}</span>
             </div>
           ))}
@@ -298,32 +431,36 @@ export default function Home() {
       <section className="compare">
         <div className="section-inner">
           <h2 className="section-title">Sans fidélisation, tu perds des clients sans le savoir</h2>
-          <div className="compare-grid">
-            <div className="compare-col compare-before">
-              <h3>Sans Fidions</h3>
-              <ul>
-                <li>Des cartes en papier perdues ou oubliées</li>
-                <li>Aucune idée de qui sont tes clients réguliers</li>
-                <li>Pas de moyen de les recontacter</li>
-                <li>Les avis Google restent rares</li>
-              </ul>
-            </div>
-            <div className="compare-col compare-after">
-              <h3>Avec Fidions</h3>
-              <ul>
-                <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
-                <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
-                <li><Icon name="check" size={16} /> Des campagnes et notifications en un clic</li>
-                <li><Icon name="check" size={16} /> Un bonus qui encourage les avis Google</li>
-              </ul>
-            </div>
-          </div>
+          <p className="section-sub">Fais glisser pour comparer.</p>
+          <CompareSlider
+            before={
+              <div className="compare-col compare-before">
+                <h3>Sans Fidions</h3>
+                <ul>
+                  <li>Des cartes en papier perdues ou oubliées</li>
+                  <li>Aucune idée de qui sont tes clients réguliers</li>
+                  <li>Pas de moyen de les recontacter</li>
+                  <li>Les avis Google restent rares</li>
+                </ul>
+              </div>
+            }
+            after={
+              <div className="compare-col compare-after">
+                <h3>Avec Fidions</h3>
+                <ul>
+                  <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
+                  <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
+                  <li><Icon name="check" size={16} /> Des campagnes et notifications en un clic</li>
+                  <li><Icon name="check" size={16} /> Un bonus qui encourage les avis Google</li>
+                </ul>
+              </div>
+            }
+          />
         </div>
       </section>
 
       <section className="calculator">
         <div className="section-inner">
-          <span className="calc-eyebrow">Faites le calcul</span>
           <h2 className="section-title">Combien Fidions peut vous rapporter</h2>
           <p className="section-sub">
             Une estimation à partir de vos propres chiffres. Ajustez, comparez, décidez.
@@ -476,12 +613,15 @@ export default function Home() {
         <div className="section-inner">
           <h2 className="section-title">Tout ce qu'il faut pour fidéliser, dans un seul outil</h2>
           <div className="features-grid">
-            {FEATURES.map((f) => (
-              <div className="feature-card" key={f.title}>
-                {f.badge && <span className="feature-badge">{f.badge}</span>}
+            {FEATURES.map((f, i) => (
+              <div
+                className={`feature-card${i === 0 ? " feature-card-lead" : ""}${f.badge ? " feature-card-new" : ""}`}
+                key={f.title}
+              >
                 <div className="feature-icon">
                   <Icon name={f.icon} size={22} />
                 </div>
+                {f.badge && <span className="feature-tag">{f.badge}</span>}
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
                 {f.wallets && (
@@ -521,9 +661,6 @@ export default function Home() {
       </section>
 
       <section className="stats-proof">
-        <svg className="stats-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0,0 L1440,0 L1440,40 C1200,90 960,50 720,25 C480,0 240,80 0,30 Z" fill="#f5f4fb" />
-        </svg>
         <div className="section-inner">
           <span className="stats-proof-eyebrow">Pas une intuition, des chiffres</span>
           <h2 className="stats-proof-title">La fidélité fait toute la différence</h2>
@@ -672,7 +809,7 @@ export default function Home() {
           </div>
           <div className="footer-bottom-row">
             <p className="footer-copyright">© {new Date().getFullYear()} Fidions. Tous droits réservés.</p>
-            <span className="footer-madein">Fait en France</span>
+            <span className="footer-madein">Fait en France avec passion</span>
           </div>
         </div>
       </footer>
@@ -727,7 +864,7 @@ const styles = `
     transform: translateY(0);
   }
   .btn-primary {
-    background: linear-gradient(135deg, ${PURPLE} 0%, #5c0fc9 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
     color: #fff;
     box-shadow: 0 4px 14px rgba(22, 166, 115, 0.3);
   }
@@ -735,7 +872,7 @@ const styles = `
     box-shadow: 0 8px 22px rgba(22, 166, 115, 0.4);
   }
   .btn-secondary {
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     padding: 12px 30px;
     border-radius: 999px;
@@ -827,8 +964,11 @@ const styles = `
   }
 
   .hero {
-    background: linear-gradient(180deg, #F7F8F7 0%, #fff 65%);
-    padding: 64px 0 40px;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(22, 166, 115, 0.22), transparent 60%),
+      radial-gradient(700px 400px at -5% 100%, rgba(15, 140, 95, 0.14), transparent 55%),
+      #111114;
+    padding: 88px 0 64px;
   }
   .hero-inner {
     max-width: 1080px;
@@ -842,27 +982,17 @@ const styles = `
     flex: 1.1;
     min-width: 0;
   }
-  .eyebrow {
-    display: inline-block;
-    background: #f3ecff;
-    color: ${PURPLE};
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin-bottom: 18px;
-  }
   .hero h1 {
-    font-size: 38px;
-    line-height: 1.18;
+    font-size: 40px;
+    line-height: 1.16;
+    letter-spacing: -0.01em;
     margin: 0 0 18px;
-    color: #0A0A0C;
+    color: #fff;
   }
   .hero-sub {
     font-size: 16px;
     line-height: 1.6;
-    color: #555;
+    color: #B8BCB8;
     margin: 0 0 28px;
     max-width: 520px;
   }
@@ -941,7 +1071,7 @@ const styles = `
   }
   .mock-pass-banner {
     height: 54px;
-    background: linear-gradient(135deg, #f3ecff, #e6d9ff);
+    background: linear-gradient(135deg, #E8F5EF, #CBEAD9);
   }
   .mock-pass-body {
     padding: 10px 12px 14px;
@@ -966,7 +1096,7 @@ const styles = `
     display: flex;
     justify-content: center;
     color: ${PURPLE};
-    background: #faf9fd;
+    background: #F1EFE8;
     border-radius: 8px;
     padding: 8px 0 4px;
   }
@@ -1032,7 +1162,7 @@ const styles = `
     gap: 6px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   }
-  .mock-notif :global(svg) {
+  .mock-notif svg {
     color: #f5a623;
   }
 
@@ -1057,23 +1187,13 @@ const styles = `
     font-weight: 800;
   }
   .fact-label {
-    color: #b8aee0;
+    color: #8FD6B8;
     font-size: 12px;
   }
 
   .stats-proof {
     background: #0A0A0C;
-    padding: 0 0 72px;
-    position: relative;
-  }
-  .stats-wave {
-    display: block;
-    width: 100%;
-    height: 64px;
-    margin-bottom: -1px;
-  }
-  .stats-proof .section-inner {
-    padding-top: 48px;
+    padding: 56px 0 72px;
   }
   .stats-proof-eyebrow {
     display: block;
@@ -1094,7 +1214,7 @@ const styles = `
     margin: 0 0 12px;
   }
   .stats-proof-sub {
-    color: #b8aee0;
+    color: #8FD6B8;
     text-align: center;
     font-size: 14.5px;
     margin: 0 auto 40px;
@@ -1106,8 +1226,8 @@ const styles = `
     gap: 18px;
   }
   .stat-proof-card {
-    background: #1e1830;
-    border: 1px solid #322a49;
+    background: #1A1B1F;
+    border: 1px solid #2A2B30;
     border-radius: 16px;
     padding: 24px 18px;
     text-align: center;
@@ -1118,7 +1238,7 @@ const styles = `
   }
   .stat-proof-card:hover {
     transform: translateY(-4px);
-    border-color: #4a3d70;
+    border-color: #3A3B40;
   }
   .stat-proof-value {
     color: ${PURPLE};
@@ -1126,13 +1246,13 @@ const styles = `
     font-weight: 800;
   }
   .stat-proof-label {
-    color: #d8d0ec;
+    color: #B8BCB8;
     font-size: 12.5px;
     margin: 0;
     line-height: 1.45;
   }
   .stat-proof-source {
-    color: #8a80ab;
+    color: #B8BCB8;
     font-size: 11px;
     margin-top: auto;
     padding-top: 4px;
@@ -1141,41 +1261,80 @@ const styles = `
   .compare {
     padding: 72px 0;
   }
-  .compare-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-top: 32px;
+  .compare-slider {
+    position: relative;
+    margin-top: 28px;
+    height: 340px;
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: ew-resize;
+    user-select: none;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+  }
+  .compare-slider-layer {
+    position: absolute;
+    inset: 0;
+  }
+  .compare-slider-before {
+    will-change: clip-path;
+  }
+  .compare-slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #fff;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  }
+  .compare-slider-grip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    color: #111114;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
   }
   .compare-col {
-    border-radius: 16px;
-    padding: 26px;
+    height: 100%;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .compare-before {
-    background: #faf9f9;
-    border: 1.5px solid #eee;
+    background: #2A2B30;
   }
   .compare-after {
-    background: #f6f1ff;
-    border: 1.5px solid #e6d9ff;
+    background: linear-gradient(160deg, #111114 0%, #0F8C5F 130%);
   }
   .compare-col h3 {
     margin: 0 0 16px;
     font-size: 15px;
   }
-  .compare-before h3 { color: #8a8a8a; }
-  .compare-after h3 { color: ${PURPLE}; }
+  .compare-col h3 {
+    font-size: 18px;
+    color: #fff;
+  }
   .compare-col ul {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
+    max-width: 340px;
   }
   .compare-before li {
-    font-size: 13.5px;
-    color: #777;
+    font-size: 14px;
+    color: #B8BCB8;
     padding-left: 18px;
     position: relative;
   }
@@ -1183,33 +1342,23 @@ const styles = `
     content: "–";
     position: absolute;
     left: 0;
-    color: #bbb;
+    color: #6b6e6b;
   }
   .compare-after li {
-    font-size: 13.5px;
-    color: #333;
+    font-size: 14px;
+    color: #fff;
     display: flex;
     align-items: center;
     gap: 8px;
   }
-  .compare-after li :global(svg) {
-    color: ${PURPLE};
+  .compare-after li svg {
+    color: #8FD6B8;
     flex: none;
   }
 
   .calculator {
-    background: #faf9fd;
+    background: #F1EFE8;
     padding: 72px 0;
-  }
-  .calc-eyebrow {
-    display: block;
-    text-align: center;
-    color: ${PURPLE};
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
   }
   .calc-box {
     display: grid;
@@ -1254,8 +1403,8 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    background: #f4effc;
-    border: 1px solid #e3d7fa;
+    background: #F1EFE8;
+    border: 1px solid #F1EFE8;
     border-radius: 8px;
     padding: 2px 6px;
   }
@@ -1289,7 +1438,7 @@ const styles = `
     appearance: none;
     height: 5px;
     border-radius: 999px;
-    background: #ece4fb;
+    background: #F1EFE8;
     outline: none;
   }
   .calc-slider-row input[type="range"]::-webkit-slider-thumb {
@@ -1325,7 +1474,7 @@ const styles = `
   .calc-result-tag {
     align-self: flex-start;
     background: rgba(255,255,255,0.12);
-    color: #cfc6e8;
+    color: #CBEAD9;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.03em;
@@ -1337,7 +1486,7 @@ const styles = `
   .calc-result-heading {
     margin: 0 0 4px;
     font-size: 12.5px;
-    color: #b8aee0;
+    color: #8FD6B8;
   }
   .calc-result-big {
     font-size: 32px;
@@ -1347,7 +1496,7 @@ const styles = `
   .calc-result-big span {
     font-size: 14px;
     font-weight: 600;
-    color: #b8aee0;
+    color: #8FD6B8;
   }
   .calc-result-rows {
     display: flex;
@@ -1361,7 +1510,7 @@ const styles = `
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #cfc6e8;
+    color: #CBEAD9;
   }
   .calc-result-row strong {
     color: #fff;
@@ -1371,7 +1520,7 @@ const styles = `
   }
   .calc-result-fine {
     font-size: 10.5px;
-    color: #8a80ab;
+    color: #B8BCB8;
     line-height: 1.5;
     margin: -8px 0 14px;
   }
@@ -1381,7 +1530,7 @@ const styles = `
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 12.5px;
-    color: #f0eaff;
+    color: #F1EFE8;
     line-height: 1.5;
   }
   .calc-result-annual strong {
@@ -1392,8 +1541,8 @@ const styles = `
   }
   .pricing-addon {
     margin-top: 32px;
-    background: #faf9fd;
-    border: 1.5px solid #e6d9ff;
+    background: #F1EFE8;
+    border: 1.5px solid #CBEAD9;
     border-radius: 16px;
     padding: 22px 24px;
     display: flex;
@@ -1405,7 +1554,7 @@ const styles = `
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1462,8 +1611,8 @@ const styles = `
   }
   .feature-card {
     position: relative;
-    background: #faf9fd;
-    border: 1.5px solid #f0edf8;
+    background: #F1EFE8;
+    border: 1.5px solid #F1EFE8;
     border-radius: 16px;
     padding: 22px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -1471,29 +1620,54 @@ const styles = `
   .feature-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #e6d9ff;
+    border-color: #CBEAD9;
   }
-  .feature-badge {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: ${PURPLE};
+  .feature-card-lead {
+    grid-column: span 2;
+    background: #111114;
+    border-color: #111114;
+  }
+  .feature-card-lead:hover {
+    border-color: #2A2B30;
+  }
+  .feature-card-lead .feature-icon {
+    background: rgba(255,255,255,0.1);
+    color: #16A673;
+  }
+  .feature-card-lead h3,
+  .feature-card-lead p {
     color: #fff;
-    font-size: 10px;
+  }
+  .feature-card-lead p {
+    color: #B8BCB8;
+  }
+  .feature-card-new {
+    background: #E8F5EF;
+    border-color: #E8F5EF;
+  }
+  .feature-card-new:hover {
+    border-color: #CBEAD9;
+  }
+  .feature-tag {
+    display: inline-block;
+    color: #0F8C5F;
+    font-size: 10.5px;
     font-weight: 800;
-    padding: 3px 8px;
-    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
   }
   .feature-icon {
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 14px;
+    flex: none;
   }
   .feature-card h3 {
     font-size: 15px;
@@ -1522,8 +1696,8 @@ const styles = `
   }
   .wallet-tag-soon {
     color: ${PURPLE};
-    background: #f3ecff;
-    border-color: #e6d9ff;
+    background: #E8F5EF;
+    border-color: #CBEAD9;
   }
 
   .steps {
@@ -1574,7 +1748,7 @@ const styles = `
     height: 34px;
     border-radius: 10px;
     background: rgba(255,255,255,0.08);
-    color: #cfc6e8;
+    color: #CBEAD9;
   }
   .step-card h3 {
     color: #fff;
@@ -1582,7 +1756,7 @@ const styles = `
     margin: 0 0 8px;
   }
   .step-card p {
-    color: #cfc6e8;
+    color: #CBEAD9;
     font-size: 13px;
     line-height: 1.5;
     margin: 0;
@@ -1595,7 +1769,7 @@ const styles = `
     display: flex;
     justify-content: center;
     gap: 6px;
-    background: #f3f0fa;
+    background: #F1EFE8;
     border-radius: 10px;
     padding: 4px;
     max-width: 360px;
@@ -1637,7 +1811,7 @@ const styles = `
   .price-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #e6d9ff;
+    border-color: #CBEAD9;
   }
   .price-card h3 {
     font-size: 14.5px;
@@ -1693,7 +1867,7 @@ const styles = `
     margin: 0;
   }
   .cta-banner p {
-    color: #e6d9ff;
+    color: #CBEAD9;
     font-size: 14.5px;
     margin: 0 0 8px;
   }
@@ -1731,7 +1905,7 @@ const styles = `
     border-radius: 7px;
   }
   .footer-tagline {
-    color: #948bb0;
+    color: #B8BCB8;
     font-size: 13px;
     line-height: 1.6;
     margin: 0 0 12px;
@@ -1741,7 +1915,7 @@ const styles = `
     font-size: 12.5px;
   }
   .footer-contact a {
-    color: #cfc6e8;
+    color: #CBEAD9;
     text-decoration: none;
     font-weight: 600;
   }
@@ -1756,15 +1930,15 @@ const styles = `
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #6b6280;
+    color: #8FD6B8;
     margin-bottom: 4px;
   }
-  .footer-nav-col :global(a) {
-    color: #b8aee0;
+  .footer-nav-col a {
+    color: #8FD6B8;
     text-decoration: none;
     font-size: 13.5px;
   }
-  .footer-nav-col :global(a:hover) {
+  .footer-nav-col a:hover {
     color: #fff;
   }
 
@@ -1787,7 +1961,7 @@ const styles = `
   }
   .footer-payments-label {
     font-size: 11.5px;
-    color: #8f86ab;
+    color: #B8BCB8;
   }
   .payment-badges {
     display: flex;
@@ -1798,7 +1972,7 @@ const styles = `
   .payment-badge {
     font-size: 11.5px;
     font-weight: 700;
-    color: #cfc6e8;
+    color: #CBEAD9;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.14);
     padding: 5px 12px;
@@ -1813,12 +1987,12 @@ const styles = `
   }
   .footer-copyright {
     font-size: 11.5px;
-    color: #6b6280;
+    color: #B8BCB8;
     margin: 0;
   }
   .footer-madein {
     font-size: 11.5px;
-    color: #6b6280;
+    color: #B8BCB8;
   }
 
   @media (max-width: 900px) {
@@ -1827,7 +2001,8 @@ const styles = `
     .hero h1 { font-size: 28px; }
     .hero-visual { margin-top: 32px; min-height: 260px; }
     .facts-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .compare-grid { grid-template-columns: 1fr; }
+    .compare-slider { height: 420px; }
+    .compare-col { padding: 24px; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }

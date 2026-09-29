@@ -318,7 +318,7 @@ const styles = `
   input, textarea {
     width: 100%;
     box-sizing: border-box;
-    border: 1.5px solid #e2ddee;
+    border: 1.5px solid #F1EFE8;
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 14px;
@@ -351,7 +351,7 @@ const styles = `
     cursor: default;
   }
   button.secondary {
-    background: #f3ecff;
+    background: #E8F5EF;
     color: ${PURPLE};
   }
   button.link {
@@ -399,8 +399,8 @@ const styles = `
     font-weight: 700;
   }
   .tag-free {
-    background: #f3f0fa;
-    color: #8a80ab;
+    background: #F1EFE8;
+    color: #5B5F5D;
   }
   .tag-assigned {
     background: #e9f9ee;

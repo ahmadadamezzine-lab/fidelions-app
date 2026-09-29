@@ -998,7 +998,7 @@ const styles = `
     margin-top: 0;
   }
   .new-client-box {
-    background: #faf9fd;
+    background: #F1EFE8;
     border-radius: 12px;
     padding: 14px;
     margin-bottom: 14px;
@@ -1080,7 +1080,7 @@ const styles = `
     flex: none;
     background: #fff;
     color: #595959;
-    border: 1.5px solid #e6e2f2;
+    border: 1.5px solid #F1EFE8;
     border-radius: 99px;
     padding: 8px 14px;
     font-size: 12.5px;
@@ -1105,7 +1105,7 @@ const styles = `
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    background: #faf9fd;
+    background: #F1EFE8;
     border-radius: 10px;
     gap: 10px;
   }
@@ -1135,7 +1135,7 @@ const styles = `
     gap: 10px;
   }
   .stat {
-    background: #faf9fd;
+    background: #F1EFE8;
     border-radius: 12px;
     padding: 14px;
     text-align: center;

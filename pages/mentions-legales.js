@@ -108,7 +108,7 @@ const styles = `
     line-height: 1.65;
     margin: 0 0 12px;
   }
-  p :global(a) {
+  p a {
     color: ${PURPLE};
     font-weight: 600;
   }
