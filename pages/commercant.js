@@ -3455,9 +3455,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Partager Fidions</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Affiche ce QR code en caisse ou sur tes tables : tes clients le
-              scannent avec leur téléphone pour créer leur carte de fidélité
-              en quelques secondes, sans rien installer.
+              Affiche-le en caisse : tes clients scannent pour créer leur carte, sans rien installer.
             </p>
             {signupQrUrl ? (
               <div style={{ textAlign: "center" }}>
@@ -3558,11 +3556,8 @@ export default function Commercant() {
             )}
 
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Écris librement autant de récompenses que tu veux, chacune avec
-              son propre seuil de points — ex : 20 points = une pizza offerte,
-              30 = une pizza + une boisson offertes. Une seule récompense, ça
-              fait cheap : ajoutes-en plusieurs pour donner plusieurs objectifs
-              à tes clients.
+              Ajoute plusieurs paliers pour donner de vrais objectifs à tes clients (ex : 20 pts =
+              pizza offerte, 30 pts = pizza + boisson).
             </p>
 
             {tiers.map((t, i) => (
@@ -3624,7 +3619,7 @@ export default function Commercant() {
               <span className="points-config-label">point(s) bonus quand il laisse un avis Google</span>
             </div>
             <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
-              Attribué manuellement en caisse (case « Avis Google laissé » lors du scan), une seule fois par client.
+              Attribué manuellement en caisse, une seule fois par client.
             </p>
 
             <button className="primary" style={{ marginTop: 14 }} onClick={saveLoyalty} disabled={savingLoyalty}>
@@ -3701,9 +3696,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Personnaliser ma carte</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Couleur, logo et bannière affichés sur la carte Google Wallet de
-              tes clients. Les cartes déjà distribuées sont mises à jour
-              automatiquement, sans rien demander aux clients.
+              Couleur, logo et bannière de la carte Wallet — mis à jour automatiquement chez tous tes clients.
             </p>
 
             <div className="color-row">
@@ -3757,10 +3750,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Notifications de proximité</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Indique l'adresse de ton commerce : Google Wallet avertit alors
-              automatiquement, avec une vraie notification sur le téléphone,
-              tout client équipé qui passe à proximité — aucune app ni réglage
-              supplémentaire de ton côté.
+              Indique ton adresse : Google Wallet notifie automatiquement les clients qui passent à proximité.
             </p>
             <label className="channel" style={{ marginBottom: 12 }}>
               <input type="checkbox" checked={geoEnabled} onChange={(e) => setGeoEnabled(e.target.checked)} />
@@ -3787,10 +3777,8 @@ export default function Commercant() {
             </div>
 
             <p className="subtitle" style={{ marginTop: 4, marginBottom: 6 }}>
-              Message affiché en permanence sur la carte de tes clients (pas
-              seulement quand ils sont à proximité — le popup natif de
-              proximité, lui, est généré par Google et n'a pas de texte
-              personnalisable, c'est une limite de leur API, pas de Fidions).
+              Message affiché en permanence sur la carte (le popup de proximité, lui, est géré par
+              Google, sans texte personnalisable).
             </p>
             <textarea
               className="menu-textarea"
@@ -3811,11 +3799,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Lien employé</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Envoie ce lien à toute ton équipe (SMS, WhatsApp…) : chaque
-              employé s'identifie ensuite avec son propre code à 4 chiffres
-              (onglet "Équipe" juste après) et peut ajouter un {pointLabel},
-              plus les rubriques que tu lui as ouvertes. Régénère le lien à
-              tout moment pour couper l'accès à toute l'équipe d'un coup.
+              Envoie ce lien à ton équipe : chaque employé s'identifie avec son propre code à 4 chiffres.
             </p>
             {employeeToken ? (
               <div className="link-box">
@@ -3828,7 +3812,13 @@ export default function Commercant() {
               <button className="secondary icon-heading" type="button" onClick={copyEmployeeLink} disabled={!employeeToken}>
                 <Icon name="copy" size={15} /> Copier le lien
               </button>
-              <button className="primary icon-heading" type="button" onClick={regenerateEmployeeLink} disabled={regeneratingToken}>
+              <button
+                className="primary icon-heading"
+                type="button"
+                onClick={regenerateEmployeeLink}
+                disabled={regeneratingToken}
+                title="Coupe l'accès à toute l'équipe d'un coup, en générant un nouveau lien"
+              >
                 {regeneratingToken ? "…" : (<><Icon name="refresh" size={15} /> Régénérer le lien</>)}
               </button>
             </div>
@@ -3842,9 +3832,7 @@ export default function Commercant() {
               {employeeLeaderboardMonth ? ` — ${formatMonthLabel(employeeLeaderboardMonth)}` : ""}
             </h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Compétition mensuelle depuis le 1er du mois, alimentée automatiquement par les scans
-              faits depuis le lien employé — choisis le critère de classement, le classement repart
-              à zéro chaque mois.
+              Classement automatique des scans, remis à zéro chaque mois.
             </p>
             <div className="mode-cards" style={{ marginBottom: 14 }}>
               <button
@@ -3907,10 +3895,7 @@ export default function Commercant() {
           <div className="card">
             <h2>{editingEmpId ? "Modifier l'employé" : "Ajouter un employé"}</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Chaque employé a son propre code à 4 chiffres pour s'identifier
-              sur le lien ci-dessus, des jours/horaires d'accès, et des
-              permissions par rubrique — certains employés peuvent n'avoir
-              que le scan, d'autres plus de responsabilités.
+              Code à 4 chiffres, horaires d'accès et permissions par rubrique.
             </p>
             <input
               type="text"
@@ -3927,9 +3912,7 @@ export default function Commercant() {
               onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
               maxLength={4}
             />
-            <p className="subtitle" style={{ marginBottom: 6 }}>
-              Jours d'accès — clique pour activer/désactiver un jour
-            </p>
+            <p className="subtitle" style={{ marginBottom: 6 }}>Jours d'accès</p>
             <div className="day-chips">
               {DAY_OPTIONS.map((d) => {
                 const on = empDays.includes(d.id);
@@ -3958,9 +3941,7 @@ export default function Commercant() {
                 `Accès activé ${empDays.length} jour${empDays.length > 1 ? "s" : ""} sur 7 : ${DAY_OPTIONS.filter((d) => empDays.includes(d.id)).map((d) => d.label).join(", ")}.`
               )}
             </p>
-            <p className="subtitle" style={{ marginBottom: 6 }}>
-              Plage horaire (optionnel — laisse vide pour un accès à toute heure les jours cochés)
-            </p>
+            <p className="subtitle" style={{ marginBottom: 6 }}>Plage horaire (optionnel)</p>
             <div className="time-row">
               <input type="time" value={empStart} onChange={(e) => setEmpStart(e.target.value)} />
               <span>à</span>
@@ -4057,10 +4038,8 @@ export default function Commercant() {
           <div className="card">
             <h2>Ton menu</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Écris ton menu, ou importe-le directement — texte (.txt), PDF, ou
-              simple photo prise au téléphone. Le Conseiller IA juste en dessous
-              s'en sert automatiquement pour te répondre avec tes propres plats
-              et prix.
+              Écris ton menu, ou importe un fichier (.txt, PDF, photo) — le Conseiller IA s'en sert
+              automatiquement.
             </p>
             <textarea
               className="menu-textarea"
@@ -4117,11 +4096,8 @@ export default function Commercant() {
 
             <h2 style={{ marginTop: 28 }}>Conseiller IA</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Pose n'importe quelle question sur ton activité — menu, promos,
-              fidélisation — et obtiens une vraie réponse, pas juste une analyse
-              figée. Tu peux joindre une photo ou un PDF à n'importe quel
-              message. Une réponse arrive toujours, même si les deux IA sont
-              temporairement indisponibles.
+              Pose n'importe quelle question sur ton activité et obtiens une vraie réponse — tu
+              peux joindre une photo ou un PDF.
             </p>
             <div className="advisor-thread">
               {advisorMessages.length === 0 && !advisorSending && (
@@ -4218,11 +4194,8 @@ export default function Commercant() {
 
             <h2 style={{ marginTop: 28 }}>Ton offre actuelle</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Ce texte est à toi : écris ou modifie librement ton offre du
-              moment (tu peux partir des suggestions IA ci-dessus, ou tout
-              écrire toi-même). C'est ce que tu affiches en caisse, sur tes
-              réseaux, etc. Copie-le ensuite dans le message de campagne
-              ci-dessous si tu veux le pousser à tes clients.
+              Ton offre du moment, affichée en caisse et sur tes réseaux — copie-la dans ta
+              prochaine campagne pour la pousser à tes clients.
             </p>
             <textarea
               className="menu-textarea"
@@ -4239,9 +4212,8 @@ export default function Commercant() {
 
             <h2 style={{ marginTop: 28 }}>Envoyer une campagne</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Un message envoyé d'un coup à tous tes {activeClients.length} client
-              {activeClients.length > 1 ? "s" : ""} (promo, nouveau plat, événement…),
-              visible directement dans leur Google Wallet.
+              Envoyé à tous tes {activeClients.length} client
+              {activeClients.length > 1 ? "s" : ""}, visible dans leur Google Wallet.
             </p>
             <input
               type="text"
@@ -4297,11 +4269,8 @@ export default function Commercant() {
           <div className="card">
             <h2>Automatisations</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Contrairement aux campagnes ci-dessus (envoyées à la main quand tu
-              veux), ces notifications partent toutes seules, déclenchées par le
-              comportement de chaque client — rien à faire une fois réglé
-              ci-dessous. Valeurs par défaut déjà en place : tu peux ne rien
-              toucher et laisser tourner.
+              Notifications automatiques, déclenchées par le comportement du client — valeurs par
+              défaut déjà prêtes.
             </p>
 
             {loadingNotifSettings && <p className="subtitle">Chargement…</p>}
@@ -4313,9 +4282,8 @@ export default function Commercant() {
                 </p>
                 {!establishment?.googleReviewUrl && (
                   <p className="subtitle" style={{ marginTop: -2, marginBottom: 10, fontSize: 12.5, color: "#b45309" }}>
-                    Renseigne d'abord ton lien « laisser un avis » dans l'onglet
-                    Établissement — sans lui, cette automatisation ne peut rien
-                    envoyer, même activée ci-dessous.
+                    Renseigne d'abord ton lien avis dans l'onglet Établissement — sinon cette
+                    automatisation ne peut rien envoyer.
                   </p>
                 )}
                 <label className="channel" style={{ marginBottom: 10 }}>
@@ -4347,9 +4315,8 @@ export default function Commercant() {
                       />
                     </div>
                     <p className="subtitle" style={{ marginTop: -4, marginBottom: 10, fontSize: 12.5 }}>
-                      La création de la carte compte comme le passage n°1 — laisse
-                      « 2 » par défaut pour viser le tout premier retour du client
-                      (« 1h après le 2e scan, pas celui qui crée la carte »).
+                      La création de la carte compte comme le passage n°1 — laisse « 2 » par défaut
+                      pour viser le premier retour du client.
                     </p>
                     <input
                       type="text"
@@ -4373,9 +4340,7 @@ export default function Commercant() {
                       maxLength={40}
                     />
                     <p className="subtitle" style={{ marginTop: -8, marginBottom: 10, fontSize: 12.5 }}>
-                      Le bouton cliquable part par email (les notifications Wallet
-                      ne peuvent pas contenir de bouton vers un lien externe — elles
-                      restent un simple rappel visuel).
+                      Le bouton part par email uniquement (Wallet ne permet pas de lien externe).
                     </p>
                     <div className="points-config-row" style={{ marginBottom: 4 }}>
                       <span className="points-config-label">Ne pas redemander avant</span>
@@ -4399,8 +4364,7 @@ export default function Commercant() {
                       <span className="points-config-label">fois au total par client</span>
                     </div>
                     <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
-                      Jamais envoyée à un client qui a déjà laissé un avis (déclaré
-                      en caisse) ni à un client bloqué.
+                      Jamais envoyée à un client ayant déjà laissé un avis, ou bloqué.
                     </p>
                   </>
                 )}
@@ -4450,8 +4414,7 @@ export default function Commercant() {
                       maxLength={300}
                     />
                     <p className="subtitle" style={{ marginTop: -8, marginBottom: 0, fontSize: 12.5 }}>
-                      Vérifiée une fois par jour — pas besoin de précision à l'heure
-                      près pour une absence de plusieurs jours.
+                      Vérifiée une fois par jour.
                     </p>
                   </>
                 )}
@@ -4468,8 +4431,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Scanner un client</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              La première fois, ton navigateur va demander l'autorisation
-              d'utiliser la caméra — accepte, c'est nécessaire pour scanner.
+              Autorise la caméra pour scanner un client.
             </p>
 
             <video
@@ -4508,9 +4470,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Ou recherchez un client</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Tape le prénom du client (ou scanne son QR ci-dessus), puis clique
-              "+1" sur sa ligne. Le menu "⋮" permet de renommer, bloquer
-              ou supprimer une fiche.
+              Clique "+1" sur sa ligne. Le menu "⋮" permet de renommer, bloquer ou supprimer.
             </p>
             <input
               type="text"
@@ -4648,9 +4608,8 @@ export default function Commercant() {
                 <p className="est-eyebrow">Établissement</p>
                 <h2 className="est-name">{restaurantName || "Mon établissement"}</h2>
                 <p className="subtitle">
-                  Ces informations aident tes clients à te connaître avant de
-                  venir. L'adresse utilisée pour les notifications de proximité
-                  se règle, elle, dans son propre onglet "Géolocalisation".
+                  Aide tes clients à te connaître avant de venir. L'adresse de proximité se règle
+                  dans l'onglet "Géolocalisation".
                 </p>
               </div>
             </div>
@@ -4720,17 +4679,12 @@ export default function Commercant() {
                 </div>
                 {estGoogleReviewUrl && /\/maps\/place\//.test(estGoogleReviewUrl) && (
                   <p className="subtitle" style={{ marginTop: 6, marginBottom: 0, fontSize: 12.5, color: "#b45309" }}>
-                    Ce lien ressemble à ta fiche Google Maps générale, pas à ton lien
-                    d'avis direct — tes clients arriveraient sur ta fiche au lieu
-                    d'écrire leur avis directement. Utilise le bouton « Comment
-                    trouver mon lien ? » ci-dessus pour récupérer le bon lien.
+                    Ce lien ressemble à ta fiche Google Maps générale, pas à ton lien d'avis direct.
+                    Utilise « Comment trouver mon lien ? » ci-dessus.
                   </p>
                 )}
                 <p className="subtitle" style={{ marginTop: 6, marginBottom: 12, fontSize: 12.5 }}>
-                  Affiché sur la carte Wallet de tes clients et sur ta page d'inscription, avec le
-                  bonus de points, et utilisé par la demande d'avis automatique (onglet
-                  Notifications) — retrouve ton lien sur ta fiche Google Business Profile, bouton
-                  « Obtenir plus d'avis ».
+                  Affiché sur la carte Wallet et utilisé par la demande d'avis automatique.
                 </p>
 
                 <p className="subtitle" style={{ marginBottom: 6 }}>À propos</p>
@@ -4825,9 +4779,8 @@ export default function Commercant() {
                 </button>
               </div>
               <p className="subtitle" style={{ marginBottom: 10 }}>
-                C'est le lien qui ouvre directement l'écran où le client choisit
-                ses étoiles et écrit son avis — pas ta fiche Google Maps
-                générale (celle avec tes horaires, ta carte, tes photos).
+                Le lien qui ouvre l'écran où le client écrit son avis — pas ta fiche Google Maps
+                générale.
               </p>
               <ol className="modal-steps">
                 <li>
@@ -4850,9 +4803,7 @@ export default function Commercant() {
                 <li>Reviens ici et colle ce lien dans le champ ci-dessus.</li>
               </ol>
               <p className="subtitle" style={{ marginTop: 4, marginBottom: 0, fontSize: 12.5 }}>
-                Pas encore de fiche Google Business Profile ? Crée-la d'abord
-                gratuitement depuis le même site — c'est aussi ce qui te fait
-                apparaître sur Google Maps.
+                Pas de fiche Google Business Profile ? Crée-la gratuitement sur le même site.
               </p>
             </div>
           </div>
@@ -4893,9 +4844,8 @@ export default function Commercant() {
             {subscriptionInfo?.stripeCustomerId ? (
               <>
                 <p className="subtitle" style={{ marginBottom: 12 }}>
-                  Le prélèvement se fait tout seul chaque mois. Carte enregistrée, factures et
-                  résiliation se gèrent directement depuis l'espace sécurisé Stripe — tu peux
-                  t'arrêter quand tu veux, ça s'applique automatiquement à la bonne échéance.
+                  Prélèvement automatique chaque mois. Carte, factures et résiliation se gèrent
+                  depuis l'espace sécurisé Stripe.
                 </p>
                 <button
                   type="button"
@@ -4914,9 +4864,7 @@ export default function Commercant() {
                   return (
                     <div style={{ marginTop: 18 }}>
                       <p className="subtitle" style={{ marginBottom: 8 }}>
-                        Plus de points de vente ? Passe à une formule supérieure quand tu veux — le
-                        complément est prélevé tout de suite au prorata, puis le tarif normal
-                        s'applique dès le mois prochain.
+                        Plus de points de vente ? Change de formule quand tu veux, au prorata.
                       </p>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         {higherTiers.map((t) => {
@@ -4956,7 +4904,7 @@ export default function Commercant() {
                 <p className="subtitle" style={{ marginBottom: 12 }}>
                   {subscriptionInfo?.status === "suspendu"
                     ? "L'accès de ce compte est suspendu — contacte-nous pour le réactiver."
-                    : "Aucun paiement en cours pour le moment. Active ton abonnement quand tu veux, sur une page Stripe sécurisée — par carte pour la formule mensuelle, ou par prélèvement SEPA pour une formule avec engagement (6 mois / 1 an), prélevé automatiquement chaque mois ensuite."}
+                    : "Aucun paiement en cours. Active ton abonnement quand tu veux, sur une page Stripe sécurisée."}
                 </p>
                 {subscriptionInfo?.status !== "suspendu" && (
                   <button
@@ -5060,9 +5008,7 @@ export default function Commercant() {
           <div className="card">
             <h2>Support</h2>
             <p className="subtitle" style={{ marginBottom: 12 }}>
-              Les réponses aux blocages les plus fréquents. Pas de chat en
-              ligne ici : personne ne serait derrière pour répondre à temps —
-              cette page répond tout de suite, à toute heure.
+              Les réponses aux blocages les plus fréquents, disponibles à toute heure.
             </p>
             <details className="faq-item">
               <summary>Un client ne voit pas la notification quand j'ajoute un {pointLabel}</summary>
@@ -5558,7 +5504,7 @@ const styles = `
     padding: 0;
   }
   .sb-icon-btn:hover {
-    background: #f5f4fb;
+    background: #F1EFE8;
     color: ${PURPLE};
   }
   .sb-nav {
@@ -5571,24 +5517,27 @@ const styles = `
   .sb-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 9px 12px;
     border-radius: 999px;
     background: none;
     border: none;
-    color: #595959;
+    color: #5B5F5D;
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
     flex: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
   .sb-item:hover {
-    background: #F1EFE8;
+    background: #F7F8F7;
+    color: #111114;
   }
   .sb-item.active {
-    background: #F1EFE8;
+    background: #E8F5EF;
     color: ${PURPLE};
+    font-weight: 700;
   }
   .sb-item-icon {
     display: flex;
@@ -5597,6 +5546,14 @@ const styles = `
     flex: none;
     align-items: center;
     justify-content: center;
+    color: #B8BCB8;
+    transition: color 0.15s ease;
+  }
+  .sb-item:hover .sb-item-icon {
+    color: #5B5F5D;
+  }
+  .sb-item.active .sb-item-icon {
+    color: ${PURPLE};
   }
   .sb-section-label {
     display: none;
@@ -5667,7 +5624,7 @@ const styles = `
     border-radius: 0;
   }
   .suggest-list button:hover {
-    background: #f5f4fb;
+    background: #F1EFE8;
   }
   .day-chips {
     display: flex;
@@ -6485,7 +6442,7 @@ const styles = `
     border-radius: 0;
   }
   .row-menu button:hover {
-    background: #f5f4fb;
+    background: #F1EFE8;
   }
   .row-menu button.danger {
     color: #c0392b;
@@ -7089,8 +7046,8 @@ const styles = `
     }
     .sb-item {
       width: 100%;
-      padding: 10px 12px;
-      border-radius: 10px;
+      padding: 9px 12px;
+      border-radius: 12px;
     }
     .sidebar.collapsed .sb-item {
       justify-content: center;
@@ -7104,9 +7061,9 @@ const styles = `
     }
     .sb-section-label {
       display: block;
-      margin: 18px 10px 6px;
-      font-size: 11px;
-      font-weight: 800;
+      margin: 22px 10px 8px;
+      font-size: 10.5px;
+      font-weight: 700;
       letter-spacing: 0.08em;
       color: #5B5F5D;
       text-transform: uppercase;
