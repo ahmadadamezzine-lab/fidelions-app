@@ -23,7 +23,7 @@
 // chiffres exacts d'un concurrent, toujours reformulés avec leur propre
 // source citée.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
@@ -82,6 +82,138 @@ function Icon({ name, size = 20 }) {
   );
 }
 
+// Déclenche une seule fois quand l'élément entre dans le viewport — sert au
+// compteur animé (facts, stats) et aux apparitions au scroll, sans dépendance
+// externe. Respecte prefers-reduced-motion : un utilisateur qui l'a activé
+// voit directement l'état final, jamais l'animation.
+function useInView(threshold = 0.4) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [threshold]);
+  return [ref, inView];
+}
+
+// Slider avant/après à glisser (souris, tactile, ou flèches clavier une fois
+// la poignée au focus) — deux panneaux superposés, celui du dessus ("avant")
+// est rogné via clip-path à la position du curseur pour révéler celui du
+// dessous ("après"). role="slider" + gestion clavier pour rester accessible.
+function CompareSlider({ before, after }) {
+  const containerRef = useRef(null);
+  const [pos, setPos] = useState(50);
+  const draggingRef = useRef(false);
+
+  function updateFromClientX(clientX) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    setPos(Math.min(100, Math.max(0, pct)));
+  }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!draggingRef.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      updateFromClientX(clientX);
+    }
+    function onUp() {
+      draggingRef.current = false;
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, []);
+
+  return (
+    <div
+      className="compare-slider"
+      ref={containerRef}
+      onMouseDown={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.clientX);
+      }}
+      onTouchStart={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.touches[0].clientX);
+      }}
+    >
+      <div className="compare-slider-layer compare-slider-after">{after}</div>
+      <div className="compare-slider-layer compare-slider-before" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
+        {before}
+      </div>
+      <div
+        className="compare-slider-handle"
+        style={{ left: `${pos}%` }}
+        role="slider"
+        tabIndex={0}
+        aria-label="Faire glisser pour comparer avant et après Fidions"
+        aria-valuenow={Math.round(pos)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") setPos((p) => Math.max(0, p - 5));
+          if (e.key === "ArrowRight") setPos((p) => Math.min(100, p + 5));
+        }}
+      >
+        <span className="compare-slider-grip">
+          <Icon name="arrow" size={14} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Anime un nombre entier de 0 jusqu'à `value` une fois l'élément visible.
+// Le préfixe/suffixe (ex: "min", "€") reste statique autour du nombre animé.
+function CountUp({ value, duration = 900, prefix = "", suffix = "" }) {
+  const [ref, inView] = useInView(0.5);
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    const start = performance.now();
+    let frame;
+    const tick = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(eased * value));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [inView, value, duration]);
+  return (
+    <span ref={ref}>
+      {prefix}
+      {display}
+      {suffix}
+    </span>
+  );
+}
+
 const FEATURES = [
   {
     icon: "wallet",
@@ -116,9 +248,9 @@ const STEPS = [
 // Notifications/Campagnes), donc ce n'était plus toujours vrai. Pas de
 // remplacement pour garder exactement 3 idées, comme demandé.
 const PRODUCT_FACTS = [
-  { value: "2 min", label: "pour créer ta carte de fidélité" },
-  { value: "0 appli", label: "à faire installer à tes clients" },
-  { value: "49 €", label: "par mois, sans engagement, dès 1 point de vente" },
+  { number: 2, suffix: " min", label: "pour créer ta carte de fidélité" },
+  { number: 0, suffix: " appli", label: "à faire installer à tes clients" },
+  { number: 49, suffix: " €", label: "par mois, sans engagement, dès 1 point de vente" },
 ];
 
 // 4 statistiques vérifiées avant publication (voir le commentaire en tête
@@ -287,7 +419,9 @@ export default function Home() {
         <div className="section-inner facts-grid">
           {PRODUCT_FACTS.map((f) => (
             <div className="fact" key={f.label}>
-              <span className="fact-value">{f.value}</span>
+              <span className="fact-value">
+                <CountUp value={f.number} suffix={f.suffix} />
+              </span>
               <span className="fact-label">{f.label}</span>
             </div>
           ))}
@@ -297,26 +431,31 @@ export default function Home() {
       <section className="compare">
         <div className="section-inner">
           <h2 className="section-title">Sans fidélisation, tu perds des clients sans le savoir</h2>
-          <div className="compare-grid">
-            <div className="compare-col compare-before">
-              <h3>Sans Fidions</h3>
-              <ul>
-                <li>Des cartes en papier perdues ou oubliées</li>
-                <li>Aucune idée de qui sont tes clients réguliers</li>
-                <li>Pas de moyen de les recontacter</li>
-                <li>Les avis Google restent rares</li>
-              </ul>
-            </div>
-            <div className="compare-col compare-after">
-              <h3>Avec Fidions</h3>
-              <ul>
-                <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
-                <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
-                <li><Icon name="check" size={16} /> Des campagnes et notifications en un clic</li>
-                <li><Icon name="check" size={16} /> Un bonus qui encourage les avis Google</li>
-              </ul>
-            </div>
-          </div>
+          <p className="section-sub">Fais glisser pour comparer.</p>
+          <CompareSlider
+            before={
+              <div className="compare-col compare-before">
+                <h3>Sans Fidions</h3>
+                <ul>
+                  <li>Des cartes en papier perdues ou oubliées</li>
+                  <li>Aucune idée de qui sont tes clients réguliers</li>
+                  <li>Pas de moyen de les recontacter</li>
+                  <li>Les avis Google restent rares</li>
+                </ul>
+              </div>
+            }
+            after={
+              <div className="compare-col compare-after">
+                <h3>Avec Fidions</h3>
+                <ul>
+                  <li><Icon name="check" size={16} /> Une carte toujours dans le téléphone du client</li>
+                  <li><Icon name="check" size={16} /> Une base de clients fidélisés, consultable à tout moment</li>
+                  <li><Icon name="check" size={16} /> Des campagnes et notifications en un clic</li>
+                  <li><Icon name="check" size={16} /> Un bonus qui encourage les avis Google</li>
+                </ul>
+              </div>
+            }
+          />
         </div>
       </section>
 
@@ -673,7 +812,7 @@ export default function Home() {
           </div>
           <div className="footer-bottom-row">
             <p className="footer-copyright">© {new Date().getFullYear()} Fidions. Tous droits réservés.</p>
-            <span className="footer-madein">Fait en France</span>
+            <span className="footer-madein">Fait en France avec passion</span>
           </div>
         </div>
       </footer>
@@ -828,8 +967,11 @@ const styles = `
   }
 
   .hero {
-    background: linear-gradient(180deg, #F7F8F7 0%, #fff 65%);
-    padding: 64px 0 40px;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(22, 166, 115, 0.22), transparent 60%),
+      radial-gradient(700px 400px at -5% 100%, rgba(15, 140, 95, 0.14), transparent 55%),
+      #111114;
+    padding: 88px 0 64px;
   }
   .hero-inner {
     max-width: 1080px;
@@ -844,15 +986,16 @@ const styles = `
     min-width: 0;
   }
   .hero h1 {
-    font-size: 38px;
-    line-height: 1.18;
+    font-size: 40px;
+    line-height: 1.16;
+    letter-spacing: -0.01em;
     margin: 0 0 18px;
-    color: #0A0A0C;
+    color: #fff;
   }
   .hero-sub {
     font-size: 16px;
     line-height: 1.6;
-    color: #555;
+    color: #B8BCB8;
     margin: 0 0 28px;
     max-width: 520px;
   }
@@ -1131,41 +1274,80 @@ const styles = `
   .compare {
     padding: 72px 0;
   }
-  .compare-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-top: 32px;
+  .compare-slider {
+    position: relative;
+    margin-top: 28px;
+    height: 340px;
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: ew-resize;
+    user-select: none;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+  }
+  .compare-slider-layer {
+    position: absolute;
+    inset: 0;
+  }
+  .compare-slider-before {
+    will-change: clip-path;
+  }
+  .compare-slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #fff;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  }
+  .compare-slider-grip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    color: #111114;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
   }
   .compare-col {
-    border-radius: 16px;
-    padding: 26px;
+    height: 100%;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .compare-before {
-    background: #faf9f9;
-    border: 1.5px solid #eee;
+    background: #2A2B30;
   }
   .compare-after {
-    background: #E8F5EF;
-    border: 1.5px solid #CBEAD9;
+    background: linear-gradient(160deg, #111114 0%, #0F8C5F 130%);
   }
   .compare-col h3 {
     margin: 0 0 16px;
     font-size: 15px;
   }
-  .compare-before h3 { color: #8a8a8a; }
-  .compare-after h3 { color: ${PURPLE}; }
+  .compare-col h3 {
+    font-size: 18px;
+    color: #fff;
+  }
   .compare-col ul {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
+    max-width: 340px;
   }
   .compare-before li {
-    font-size: 13.5px;
-    color: #777;
+    font-size: 14px;
+    color: #B8BCB8;
     padding-left: 18px;
     position: relative;
   }
@@ -1173,17 +1355,17 @@ const styles = `
     content: "–";
     position: absolute;
     left: 0;
-    color: #bbb;
+    color: #6b6e6b;
   }
   .compare-after li {
-    font-size: 13.5px;
-    color: #333;
+    font-size: 14px;
+    color: #fff;
     display: flex;
     align-items: center;
     gap: 8px;
   }
   .compare-after li svg {
-    color: ${PURPLE};
+    color: #8FD6B8;
     flex: none;
   }
 
@@ -1832,7 +2014,8 @@ const styles = `
     .hero h1 { font-size: 28px; }
     .hero-visual { margin-top: 32px; min-height: 260px; }
     .facts-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .compare-grid { grid-template-columns: 1fr; }
+    .compare-slider { height: 420px; }
+    .compare-col { padding: 24px; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }
