@@ -661,9 +661,6 @@ export default function Home() {
       </section>
 
       <section className="stats-proof">
-        <svg className="stats-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0,0 L1440,0 L1440,40 C1200,90 960,50 720,25 C480,0 240,80 0,30 Z" fill="#f5f4fb" />
-        </svg>
         <div className="section-inner">
           <span className="stats-proof-eyebrow">Pas une intuition, des chiffres</span>
           <h2 className="stats-proof-title">La fidélité fait toute la différence</h2>
@@ -1196,17 +1193,7 @@ const styles = `
 
   .stats-proof {
     background: #0A0A0C;
-    padding: 0 0 72px;
-    position: relative;
-  }
-  .stats-wave {
-    display: block;
-    width: 100%;
-    height: 64px;
-    margin-bottom: -1px;
-  }
-  .stats-proof .section-inner {
-    padding-top: 48px;
+    padding: 56px 0 72px;
   }
   .stats-proof-eyebrow {
     display: block;
