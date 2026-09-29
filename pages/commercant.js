@@ -887,6 +887,30 @@ export default function Commercant() {
       .catch(() => setMessage({ type: "error", text: "Impossible de copier — copie-le à la main." }));
   }
 
+  // --- Relier une carte NFC/QR physique déjà reçue (onglet "Partager") ---
+  const [cardCodeInput, setCardCodeInput] = useState("");
+  const [linkingCard, setLinkingCard] = useState(false);
+  async function handleLinkCard(e) {
+    e.preventDefault();
+    if (!cardCodeInput.trim()) return;
+    setLinkingCard(true);
+    try {
+      const res = await fetch("/api/link-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ code: cardCodeInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setMessage({ type: "success", text: "Carte reliée à ton compte !" });
+      setCardCodeInput("");
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setLinkingCard(false);
+    }
+  }
+
   // --- Lien employé (scan seul, sans mot de passe à retenir) ---
   const [employeeToken, setEmployeeToken] = useState(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
@@ -3462,6 +3486,30 @@ export default function Commercant() {
             <button className="secondary icon-heading" type="button" onClick={copySignupLink}>
               <Icon name="copy" size={15} /> Copier le lien
             </button>
+
+            <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #F1EFE8" }} />
+
+            <h2 style={{ fontSize: 16 }}>Relier ta carte NFC/QR</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Tu as déjà reçu ta carte physique à poser en caisse ? Entre le code inscrit dessous
+              pour la relier à ton compte.
+            </p>
+            <form onSubmit={handleLinkCard} style={{ display: "flex", gap: 10 }}>
+              <input
+                type="text"
+                placeholder="Code de la carte (ex : AB12CD)"
+                value={cardCodeInput}
+                onChange={(e) => setCardCodeInput(e.target.value)}
+                style={{ textTransform: "uppercase", marginBottom: 0, flex: 1 }}
+                maxLength={10}
+              />
+              <button type="submit" disabled={linkingCard || !cardCodeInput.trim()}>
+                {linkingCard ? "…" : "Relier"}
+              </button>
+            </form>
+            <p className="subtitle" style={{ marginTop: 10 }}>
+              Pas encore de carte ? <Link href="/commander-carte">Commande-en une</Link>.
+            </p>
           </div>
         )}
 

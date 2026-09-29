@@ -4,13 +4,21 @@
 // (jeton "admin", voir lib/session.js — jamais un jeton commerçant, même
 // valide, n'est accepté ici, et inversement).
 //
-// GET            -> liste toutes les cartes déjà générées
+// GET            -> liste toutes les cartes déjà générées + les commandes en attente
 // POST {quantity}-> génère un nouveau lot de codes (à donner à l'imprimeur)
 // PATCH {code, merchantSlug} -> relie une carte à un commerçant (vente)
 // PATCH {code, merchantSlug: null} -> libère une carte
+// PATCH {orderId} -> marque une commande de carte (page /commander-carte) comme traitée
 
 import { verifyAdminSession } from "../../lib/session";
-import { createCardBatch, listCards, assignCard, unassignCard } from "../../lib/db";
+import {
+  createCardBatch,
+  listCards,
+  assignCard,
+  unassignCard,
+  listPendingCardOrders,
+  markCardOrderHandled,
+} from "../../lib/db";
 
 function checkAdmin(req, res) {
   const token = (req.headers["x-admin-password"] || "").trim();
@@ -26,8 +34,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const cards = await listCards();
-      return res.status(200).json({ cards });
+      const [cards, orders] = await Promise.all([listCards(), listPendingCardOrders()]);
+      return res.status(200).json({ cards, orders });
     }
 
     if (req.method === "POST") {
@@ -39,7 +47,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PATCH") {
-      const { code, merchantSlug } = req.body || {};
+      const { code, merchantSlug, orderId } = req.body || {};
+      if (orderId) {
+        const order = await markCardOrderHandled(orderId);
+        return res.status(200).json({ order });
+      }
       if (!code) return res.status(400).json({ error: "Code de carte manquant." });
       const card = merchantSlug ? await assignCard(code, merchantSlug) : await unassignCard(code);
       return res.status(200).json({ card });
