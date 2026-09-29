@@ -725,7 +725,7 @@ export default function Home() {
               <Icon name="nfc" size={26} />
             </div>
             <div className="pricing-addon-text">
-              <h3>Carte NFC & QR code à poser en caisse</h3>
+              <h3>Ta carte NFC & QR code à poser en caisse</h3>
               <p>
                 Tes clients approchent leur téléphone ou scannent le QR code : leur carte de
                 fidélité s'ajoute en 2 secondes, sans QR à chercher ni application à installer.
@@ -735,16 +735,9 @@ export default function Home() {
               <span className="pricing-addon-price">
                 20 €<span className="pricing-addon-price-suffix">paiement unique</span>
               </span>
-              <a
-                href={`https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(
-                  "Bonjour, je souhaite commander une carte NFC Fidions pour ma caisse."
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary"
-              >
+              <Link href="/commander-carte" className="btn btn-secondary">
                 Commander la mienne
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -799,12 +792,12 @@ export default function Home() {
 
         <div className="section-inner footer-bottom">
           <div className="footer-payments">
-            <span className="footer-payments-label">Paiement de l'abonnement sécurisé via Revolut</span>
+            <span className="footer-payments-label">Paiement de l'abonnement sécurisé via Stripe</span>
             <div className="payment-badges">
-              <span className="payment-badge">Revolut</span>
+              <span className="payment-badge">Carte bancaire</span>
               <span className="payment-badge">Apple Pay</span>
               <span className="payment-badge">Google Pay</span>
-              <span className="payment-badge">Carte bancaire</span>
+              <span className="payment-badge">Prélèvement SEPA</span>
             </div>
           </div>
           <div className="footer-bottom-row">
@@ -1025,7 +1018,7 @@ const styles = `
   .mock-phone-back {
     position: absolute;
     top: 34px;
-    right: -4px;
+    right: -32px;
     width: 168px;
     z-index: 1;
     transform: rotate(9deg);

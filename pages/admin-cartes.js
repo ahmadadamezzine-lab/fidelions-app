@@ -23,7 +23,9 @@ export default function AdminCartes() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [cards, setCards] = useState(null);
+  const [orders, setOrders] = useState(null);
   const [listError, setListError] = useState("");
+  const [orderActionError, setOrderActionError] = useState("");
 
   const [quantity, setQuantity] = useState(20);
   const [genLoading, setGenLoading] = useState(false);
@@ -51,6 +53,7 @@ export default function AdminCartes() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
       setCards(data.cards);
+      setOrders(data.orders || []);
     } catch (err) {
       if (String(err.message).includes("Session")) {
         logout();
@@ -154,6 +157,22 @@ export default function AdminCartes() {
     }
   }
 
+  async function handleMarkOrderHandled(orderId) {
+    setOrderActionError("");
+    try {
+      const res = await fetch("/api/admin-cards", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": token },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      loadCards(token);
+    } catch (err) {
+      setOrderActionError(err.message);
+    }
+  }
+
   if (!token) {
     return (
       <div className="wrap">
@@ -212,6 +231,55 @@ export default function AdminCartes() {
               {copied ? "Copié !" : "Copier les URLs"}
             </button>
           </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h2>Commandes en attente</h2>
+        <p className="sub">
+          Reçues depuis la page publique /commander-carte. Marque une commande "Traitée" une fois
+          la carte expédiée.
+        </p>
+        {orderActionError && <p className="error">{orderActionError}</p>}
+        {!orders ? (
+          <p className="sub">Chargement…</p>
+        ) : orders.length === 0 ? (
+          <p className="sub">Aucune commande en attente.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Commerce</th>
+                <th>Contact</th>
+                <th>Qté</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id}>
+                  <td>
+                    {o.restaurantName || "—"}
+                    <br />
+                    <span className="sub" style={{ fontSize: 12 }}>{o.address}</span>
+                  </td>
+                  <td>
+                    {o.contactName}
+                    <br />
+                    <span className="sub" style={{ fontSize: 12 }}>
+                      {o.email} · {o.phone}
+                    </span>
+                  </td>
+                  <td>{o.quantity}</td>
+                  <td>
+                    <button type="button" className="link" onClick={() => handleMarkOrderHandled(o.id)}>
+                      Traitée
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
