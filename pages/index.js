@@ -37,7 +37,7 @@ const SEO_DESCRIPTION =
   "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
 const SEO_IMAGE = "/logo.png";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 
@@ -815,15 +815,15 @@ const styles = `
     transform: translateY(0);
   }
   .btn-primary {
-    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(22, 166, 115, 0.3);
+    box-shadow: 0 4px 14px rgba(22, 166, 156, 0.3);
   }
   .btn-primary:hover {
-    box-shadow: 0 8px 22px rgba(22, 166, 115, 0.4);
+    box-shadow: 0 8px 22px rgba(22, 166, 156, 0.4);
   }
   .btn-secondary {
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
     padding: 12px 30px;
     border-radius: 999px;
@@ -916,8 +916,8 @@ const styles = `
 
   .hero {
     background:
-      radial-gradient(900px 500px at 85% -10%, rgba(22, 166, 115, 0.22), transparent 60%),
-      radial-gradient(700px 400px at -5% 100%, rgba(15, 140, 95, 0.14), transparent 55%),
+      radial-gradient(900px 500px at 85% -10%, rgba(22, 166, 156, 0.22), transparent 60%),
+      radial-gradient(700px 400px at -5% 100%, rgba(15, 140, 130, 0.14), transparent 55%),
       #111114;
     padding: 88px 0 64px;
   }
@@ -1005,7 +1005,7 @@ const styles = `
     overflow: hidden;
   }
   .mock-pass-top {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1022,7 +1022,7 @@ const styles = `
   }
   .mock-pass-banner {
     height: 54px;
-    background: linear-gradient(135deg, #E8F5EF, #CBEAD9);
+    background: linear-gradient(135deg, #E8F5F3, #CBEAE2);
   }
   .mock-pass-body {
     padding: 10px 12px 14px;
@@ -1059,11 +1059,11 @@ const styles = `
     font-weight: 700;
   }
   .mock-card {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
     border-radius: 20px;
     padding: 22px;
     color: #fff;
-    box-shadow: 0 20px 50px rgba(22, 166, 115, 0.35);
+    box-shadow: 0 20px 50px rgba(22, 166, 156, 0.35);
   }
   .mock-card-top {
     display: flex;
@@ -1138,7 +1138,7 @@ const styles = `
     font-weight: 800;
   }
   .fact-label {
-    color: #8FD6B8;
+    color: #8FD6CC;
     font-size: 12px;
   }
 
@@ -1165,7 +1165,7 @@ const styles = `
     margin: 0 0 12px;
   }
   .stats-proof-sub {
-    color: #8FD6B8;
+    color: #8FD6CC;
     text-align: center;
     font-size: 14.5px;
     margin: 0 auto 40px;
@@ -1231,7 +1231,7 @@ const styles = `
     background: #2A2B30;
   }
   .pair-col-after {
-    background: linear-gradient(160deg, #111114 0%, #0F8C5F 130%);
+    background: linear-gradient(160deg, #111114 0%, #0F8C82 130%);
   }
   .pair-col h3 {
     margin: 0 0 16px;
@@ -1274,7 +1274,7 @@ const styles = `
     gap: 8px;
   }
   .pair-col-after li svg {
-    color: #8FD6B8;
+    color: #8FD6CC;
     flex: none;
   }
   .pair-col li.pair-active {
@@ -1285,7 +1285,7 @@ const styles = `
     color: #fff;
   }
   .pair-col-before li.pair-active::before {
-    color: #8FD6B8;
+    color: #8FD6CC;
   }
   .pair-col li.pair-dim {
     opacity: 0.4;
@@ -1382,7 +1382,7 @@ const styles = `
     height: 18px;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(22, 166, 115, 0.4);
+    box-shadow: 0 2px 6px rgba(22, 166, 156, 0.4);
     cursor: pointer;
   }
   .calc-slider-row input[type="range"]::-moz-range-thumb {
@@ -1391,7 +1391,7 @@ const styles = `
     border: none;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(22, 166, 115, 0.4);
+    box-shadow: 0 2px 6px rgba(22, 166, 156, 0.4);
     cursor: pointer;
   }
   .calc-hint {
@@ -1409,7 +1409,7 @@ const styles = `
   .calc-result-tag {
     align-self: flex-start;
     background: rgba(255,255,255,0.12);
-    color: #CBEAD9;
+    color: #CBEAE2;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.03em;
@@ -1421,7 +1421,7 @@ const styles = `
   .calc-result-heading {
     margin: 0 0 4px;
     font-size: 12.5px;
-    color: #8FD6B8;
+    color: #8FD6CC;
   }
   .calc-result-big {
     font-size: 32px;
@@ -1431,7 +1431,7 @@ const styles = `
   .calc-result-big span {
     font-size: 14px;
     font-weight: 600;
-    color: #8FD6B8;
+    color: #8FD6CC;
   }
   .calc-result-rows {
     display: flex;
@@ -1445,7 +1445,7 @@ const styles = `
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #CBEAD9;
+    color: #CBEAE2;
   }
   .calc-result-row strong {
     color: #fff;
@@ -1461,7 +1461,7 @@ const styles = `
   }
   .calc-result-annual {
     margin-top: auto;
-    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 12.5px;
@@ -1477,7 +1477,7 @@ const styles = `
   .pricing-addon {
     margin-top: 32px;
     background: #F1EFE8;
-    border: 1.5px solid #CBEAD9;
+    border: 1.5px solid #CBEAE2;
     border-radius: 16px;
     padding: 22px 24px;
     display: flex;
@@ -1489,7 +1489,7 @@ const styles = `
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1555,7 +1555,7 @@ const styles = `
   .feature-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #CBEAD9;
+    border-color: #CBEAE2;
   }
   .feature-card-lead {
     grid-column: span 2;
@@ -1567,7 +1567,7 @@ const styles = `
   }
   .feature-card-lead .feature-icon {
     background: rgba(255,255,255,0.1);
-    color: #16A673;
+    color: #16A69C;
   }
   .feature-card-lead h3,
   .feature-card-lead p {
@@ -1577,15 +1577,15 @@ const styles = `
     color: #B8BCB8;
   }
   .feature-card-new {
-    background: #E8F5EF;
-    border-color: #E8F5EF;
+    background: #E8F5F3;
+    border-color: #E8F5F3;
   }
   .feature-card-new:hover {
-    border-color: #CBEAD9;
+    border-color: #CBEAE2;
   }
   .feature-tag {
     display: inline-block;
-    color: #0F8C5F;
+    color: #0F8C82;
     font-size: 10.5px;
     font-weight: 800;
     text-transform: uppercase;
@@ -1596,7 +1596,7 @@ const styles = `
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1631,8 +1631,8 @@ const styles = `
   }
   .wallet-tag-soon {
     color: ${PURPLE};
-    background: #E8F5EF;
-    border-color: #CBEAD9;
+    background: #E8F5F3;
+    border-color: #CBEAE2;
   }
 
   .steps {
@@ -1683,7 +1683,7 @@ const styles = `
     height: 34px;
     border-radius: 10px;
     background: rgba(255,255,255,0.08);
-    color: #CBEAD9;
+    color: #CBEAE2;
   }
   .step-card h3 {
     color: #fff;
@@ -1691,7 +1691,7 @@ const styles = `
     margin: 0 0 8px;
   }
   .step-card p {
-    color: #CBEAD9;
+    color: #CBEAE2;
     font-size: 13px;
     line-height: 1.5;
     margin: 0;
@@ -1746,7 +1746,7 @@ const styles = `
   .price-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #CBEAD9;
+    border-color: #CBEAE2;
   }
   .price-card h3 {
     font-size: 14.5px;
@@ -1786,7 +1786,7 @@ const styles = `
   }
 
   .cta-banner {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
     padding: 64px 0;
     text-align: center;
   }
@@ -1802,7 +1802,7 @@ const styles = `
     margin: 0;
   }
   .cta-banner p {
-    color: #CBEAD9;
+    color: #CBEAE2;
     font-size: 14.5px;
     margin: 0 0 8px;
   }
@@ -1850,7 +1850,7 @@ const styles = `
     font-size: 12.5px;
   }
   .footer-contact a {
-    color: #CBEAD9;
+    color: #CBEAE2;
     text-decoration: none;
     font-weight: 600;
   }
@@ -1865,11 +1865,11 @@ const styles = `
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #8FD6B8;
+    color: #8FD6CC;
     margin-bottom: 4px;
   }
   .footer-nav-col a {
-    color: #8FD6B8;
+    color: #8FD6CC;
     text-decoration: none;
     font-size: 13.5px;
   }
@@ -1907,7 +1907,7 @@ const styles = `
   .payment-badge {
     font-size: 11.5px;
     font-weight: 700;
-    color: #CBEAD9;
+    color: #CBEAE2;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.14);
     padding: 5px 12px;

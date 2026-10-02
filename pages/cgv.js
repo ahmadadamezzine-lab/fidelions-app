@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 // Page publique des CGV. À la demande d'Adam, les zones [À COMPLÉTER]
 // visibles (raison sociale, forme juridique, SIRET, adresse du siège,

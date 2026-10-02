@@ -15,7 +15,7 @@ import Head from "next/head";
 import LegalFooter from "../../components/LegalFooter";
 import { getMerchantBySlug, getBranding, getEstablishmentInfo } from "../../lib/db";
 
-const DEFAULT_PURPLE = "#16A673";
+const DEFAULT_PURPLE = "#16A69C";
 
 // Récupère le nom/couleur/logo du restaurant CÔTÉ SERVEUR, avant même
 // d'envoyer le HTML au navigateur — avant ce correctif, cette page
@@ -194,7 +194,7 @@ export default function RestaurantSignup({ initialMerchant }) {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(160deg, ${DEFAULT_PURPLE} 0%, #0F8C5F 100%);
+            background: linear-gradient(160deg, ${DEFAULT_PURPLE} 0%, #0F8C82 100%);
             padding: 24px;
             font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           }
@@ -437,7 +437,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(160deg, ${purple} 0%, #0F8C5F 100%);
+          background: linear-gradient(160deg, ${purple} 0%, #0F8C82 100%);
           padding: 24px;
           font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
@@ -469,7 +469,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           margin-bottom: 28px;
         }
         .refNotice {
-          background: #E8F5EF;
+          background: #E8F5F3;
           color: ${purple};
           font-size: 13px;
           font-weight: 600;
@@ -656,7 +656,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           text-align: center;
         }
         .progressTrack {
-          background: #E8F5EF;
+          background: #E8F5F3;
           border-radius: 999px;
           height: 8px;
           overflow: hidden;
@@ -668,7 +668,7 @@ export default function RestaurantSignup({ initialMerchant }) {
           border-radius: 999px;
         }
         .rewardLabel {
-          background: #E8F5EF;
+          background: #E8F5F3;
           color: ${purple};
           font-weight: 700;
           font-size: 13px;

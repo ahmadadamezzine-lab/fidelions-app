@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   const safeCardColor =
     typeof cardColor === "string" && /^#[0-9a-fA-F]{6}$/.test(cardColor.trim())
       ? cardColor.trim()
-      : "#16A673";
+      : "#16A69C";
 
   let merchant;
   try {

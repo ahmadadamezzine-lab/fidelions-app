@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 // Page publique des mentions légales (obligation LCEN pour tout éditeur de
 // site). Même logique que pages/cgv.js et pages/confidentialite.js : à la

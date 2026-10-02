@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import LegalFooter from "../../components/LegalFooter";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 // --- Mode "marche sans connexion" (basique) ---------------------------
 // Pas de vraie synchronisation en arrière-plan (Background Sync) — ce

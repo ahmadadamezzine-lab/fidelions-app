@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 410">
+  <g transform="translate(300,20) scale(3.0)">
+    <path d="M 65.49 27.88 A 27 27 0 1 1 34.51 27.88" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="34.51" cy="27.88" r="7.2" fill="#ffffff"/>
+  </g>
+  <text x="450" y="370" text-anchor="middle" font-family="Manrope, -apple-system, sans-serif" font-weight="800"
+        letter-spacing="2" font-size="108" fill="#ffffff">fidions</text>
+</svg>
