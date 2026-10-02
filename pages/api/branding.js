@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       const { hexColor, logo, banner } = req.body || {};
 
       if (hexColor && !/^#[0-9a-fA-F]{6}$/.test(hexColor)) {
-        return res.status(400).json({ error: "Couleur invalide (format attendu : #16A673)." });
+        return res.status(400).json({ error: "Couleur invalide (format attendu : #16A69C)." });
       }
 
       let logoUrl;

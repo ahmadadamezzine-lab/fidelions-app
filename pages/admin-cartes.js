@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 
 const TOKEN_KEY = "fidions_admin_token";
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 export default function AdminCartes() {
   const [token, setToken] = useState(null);
@@ -419,7 +419,7 @@ const styles = `
     cursor: default;
   }
   button.secondary {
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
   }
   button.link {

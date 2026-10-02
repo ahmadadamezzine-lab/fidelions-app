@@ -8,7 +8,7 @@
 import Link from "next/link";
 import Head from "next/head";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 export default function Custom404() {
   return (
@@ -51,13 +51,13 @@ export default function Custom404() {
           margin: 8px 0 28px;
         }
         .btn {
-          background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
+          background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
           color: #fff;
           text-decoration: none;
           font-weight: 700;
           padding: 12px 26px;
           border-radius: 999px;
-          box-shadow: 0 8px 20px -8px rgba(22, 166, 115, 0.55);
+          box-shadow: 0 8px 20px -8px rgba(22, 166, 156, 0.55);
         }
       `}</style>
     </>

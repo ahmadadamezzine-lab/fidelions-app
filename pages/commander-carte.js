@@ -2,7 +2,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Head from "next/head";
 
-const EMERALD = "#16A673";
+const EMERALD = "#16A69C";
 
 // Page de commande de carte NFC/QR (20 €, paiement unique — voir la section
 // tarifs de la page d'accueil). Remplace l'ancien bouton "Commander la
@@ -264,7 +264,7 @@ const styles = `
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${EMERALD};
     display: flex;
     align-items: center;

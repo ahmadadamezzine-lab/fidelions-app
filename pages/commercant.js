@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import LegalFooter from "../components/LegalFooter";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
 
-const PURPLE = "#16A673";
+const PURPLE = "#16A69C";
 
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
@@ -1121,7 +1121,10 @@ export default function Commercant() {
         }
       }
     } catch (err) {
-      setAuthError(err.message);
+      // En silencieux (contrôle automatique au chargement), on ne montre
+      // jamais une erreur technique brute ("fetch failed"...) — au pire on
+      // reste sur l'écran de connexion, sans rien afficher.
+      if (!silent) setAuthError("Connexion au serveur impossible — réessaie dans un instant.");
     } finally {
       setChecking(false);
     }
@@ -2203,7 +2206,7 @@ export default function Commercant() {
 
   async function saveBranding() {
     if (brandHexColor && !/^#[0-9a-fA-F]{6}$/.test(brandHexColor)) {
-      setMessage({ type: "error", text: "Couleur invalide (format attendu : #16A673)." });
+      setMessage({ type: "error", text: "Couleur invalide (format attendu : #16A69C)." });
       return;
     }
     setSavingBranding(true);
@@ -2766,7 +2769,7 @@ export default function Commercant() {
               <div className="split-orb orb-a" />
               <div className="split-orb orb-b" />
               <Link href="/" className="logo-link split-logo-link">
-                <img src="/logo-full.svg" alt="Fidions" className="split-logo" />
+                <img src="/logo-full-white.svg" alt="Fidions" className="split-logo" />
               </Link>
               <h2 className="split-title">
                 Content de <span className="split-title-accent">te revoir</span>
@@ -2999,7 +3002,7 @@ export default function Commercant() {
                     type="text"
                     value={signupCardColorCustom}
                     onChange={(e) => setSignupCardColorCustom(e.target.value)}
-                    placeholder="Ou un code couleur personnalisé (ex : #16A673)"
+                    placeholder="Ou un code couleur personnalisé (ex : #16A69C)"
                     maxLength={7}
                   />
 
@@ -3706,7 +3709,7 @@ export default function Commercant() {
                 value={brandHexColor}
                 onChange={(e) => setBrandHexColor(e.target.value)}
                 maxLength={7}
-                placeholder="#16A673"
+                placeholder="#16A69C"
               />
             </div>
 
@@ -5175,7 +5178,7 @@ const styles = `
     border-color: ${PURPLE};
   }
   .dropzone {
-    border: 1.5px dashed #CBEAD9;
+    border: 1.5px dashed #CBEAE2;
     border-radius: 10px;
     padding: 16px 14px;
     text-align: center;
@@ -5189,7 +5192,7 @@ const styles = `
   }
   .dropzone.drag-over {
     border-color: ${PURPLE};
-    background: #E8F5EF;
+    background: #E8F5F3;
   }
   .link-btn {
     background: none;
@@ -5240,7 +5243,7 @@ const styles = `
     width: 26px;
     height: 26px;
     border-radius: 99px;
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -5279,7 +5282,7 @@ const styles = `
     color: #9a9a9a;
   }
   .advisor-debug summary:hover {
-    color: #16A673;
+    color: #16A69C;
   }
   .advisor-use-btn {
     display: block;
@@ -5535,7 +5538,7 @@ const styles = `
     color: #111114;
   }
   .sb-item.active {
-    background: #E8F5EF;
+    background: #E8F5F3;
     color: ${PURPLE};
     font-weight: 700;
   }
@@ -5648,7 +5651,7 @@ const styles = `
     color: #fff;
     border-color: ${PURPLE};
     opacity: 1;
-    box-shadow: 0 2px 8px rgba(22, 166, 115, 0.35);
+    box-shadow: 0 2px 8px rgba(22, 166, 156, 0.35);
   }
   .day-chip-mark {
     display: inline-block;
@@ -5773,8 +5776,8 @@ const styles = `
   .page {
     min-height: 100vh;
     background:
-      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 115, 0.08), transparent 60%),
-      radial-gradient(900px 480px at 100% 0%, rgba(22, 166, 115, 0.05), transparent 55%),
+      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 156, 0.08), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(22, 166, 156, 0.05), transparent 55%),
       #EFF2F0;
     font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
@@ -5786,8 +5789,8 @@ const styles = `
     overflow: hidden;
     min-height: 100vh;
     background:
-      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 115, 0.10), transparent 60%),
-      radial-gradient(900px 480px at 100% 10%, rgba(22, 166, 115, 0.06), transparent 55%),
+      radial-gradient(1100px 520px at 12% -8%, rgba(22, 166, 156, 0.10), transparent 60%),
+      radial-gradient(900px 480px at 100% 10%, rgba(22, 166, 156, 0.06), transparent 55%),
       #EFF2F0;
     font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding: 24px;
@@ -5827,7 +5830,7 @@ const styles = `
   .auth-page input:focus {
     background: #fff;
     border-color: ${PURPLE};
-    box-shadow: 0 0 0 4px rgba(22, 166, 115, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 166, 156, 0.1);
   }
   .auth-page button.primary,
   .auth-page button.secondary {
@@ -5837,7 +5840,7 @@ const styles = `
   .auth-page .auth-logo {
     display: block;
     margin: 0 auto 18px;
-    filter: drop-shadow(0 8px 20px rgba(22, 166, 115, 0.22));
+    filter: drop-shadow(0 8px 20px rgba(22, 166, 156, 0.22));
   }
   .logo-link {
     display: inline-block;
@@ -5885,7 +5888,7 @@ const styles = `
     transition: border-color 0.15s, background 0.15s, transform 0.15s;
   }
   .auth-social-btn:hover {
-    border-color: #CBEAD9;
+    border-color: #CBEAE2;
     background: #F1EFE8;
     transform: translateY(-1px);
   }
@@ -5926,9 +5929,9 @@ const styles = `
     flex: 1;
     overflow: hidden;
     background:
-      radial-gradient(120% 140% at 8% 0%, rgba(22, 166, 115, 0.25), transparent 55%),
+      radial-gradient(120% 140% at 8% 0%, rgba(22, 166, 156, 0.25), transparent 55%),
       radial-gradient(120% 120% at 100% 100%, rgba(17, 17, 20, 0.9), transparent 60%),
-      linear-gradient(160deg, ${PURPLE} 0%, #0F8C5F 100%);
+      linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
     color: #fff;
     padding: 44px 40px;
     display: flex;
@@ -5963,7 +5966,7 @@ const styles = `
     height: 140px;
     bottom: -40px;
     left: -30px;
-    background: rgba(22, 166, 115, 0.22);
+    background: rgba(22, 166, 156, 0.22);
     animation-delay: -4s;
   }
   @keyframes orb-float {
@@ -6164,7 +6167,7 @@ const styles = `
       top: 8%;
       left: calc(50% - 430px);
       transform: rotate(-14deg);
-      background: linear-gradient(160deg, ${PURPLE}, #0F8C5F);
+      background: linear-gradient(160deg, ${PURPLE}, #0F8C82);
       animation: mockcard-float 7s ease-in-out infinite;
     }
     .bg-mockcard-2 {
@@ -6186,14 +6189,14 @@ const styles = `
     right: -60px;
     left: auto;
     bottom: auto;
-    background: rgba(22, 166, 115, 0.14);
+    background: rgba(22, 166, 156, 0.14);
   }
   .page-orb.orb-b {
     bottom: -90px;
     left: -70px;
     top: auto;
     right: auto;
-    background: rgba(22, 166, 115, 0.14);
+    background: rgba(22, 166, 156, 0.14);
   }
   .wrap {
     width: 100%;
@@ -6235,7 +6238,7 @@ const styles = `
   input:focus {
     outline: none;
     border-color: ${PURPLE};
-    box-shadow: 0 0 0 4px rgba(22, 166, 115, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 166, 156, 0.1);
   }
   button {
     cursor: pointer;
@@ -6246,15 +6249,15 @@ const styles = `
     transition: transform 0.15s, box-shadow 0.15s, background 0.15s, opacity 0.15s;
   }
   button.primary {
-    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C5F 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
     color: #fff;
     padding: 12px 16px;
     width: 100%;
-    box-shadow: 0 8px 20px -8px rgba(22, 166, 115, 0.55);
+    box-shadow: 0 8px 20px -8px rgba(22, 166, 156, 0.55);
   }
   button.primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 12px 26px -8px rgba(22, 166, 115, 0.6);
+    box-shadow: 0 12px 26px -8px rgba(22, 166, 156, 0.6);
   }
   button.primary:active:not(:disabled) {
     transform: translateY(0);
@@ -6545,8 +6548,8 @@ const styles = `
     transition: background 0.3s, box-shadow 0.3s;
   }
   .step-dots span.active {
-    background: linear-gradient(90deg, ${PURPLE}, #0F8C5F);
-    box-shadow: 0 0 8px rgba(22, 166, 115, 0.45);
+    background: linear-gradient(90deg, ${PURPLE}, #0F8C82);
+    box-shadow: 0 0 8px rgba(22, 166, 156, 0.45);
   }
   .signup-step {
     display: flex;
@@ -6605,7 +6608,7 @@ const styles = `
   }
   .mode-card.active {
     border-color: ${PURPLE};
-    background: #E8F5EF;
+    background: #E8F5F3;
   }
   .mode-card-title {
     font-weight: 700;
@@ -6684,7 +6687,7 @@ const styles = `
   }
   .pricing-card.active {
     border-color: ${PURPLE};
-    background: #E8F5EF;
+    background: #E8F5F3;
   }
   .pricing-card-head {
     display: flex;
@@ -6818,7 +6821,7 @@ const styles = `
   .photo-add {
     aspect-ratio: 1;
     border-radius: 10px;
-    border: 1.5px dashed #CBEAD9;
+    border: 1.5px dashed #CBEAE2;
     background: #F1EFE8;
     color: ${PURPLE};
     display: flex;
