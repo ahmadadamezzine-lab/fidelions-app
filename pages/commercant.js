@@ -4,6 +4,44 @@ import { useRouter } from "next/router";
 import QRCode from "qrcode";
 import LegalFooter from "../components/LegalFooter";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
+import {
+  Home,
+  Share2,
+  Users,
+  Bell,
+  CreditCard,
+  Gift,
+  ShieldCheck,
+  MapPin,
+  BarChart3,
+  Building2,
+  Star,
+  Headset,
+  Settings,
+  ChevronLeft,
+  PanelLeft,
+  ChevronsUpDown,
+  Check,
+  X,
+  AlertTriangle,
+  Trash2,
+  Pencil,
+  Lock,
+  Unlock,
+  Download,
+  Copy,
+  RefreshCw,
+  Save,
+  Bot,
+  Paperclip,
+  FileText,
+  Trophy,
+  Camera,
+  SlidersHorizontal,
+  Briefcase,
+  Mail,
+  Send,
+} from "lucide-react";
 
 const PURPLE = "#16A69C";
 
@@ -29,48 +67,53 @@ function formatMonthLabel(monthKey) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-// Petites icônes SVG "trait" (façon Lucide/Feather), dessinées à la main
-// et regroupées ici pour être réutilisées partout dans la page — aucune
-// librairie d'icônes n'est installée (et impossible d'en ajouter une sur
-// cet environnement), donc tout est du SVG inline minimal.
-const ICONS = {
-  home: <><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h5v-5h2v5h5v-9" /></>,
-  share: <><circle cx="6" cy="12" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="18" cy="18" r="2.2" /><path d="M8 10.8 16 7.2M8 13.2l8 3.6" /></>,
-  users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
-  bell: <><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 14 6 10Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
-  card: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M3 10.5h18" /><path d="M6.5 14.5h4" /></>,
-  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3C10 9.3 8.5 8 8.5 6.4 8.5 5.1 9.5 4 10.7 4c1.3 0 1.3 2.3 1.3 5.3Z" /><path d="M12 9.3c2 0 3.5-1.3 3.5-2.9C15.5 5.1 14.5 4 13.3 4c-1.3 0-1.3 2.3-1.3 5.3Z" /></>,
-  badge: <><path d="M12 3.2 18.5 6v5.3c0 4.4-2.9 6.9-6.5 8.5-3.6-1.6-6.5-4.1-6.5-8.5V6Z" /><path d="m9.2 12 1.9 1.9L14.9 10" /></>,
-  mappin: <><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.4" /></>,
-  barchart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
-  building: <><rect x="5" y="3" width="10" height="18" /><path d="M9 21v-4h2v4" /><path d="M8 7h1M8 10h1M8 13h1M11 7h1M11 10h1M11 13h1" /><path d="M15 10h4v11h-4" /></>,
-  star: <path d="M12 3.2 14.6 9l6.2.6-4.7 4.2 1.4 6.2L12 16.9l-5.5 2.9 1.4-6.2-4.7-4.2L9.4 9Z" />,
-  headset: <><path d="M4 13v-1a8 8 0 0 1 16 0v1" /><rect x="3" y="13" width="4" height="6" rx="1.4" /><rect x="17" y="13" width="4" height="6" rx="1.4" /><path d="M19 19v1a3 3 0 0 1-3 3h-3" /></>,
-  gear: <><circle cx="12" cy="12" r="3.1" /><path d="M12 3v2.3M12 18.7V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.3M18.7 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" /></>,
-  chevronLeft: <path d="M14.5 5.5 8 12l6.5 6.5" />,
-  panel: <><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15" /></>,
-  chevronUpDown: <><path d="M8 10l4-4 4 4" /><path d="M8 14l4 4 4-4" /></>,
-  check: <path d="M5 12.5 10 17 19 7" />,
-  x: <path d="M6 6l12 12M18 6 6 18" />,
-  warning: <><path d="M12 3.4 21 20H3Z" /><path d="M12 9.4v4.6" /><path d="M12 17h.01" /></>,
-  trash: <><path d="M4 7h16" /><path d="M9 7V4.5h6V7" /><path d="M6.5 7 7.3 20h9.4L18 7" /><path d="M10 11v6M14 11v6" /></>,
-  edit: <path d="M4 20h4l10.5-10.5a2 2 0 0 0-4-4L4 16v4Z" />,
-  lock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
-  unlock: <><rect x="5" y="10.5" width="14" height="9.5" rx="1.8" /><path d="M8 10.5V8a4 4 0 0 1 7.4-2" /></>,
-  download: <><path d="M12 4v11" /><path d="m7.5 11 4.5 4.5L16.5 11" /><path d="M5 19.5h14" /></>,
-  copy: <><rect x="9" y="9" width="11" height="11" rx="1.8" /><path d="M6 15H4.8A1.8 1.8 0 0 1 3 13.2V4.8A1.8 1.8 0 0 1 4.8 3h8.4A1.8 1.8 0 0 1 15 4.8V6" /></>,
-  refresh: <><path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2" /><path d="M18 3v4.5h-4.5" /><path d="M6 21v-4.5h4.5" /></>,
-  save: <><path d="M5 4h11l3 3v13H5Z" /><path d="M8 4v5h8V4" /><path d="M8 14h8v6H8Z" /></>,
-  robot: <><rect x="5" y="8" width="14" height="10" rx="2.3" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1.1" /><circle cx="9" cy="13" r="1.1" /><circle cx="15" cy="13" r="1.1" /><path d="M9 17h6" /></>,
-  paperclip: <path d="M17 7.5 9.3 15.2a3 3 0 1 1-4.2-4.2l8-8a2 2 0 1 1 2.9 2.9l-7.7 7.7a1 1 0 1 1-1.4-1.4l6.9-6.9" />,
-  file: <><path d="M7 3h7l4 4v14H7Z" /><path d="M14 3v4h4" /></>,
-  trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
-  camera: <><rect x="3" y="7" width="18" height="13" rx="2.2" /><path d="M8 7l1.5-2.5h5L16 7" /><circle cx="12" cy="13.5" r="3.4" /></>,
-  sliders: <><path d="M4 6h10" /><circle cx="16.5" cy="6" r="2" /><path d="M4 12h4" /><circle cx="10.5" cy="12" r="2" /><path d="M14.5 12H20" /><path d="M4 18h9" /><circle cx="15.5" cy="18" r="2" /></>,
-  briefcase: <><rect x="3" y="8" width="18" height="11" rx="2" /><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></>,
-  mail: <><rect x="3" y="5" width="18" height="14" rx="2.2" /><path d="M4 6.5 12 13 20 6.5" /></>,
+// Icônes : la plupart viennent de Lucide (lucide-react), une vraie
+// librairie d'icônes maintenue — seuls les deux logos de marque
+// (WhatsApp, Apple) restent dessinés à la main ci-dessous, pour garder un
+// tracé fidèle au logo officiel plutôt qu'une icône générique.
+const LUCIDE_ICONS = {
+  home: Home,
+  share: Share2,
+  users: Users,
+  bell: Bell,
+  card: CreditCard,
+  gift: Gift,
+  badge: ShieldCheck,
+  mappin: MapPin,
+  barchart: BarChart3,
+  building: Building2,
+  star: Star,
+  headset: Headset,
+  gear: Settings,
+  chevronLeft: ChevronLeft,
+  panel: PanelLeft,
+  chevronUpDown: ChevronsUpDown,
+  check: Check,
+  x: X,
+  warning: AlertTriangle,
+  trash: Trash2,
+  edit: Pencil,
+  lock: Lock,
+  unlock: Unlock,
+  download: Download,
+  copy: Copy,
+  refresh: RefreshCw,
+  save: Save,
+  robot: Bot,
+  paperclip: Paperclip,
+  file: FileText,
+  trophy: Trophy,
+  camera: Camera,
+  sliders: SlidersHorizontal,
+  briefcase: Briefcase,
+  mail: Mail,
+  send: Send,
+};
+
+// Logos de marque dessinés à la main (tracé officiel, pas une icône
+// générique) — rendus directement en SVG, voir Icon ci-dessous.
+const BRAND_ICONS = {
   whatsapp: <><path d="M4 20l1.1-3.8A7.8 7.8 0 1 1 8.2 19Z" /><path d="M9 10.5c0 2.5 2 4.5 4.5 4.5" /></>,
-  send: <><path d="M4.5 12 20 4.5 12.8 20l-2-6.8Z" /><path d="M4.5 12 13 13" /></>,
   apple: <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>,
 };
 
@@ -88,8 +131,12 @@ function GoogleGlyph({ size = 16 }) {
 }
 
 function Icon({ name, size = 18, className }) {
-  const d = ICONS[name];
-  if (!d) return null;
+  const LucideIcon = LUCIDE_ICONS[name];
+  if (LucideIcon) {
+    return <LucideIcon size={size} strokeWidth={1.7} className={className} aria-hidden="true" />;
+  }
+  const brand = BRAND_ICONS[name];
+  if (!brand) return null;
   return (
     <svg
       width={size}
@@ -103,7 +150,7 @@ function Icon({ name, size = 18, className }) {
       className={className}
       aria-hidden="true"
     >
-      {d}
+      {brand}
     </svg>
   );
 }

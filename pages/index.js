@@ -27,6 +27,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Head from "next/head";
 import { PRICING_TIERS, BILLING_CYCLES, getTierPrice } from "../lib/pricing";
+import {
+  Zap,
+  Wallet,
+  Gift,
+  Star,
+  WifiOff,
+  Users,
+  BarChart3,
+  MapPin,
+  Megaphone,
+  Palette,
+  Trophy,
+  Building2,
+  Bot,
+  Check,
+  ArrowRight,
+  QrCode,
+  Nfc,
+} from "lucide-react";
 
 // Titre/description/image affichés dans les résultats Google et les
 // aperçus de lien partagé (WhatsApp, réseaux sociaux) — sans ça, un lien
@@ -51,35 +70,45 @@ function clampNum(raw, min, max) {
   return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-const ICONS = {
-  bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6Z" />,
-  wallet: <><rect x="3" y="6" width="18" height="13" rx="2.2" /><path d="M16 13h.01" /><path d="M3 9h18" /></>,
-  gift: <><rect x="5.5" y="13" width="13" height="7" rx="1" /><rect x="4" y="9.3" width="16" height="3.7" rx="1" /><path d="M12 9.3V20" /><path d="M12 9.3c-1.3 0-2.6-.7-2.6-2.3S10.5 4 12 6.2C13.5 4 15.6 4.7 15.6 7S13.3 9.3 12 9.3Z" /></>,
-  star: <path d="M12 3.5 14.6 9l6 .8-4.4 4.1 1.1 6-5.3-2.9L6.7 20l1.1-6-4.4-4.1 6-.8Z" />,
-  apple: <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>,
-  wifi: <><path d="M4.5 10.5a11 11 0 0 1 15 0" /><path d="M7.5 13.7a7 7 0 0 1 9 0" /><path d="M10.5 17a3 3 0 0 1 3 0" /><path d="M12 20h.01" /><path d="M3 4 21 20" /></>,
-  users: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M15.3 14a5 5 0 0 1 5.5 5" /></>,
-  chart: <><rect x="4" y="12" width="3.4" height="8" /><rect x="10.3" y="7" width="3.4" height="13" /><rect x="16.6" y="3" width="3.4" height="17" /></>,
-  mappin: <><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" /><circle cx="12" cy="9" r="2.4" /></>,
-  megaphone: <><path d="M4 11v3.5a1.3 1.3 0 0 0 1.3 1.3H7l1.3 3.7a1.4 1.4 0 0 0 2.6-.5v-3.2" /><path d="M4 11h3l10-5.5v14L7 14.5H4a1 1 0 0 1-1-1V12a1 1 0 0 1 1-1Z" /><path d="M20 9a5.5 5.5 0 0 1 0 7.5" /></>,
-  palette: <><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-.7-1.4-.7-2.2c0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8Z" /><circle cx="7.5" cy="10.5" r="1" /><circle cx="10.5" cy="7" r="1" /><circle cx="15" cy="8" r="1" /></>,
-  trophy: <><path d="M8 4h8v4a4 4 0 0 1-8 0Z" /><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3" /><path d="M12 12v3" /><path d="M9 20h6" /><path d="M10 17h4l.6 3H9.4Z" /></>,
-  building: <><rect x="5" y="3" width="10" height="18" /><path d="M9 21v-4h2v4" /><path d="M8 7h1M8 10h1M8 13h1M11 7h1M11 10h1M11 13h1" /><path d="M15 10h4v11h-4" /></>,
-  robot: <><rect x="5" y="8" width="14" height="10" rx="2.3" /><path d="M12 8V5" /><circle cx="12" cy="4" r="1.1" /><circle cx="9" cy="13" r="1.1" /><circle cx="15" cy="13" r="1.1" /><path d="M9 17h6" /></>,
-  check: <path d="M5 12.5 10 17 19 7" />,
-  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
-  qr: <><rect x="4" y="4" width="6" height="6" /><rect x="14" y="4" width="6" height="6" /><rect x="4" y="14" width="6" height="6" /><path d="M14 14h3v3h-3zM19 14v6M14 19h6" /></>,
-  nfc: <><rect x="3" y="5" width="13" height="14" rx="2.3" /><path d="M18 9a4 4 0 0 1 0 6" /><path d="M20.7 7a7.5 7.5 0 0 1 0 10" /></>,
+const LUCIDE_ICONS = {
+  bolt: Zap,
+  wallet: Wallet,
+  gift: Gift,
+  star: Star,
+  wifi: WifiOff,
+  users: Users,
+  chart: BarChart3,
+  mappin: MapPin,
+  megaphone: Megaphone,
+  palette: Palette,
+  trophy: Trophy,
+  building: Building2,
+  robot: Bot,
+  check: Check,
+  arrow: ArrowRight,
+  qr: QrCode,
+  nfc: Nfc,
 };
 
+// Logo Apple dessiné à la main (tracé officiel, pas une icône générique) —
+// seule exception à Lucide ci-dessus.
+const APPLE_ICON = (
+  <><path d="M16.4 12.3c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.9-3-.8-1.5 0-3 .9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.2.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.8Z" /><path d="M12.4 6.2c.1-1.9 1.6-3.4 3.5-3.6.1 1.9-1.5 3.5-3.5 3.6Z" fill="currentColor" stroke="none" /></>
+);
+
 function Icon({ name, size = 20 }) {
-  const d = ICONS[name];
-  if (!d) return null;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {d}
-    </svg>
-  );
+  const LucideIcon = LUCIDE_ICONS[name];
+  if (LucideIcon) {
+    return <LucideIcon size={size} strokeWidth={1.7} aria-hidden="true" />;
+  }
+  if (name === "apple") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {APPLE_ICON}
+      </svg>
+    );
+  }
+  return null;
 }
 
 // Déclenche une seule fois quand l'élément entre dans le viewport — sert au
