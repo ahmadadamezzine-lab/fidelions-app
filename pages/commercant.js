@@ -930,6 +930,17 @@ export default function Commercant() {
   const [editingLocationId, setEditingLocationId] = useState(null);
   const [editLocationName, setEditLocationName] = useState("");
   const [editLocationAddress, setEditLocationAddress] = useState("");
+  // --- Sous-onglet actif dans la rubrique "Points de vente" (onglet
+  // Partager) : soit l'id d'un point de vente existant (un seul affiché à
+  // la fois, pour configurer chacun sans se perdre dans une longue liste),
+  // soit "__add__" pour afficher le formulaire d'ajout.
+  const [activeLocationTab, setActiveLocationTab] = useState("");
+  useEffect(() => {
+    if (locations.length === 0) return;
+    const stillValid = activeLocationTab === "__add__" || locations.some((l) => l.id === activeLocationTab);
+    if (!stillValid) setActiveLocationTab(locations[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations]);
 
   function locationLink(loc, index) {
     if (typeof window === "undefined" || !merchantSlug) return "";
@@ -998,6 +1009,7 @@ export default function Commercant() {
       setNewLocationName("");
       setNewLocationAddress("");
       await loadLocations();
+      if (data.location?.id) setActiveLocationTab(data.location.id);
     } catch (err) {
       setLocationActionError(err.message);
     } finally {
@@ -3667,117 +3679,152 @@ export default function Commercant() {
                 : "Affiche-le en caisse : tes clients scannent pour créer leur carte, sans rien installer."}
             </p>
 
+            <h3 style={{ fontSize: 15, marginBottom: 10 }}>Points de vente</h3>
+
             {locationActionError && <p className="error">{locationActionError}</p>}
-
-            {locations.map((loc, i) => (
-              <div key={loc.id} className="location-block">
-                {editingLocationId === loc.id ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-                    <input
-                      type="text"
-                      value={editLocationName}
-                      onChange={(e) => setEditLocationName(e.target.value)}
-                      placeholder="Nom du point de vente"
-                      maxLength={60}
-                      style={{ marginBottom: 0 }}
-                    />
-                    <input
-                      type="text"
-                      value={editLocationAddress}
-                      onChange={(e) => setEditLocationAddress(e.target.value)}
-                      placeholder="Adresse (optionnel)"
-                      maxLength={200}
-                      style={{ marginBottom: 0 }}
-                    />
-                    <div className="menu-actions">
-                      <button className="primary small" type="button" onClick={() => saveEditLocation(loc.id)}>
-                        Enregistrer
-                      </button>
-                      <button className="secondary small" type="button" onClick={() => setEditingLocationId(null)}>
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="location-header">
-                    <div>
-                      <strong>{loc.name}</strong>
-                      {loc.address && <div className="subtitle" style={{ fontSize: 12.5 }}>{loc.address}</div>}
-                    </div>
-                    <div className="location-header-actions">
-                      <button type="button" className="link-btn" onClick={() => startEditLocation(loc)}>
-                        Modifier
-                      </button>
-                      {locations.length > 1 && (
-                        <button type="button" className="link-btn" onClick={() => handleRemoveLocation(loc.id)}>
-                          Supprimer
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {locationQrUrls[loc.id] ? (
-                  <div style={{ textAlign: "center" }}>
-                    <img
-                      src={locationQrUrls[loc.id]}
-                      alt={`QR code d'inscription — ${loc.name}`}
-                      style={{ width: 180, height: 180, borderRadius: 12, border: "1.5px solid #F1EFE8" }}
-                    />
-                    <p style={{ marginTop: 10 }}>
-                      <a
-                        href={locationQrUrls[loc.id]}
-                        download={`qr-fidions-${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`}
-                        className="link-btn icon-heading"
-                      >
-                        <Icon name="download" size={14} /> Télécharger l'image à imprimer
-                      </a>
-                    </p>
-                  </div>
-                ) : (
-                  <p className="subtitle">Génération du QR code…</p>
-                )}
-                <div className="link-box">{locationLink(loc, i)}</div>
-                <button className="secondary icon-heading" type="button" onClick={() => copyLocationLink(loc, i)}>
-                  <Icon name="copy" size={15} /> Copier le lien
-                </button>
-              </div>
-            ))}
 
             {(() => {
               const limit = getLocationLimit(subscriptionInfo?.posCount || "1");
               const reachedLimit = limit != null && locations.length >= limit;
               return (
-                <form onSubmit={handleAddLocation} className="location-add-form">
-                  <p className="subtitle" style={{ marginBottom: 8 }}>
-                    {reachedLimit
-                      ? `Ta formule actuelle autorise ${limit} point${limit > 1 ? "s" : ""} de vente — passe à une formule supérieure (onglet Abonnement) pour en ajouter.`
-                      : "Ajouter un autre point de vente"}
-                  </p>
-                  {!reachedLimit && (
-                    <>
-                      <input
-                        type="text"
-                        value={newLocationName}
-                        onChange={(e) => setNewLocationName(e.target.value)}
-                        placeholder="Nom (ex : Boulangerie — Centre-ville)"
-                        maxLength={60}
-                      />
-                      <input
-                        type="text"
-                        value={newLocationAddress}
-                        onChange={(e) => setNewLocationAddress(e.target.value)}
-                        placeholder="Adresse (optionnel)"
-                        maxLength={200}
-                      />
-                      <button className="primary" type="submit" disabled={addingLocation || !newLocationName.trim()}>
-                        {addingLocation ? "…" : "+ Ajouter ce point de vente"}
+                <>
+                  <div className="location-tabs">
+                    {locations.map((loc) => (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        className={`location-tab${activeLocationTab === loc.id ? " active" : ""}`}
+                        onClick={() => setActiveLocationTab(loc.id)}
+                      >
+                        {loc.name}
                       </button>
-                    </>
+                    ))}
+                    {!reachedLimit && (
+                      <button
+                        type="button"
+                        className={`location-tab location-tab-add${activeLocationTab === "__add__" ? " active" : ""}`}
+                        onClick={() => setActiveLocationTab("__add__")}
+                      >
+                        + Ajouter
+                      </button>
+                    )}
+                  </div>
+
+                  {reachedLimit && (
+                    <div className="location-limit-banner">
+                      <span>
+                        Ta formule actuelle autorise {limit} point{limit > 1 ? "s" : ""} de vente — passe à
+                        une formule supérieure pour en ajouter davantage.
+                      </span>
+                      <button type="button" className="primary small" onClick={() => switchTab("abonnement")}>
+                        Changer de formule
+                      </button>
+                    </div>
                   )}
-                </form>
+                </>
               );
             })()}
+
+            {activeLocationTab === "__add__" ? (
+              <form onSubmit={handleAddLocation} className="location-add-form">
+                <p className="subtitle" style={{ marginBottom: 8 }}>Ajouter un point de vente</p>
+                <input
+                  type="text"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="Nom (ex : Boulangerie — Centre-ville)"
+                  maxLength={60}
+                />
+                <input
+                  type="text"
+                  value={newLocationAddress}
+                  onChange={(e) => setNewLocationAddress(e.target.value)}
+                  placeholder="Adresse (optionnel)"
+                  maxLength={200}
+                />
+                <button className="primary" type="submit" disabled={addingLocation || !newLocationName.trim()}>
+                  {addingLocation ? "…" : "+ Ajouter ce point de vente"}
+                </button>
+              </form>
+            ) : (
+              locations
+                .map((loc, i) => ({ loc, i }))
+                .filter(({ loc }) => loc.id === activeLocationTab)
+                .map(({ loc, i }) => (
+                  <div key={loc.id} className="location-block">
+                    {editingLocationId === loc.id ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                        <input
+                          type="text"
+                          value={editLocationName}
+                          onChange={(e) => setEditLocationName(e.target.value)}
+                          placeholder="Nom du point de vente"
+                          maxLength={60}
+                          style={{ marginBottom: 0 }}
+                        />
+                        <input
+                          type="text"
+                          value={editLocationAddress}
+                          onChange={(e) => setEditLocationAddress(e.target.value)}
+                          placeholder="Adresse (optionnel)"
+                          maxLength={200}
+                          style={{ marginBottom: 0 }}
+                        />
+                        <div className="menu-actions">
+                          <button className="primary small" type="button" onClick={() => saveEditLocation(loc.id)}>
+                            Enregistrer
+                          </button>
+                          <button className="secondary small" type="button" onClick={() => setEditingLocationId(null)}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="location-header">
+                        <div>
+                          <strong>{loc.name}</strong>
+                          {loc.address && <div className="subtitle" style={{ fontSize: 12.5 }}>{loc.address}</div>}
+                        </div>
+                        <div className="location-header-actions">
+                          <button type="button" className="link-btn" onClick={() => startEditLocation(loc)}>
+                            Modifier
+                          </button>
+                          {locations.length > 1 && (
+                            <button type="button" className="link-btn" onClick={() => handleRemoveLocation(loc.id)}>
+                              Supprimer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {locationQrUrls[loc.id] ? (
+                      <div style={{ textAlign: "center" }}>
+                        <img
+                          src={locationQrUrls[loc.id]}
+                          alt={`QR code d'inscription — ${loc.name}`}
+                          style={{ width: 180, height: 180, borderRadius: 12, border: "1.5px solid #F1EFE8" }}
+                        />
+                        <p style={{ marginTop: 10 }}>
+                          <a
+                            href={locationQrUrls[loc.id]}
+                            download={`qr-fidions-${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`}
+                            className="link-btn icon-heading"
+                          >
+                            <Icon name="download" size={14} /> Télécharger l'image à imprimer
+                          </a>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="subtitle">Génération du QR code…</p>
+                    )}
+                    <div className="link-box">{locationLink(loc, i)}</div>
+                    <button className="secondary icon-heading" type="button" onClick={() => copyLocationLink(loc, i)}>
+                      <Icon name="copy" size={15} /> Copier le lien
+                    </button>
+                  </div>
+                ))
+            )}
 
             <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #F1EFE8" }} />
 
@@ -6093,6 +6140,47 @@ const styles = `
   }
   .location-add-form input {
     margin-bottom: 10px;
+  }
+  .location-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .location-tab {
+    width: auto;
+    background: #fff;
+    color: #595959;
+    border: 1.5px solid #e0e0e0;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 20px;
+  }
+  .location-tab.active {
+    background: ${PURPLE};
+    color: #fff;
+    border-color: ${PURPLE};
+  }
+  .location-tab-add {
+    border-style: dashed;
+  }
+  .location-limit-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1.5px dashed #CBEAE2;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #595959;
+  }
+  .location-limit-banner button {
+    width: auto;
+    flex: none;
   }
   .faq-item {
     border-bottom: 1px solid #eee;
