@@ -11,11 +11,18 @@ import { buildGoogleAuthUrl, getRedirectUri, isGoogleAuthConfigured } from "../.
 
 export default function handler(req, res) {
   if (!isGoogleAuthConfigured()) {
-    res
-      .status(500)
-      .send(
-        "Connexion Google pas encore configurée : il manque GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET côté serveur (voir le README)."
-      );
+    // Avant ce correctif : une page d'erreur brute (texte simple, hors de
+    // l'appli) puisque ce point d'entrée est une navigation complète
+    // (window.location.href côté commercant.js), pas un fetch — un
+    // commerçant qui cliquait "Google" sans que ces variables soient
+    // configurées atterrissait sur un cul-de-sac. On revient plutôt sur
+    // l'écran de connexion, avec le message affiché normalement (voir
+    // oauth_error, déjà géré par pages/commercant.js pour le retour
+    // d'erreur du callback OAuth réel — même mécanisme ici).
+    res.writeHead(302, {
+      Location: "/commercant?mode=login&oauth_error=" + encodeURIComponent("Connexion Google indisponible pour le moment."),
+    });
+    res.end();
     return;
   }
 
