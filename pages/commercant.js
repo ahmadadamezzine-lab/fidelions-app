@@ -5114,6 +5114,14 @@ export default function Commercant() {
                 accès, sans toucher à celui des autres.
               </p>
             </details>
+            <details className="faq-item">
+              <summary>Je peux me faire rembourser si ça ne me convient pas ?</summary>
+              <p>
+                Oui : garantie satisfait ou remboursé de 15 jours à partir de ton tout premier
+                paiement. Écris-nous (bouton ci-dessous), sans justification à donner — on te
+                rembourse intégralement sous 5 jours ouvrés et ça met fin à l'abonnement.
+              </p>
+            </details>
           </div>
         )}
 

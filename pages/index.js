@@ -45,6 +45,7 @@ import {
   ArrowRight,
   QrCode,
   Nfc,
+  ShieldCheck,
 } from "lucide-react";
 
 // Titre/description/image affichés dans les résultats Google et les
@@ -54,7 +55,13 @@ import {
 const SEO_TITLE = "Fidions — Programme de fidélité sur Google & Apple Wallet";
 const SEO_DESCRIPTION =
   "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
-const SEO_IMAGE = "/logo.png";
+const SEO_URL = "https://fidelions-app.vercel.app/";
+// Image large (1200x630) utilisée pour l'aperçu quand un lien vers le
+// site est partagé (WhatsApp, réseaux sociaux...) — jamais affichée sur
+// le site lui-même. URL absolue : les plateformes qui génèrent l'aperçu
+// (pas le navigateur de la personne) ne connaissent pas l'origine du
+// site pour résoudre un chemin relatif.
+const SEO_IMAGE = `${SEO_URL}og-image.png`;
 
 const PURPLE = "#16A69C";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
@@ -88,6 +95,7 @@ const LUCIDE_ICONS = {
   arrow: ArrowRight,
   qr: QrCode,
   nfc: Nfc,
+  shield: ShieldCheck,
 };
 
 // Logo Apple dessiné à la main (tracé officiel, pas une icône générique) —
@@ -140,18 +148,21 @@ function useInView(threshold = 0.4) {
   return [ref, inView];
 }
 
-// Comparatif "Sans/Avec" par paires : chaque point du problème (gauche,
-// sombre) est directement apparié à sa solution (droite, émeraude) au même
-// index. Survoler ou toucher une ligne met en valeur sa paire des DEUX
-// côtés à la fois — un vrai effet interactif qui montre la transformation
-// point par point, sans dépendre d'un glissé (fragile sur du texte, et pas
-// le bon outil pour comparer deux listes plutôt que deux images).
+// Comparatif par paires, positionné face à "une solution classique" plutôt
+// que face à "rien du tout" — chaque point générique du marché (gauche,
+// sombre) est directement apparié à l'avantage Fidions correspondant
+// (droite, émeraude) au même index. Volontairement générique ("une
+// solution classique", jamais le nom d'un concurrent précis) : des
+// reproches réels et vérifiables sur la catégorie (appli à installer,
+// facturation par client/SMS, onboarding commercial, engagement imposé),
+// pas des affirmations invérifiables sur une entreprise nommée. Survoler
+// ou toucher une ligne met en valeur sa paire des DEUX côtés à la fois.
 function PairedCompare({ pairs }) {
   const [active, setActive] = useState(null);
   return (
     <div className="pair-compare">
       <div className="pair-col pair-col-before">
-        <h3>Sans Fidions</h3>
+        <h3>Avec une solution classique</h3>
         <ul>
           {pairs.map((p, i) => (
             <li
@@ -241,10 +252,10 @@ const FEATURES = [
 ];
 
 const COMPARE_PAIRS = [
-  { before: "Des cartes en papier perdues ou oubliées", after: "Une carte toujours dans le téléphone du client" },
-  { before: "Aucune idée de qui sont tes clients réguliers", after: "Une base de clients fidélisés, consultable à tout moment" },
-  { before: "Pas de moyen de les recontacter", after: "Des campagnes et notifications en un clic" },
-  { before: "Les avis Google restent rares", after: "Un bonus qui encourage les avis Google" },
+  { before: "Une appli à télécharger que personne ne garde sur son téléphone", after: "Une carte directement dans Google Wallet, zéro application à installer" },
+  { before: "Facturé en plus par client inscrit ou par SMS envoyé", after: "Un tarif fixe par point de vente, jamais par client" },
+  { before: "Des semaines de mise en place avec un commercial", after: "Ton programme prêt en 2 minutes, tout seul" },
+  { before: "Engagement de 12 ou 24 mois imposé dès le départ", after: "Aucun engagement de durée sur la formule mensuelle" },
 ];
 
 const STEPS = [
@@ -338,8 +349,16 @@ export default function Home() {
         <meta property="og:title" content={SEO_TITLE} />
         <meta property="og:description" content={SEO_DESCRIPTION} />
         <meta property="og:image" content={SEO_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:url" content={SEO_URL} />
         <meta property="og:type" content="website" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:site_name" content="Fidions" />
+        <meta property="og:locale" content="fr_FR" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={SEO_TITLE} />
+        <meta name="twitter:description" content={SEO_DESCRIPTION} />
+        <meta name="twitter:image" content={SEO_IMAGE} />
       </Head>
       <nav className="nav">
         <div className="nav-inner">
@@ -440,8 +459,8 @@ export default function Home() {
 
       <section className="compare">
         <div className="section-inner">
-          <h2 className="section-title">Sans fidélisation, tu perds des clients sans le savoir</h2>
-          <p className="section-sub">Survole un point pour voir sa transformation.</p>
+          <h2 className="section-title">Toutes les solutions de fidélité ne se valent pas</h2>
+          <p className="section-sub">Survole un point pour voir ce qui change avec Fidions.</p>
           <PairedCompare pairs={COMPARE_PAIRS} />
         </div>
       </section>
@@ -671,16 +690,26 @@ export default function Home() {
           <h2 className="section-title">Un tarif simple, qui grandit avec toi</h2>
           <p className="section-sub">Système de fidélisation clé en main, sans engagement de durée sur la formule mensuelle.</p>
           <div className="billing-toggle">
-            {BILLING_CYCLES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`billing-option${billingCycle === c.id ? " active" : ""}`}
-                onClick={() => setBillingCycle(c.id)}
-              >
-                {c.label}
-              </button>
-            ))}
+            {BILLING_CYCLES.map((c) => {
+              const refTier = PRICING_TIERS[0];
+              const refMonthly = refTier.monthly;
+              const refCyclePrice = refTier[c.priceKey];
+              const savingsPct =
+                c.id !== "mensuel" && refMonthly && refCyclePrice
+                  ? Math.round((1 - refCyclePrice / refMonthly) * 100)
+                  : 0;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`billing-option${billingCycle === c.id ? " active" : ""}`}
+                  onClick={() => setBillingCycle(c.id)}
+                >
+                  {c.label}
+                  {savingsPct > 0 && <span className="billing-savings">-{savingsPct}%</span>}
+                </button>
+              );
+            })}
           </div>
           <div className="pricing-grid">
             {PRICING_TIERS.map((tier) => {
@@ -705,6 +734,20 @@ export default function Home() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="pricing-guarantee">
+            <div className="pricing-guarantee-icon" aria-hidden="true">
+              <Icon name="shield" size={22} />
+            </div>
+            <div className="pricing-guarantee-text">
+              <h3>Garantie 15 jours satisfait ou remboursé</h3>
+              <p>
+                Teste Fidions en conditions réelles avec tes vrais clients, sans risque : si ça ne
+                te convient pas dans les 15 premiers jours, on te rembourse intégralement, sans
+                justification à donner.
+              </p>
+            </div>
           </div>
 
           <div className="pricing-addon">
@@ -1503,8 +1546,40 @@ const styles = `
     color: #fff;
     margin-top: 2px;
   }
-  .pricing-addon {
+  .pricing-guarantee {
     margin-top: 32px;
+    background: #E8F5F3;
+    border: 1.5px solid #CBEAE2;
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .pricing-guarantee-icon {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #fff;
+    color: ${PURPLE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pricing-guarantee-text h3 {
+    font-size: 14.5px;
+    margin: 0 0 4px;
+    color: #111114;
+  }
+  .pricing-guarantee-text p {
+    font-size: 12.5px;
+    color: #3d4341;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .pricing-addon {
+    margin-top: 16px;
     background: #F1EFE8;
     border: 1.5px solid #CBEAE2;
     border-radius: 16px;
@@ -1759,6 +1834,20 @@ const styles = `
     color: ${PURPLE};
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
+  .billing-savings {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #E8F5F3;
+    color: ${PURPLE};
+    font-size: 10.5px;
+    font-weight: 800;
+  }
+  .billing-option.active .billing-savings {
+    background: ${PURPLE};
+    color: #fff;
+  }
   .pricing-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1971,7 +2060,8 @@ const styles = `
     .steps-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: repeat(2, 1fr); }
     .calc-box { grid-template-columns: 1fr; }
-    .pricing-addon { flex-direction: column; text-align: center; }
+    .pricing-addon,
+    .pricing-guarantee { flex-direction: column; text-align: center; }
     .footer-top { flex-direction: column; gap: 28px; }
     .footer-bottom-row { flex-direction: column; text-align: center; }
   }

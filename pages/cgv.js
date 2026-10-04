@@ -21,7 +21,7 @@ export default function CGV() {
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>
-        <p className="subtitle">Fidions — dernière mise à jour : 11 septembre 2026</p>
+        <p className="subtitle">Fidions — dernière mise à jour : 4 octobre 2026</p>
 
         <h2>Article 1 — Objet</h2>
         <p>
@@ -79,6 +79,14 @@ export default function CGV() {
           d'engagement choisie.
         </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
+        <p>
+          <strong>Garantie satisfait ou remboursé de 15 jours :</strong> si le Client n'est pas
+          satisfait du Service dans les 15 jours suivant son tout premier paiement, il peut en
+          demander le remboursement intégral, sans justification, par simple email à l'adresse de
+          contact du Prestataire. Le remboursement est effectué sous 5 jours ouvrés et met fin à
+          l'abonnement. Cette garantie s'applique une seule fois par Client, lors de la toute
+          première souscription.
+        </p>
 
         <h2>Article 5 — Durée</h2>
         <p>Le contrat est conclu pour une durée d'un (1) mois, renouvelable par tacite reconduction pour des périodes successives d'un (1) mois, sauf résiliation dans les conditions de l'article 6.</p>
