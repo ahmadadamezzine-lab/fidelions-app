@@ -46,6 +46,7 @@ import {
   QrCode,
   Nfc,
   ShieldCheck,
+  Timer,
 } from "lucide-react";
 
 // Titre/description/image affichés dans les résultats Google et les
@@ -96,6 +97,7 @@ const LUCIDE_ICONS = {
   qr: QrCode,
   nfc: Nfc,
   shield: ShieldCheck,
+  timer: Timer,
 };
 
 // Logo Apple dessiné à la main (tracé officiel, pas une icône générique) —
@@ -738,14 +740,14 @@ export default function Home() {
 
           <div className="pricing-guarantee">
             <div className="pricing-guarantee-icon" aria-hidden="true">
-              <Icon name="shield" size={22} />
+              <Icon name="timer" size={22} />
             </div>
             <div className="pricing-guarantee-text">
-              <h3>Garantie 15 jours satisfait ou remboursé</h3>
+              <h3>7 jours d'essai gratuit, sans carte bancaire</h3>
               <p>
-                Teste Fidions en conditions réelles avec tes vrais clients, sans risque : si ça ne
-                te convient pas dans les 15 premiers jours, on te rembourse intégralement, sans
-                justification à donner.
+                Crée ton espace et utilise Fidions normalement avec tes vrais clients pendant 7
+                jours, aucun paiement à faire. À l'issue de l'essai, choisis simplement la formule
+                qui correspond à ton activité pour continuer — sans engagement de durée.
               </p>
             </div>
           </div>

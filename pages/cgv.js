@@ -80,12 +80,12 @@ export default function CGV() {
         </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
         <p>
-          <strong>Garantie satisfait ou remboursé de 15 jours :</strong> si le Client n'est pas
-          satisfait du Service dans les 15 jours suivant son tout premier paiement, il peut en
-          demander le remboursement intégral, sans justification, par simple email à l'adresse de
-          contact du Prestataire. Le remboursement est effectué sous 5 jours ouvrés et met fin à
-          l'abonnement. Cette garantie s'applique une seule fois par Client, lors de la toute
-          première souscription.
+          <strong>Essai gratuit de 7 jours :</strong> la création d'un compte ouvre un essai
+          gratuit de 7 jours, avec l'ensemble des fonctionnalités du Service débloquées, sans
+          aucune carte bancaire à renseigner. Aucun paiement n'est prélevé pendant cette période.
+          À l'issue des 7 jours, l'accès au Service est suspendu (les données du Client restent
+          conservées) tant qu'il n'a pas activé un abonnement payant en choisissant une formule
+          dans l'onglet Abonnement.
         </p>
 
         <h2>Article 5 — Durée</h2>

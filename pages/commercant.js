@@ -5115,11 +5115,13 @@ export default function Commercant() {
               </p>
             </details>
             <details className="faq-item">
-              <summary>Je peux me faire rembourser si ça ne me convient pas ?</summary>
+              <summary>Dois-je payer pour essayer Fidions ?</summary>
               <p>
-                Oui : garantie satisfait ou remboursé de 15 jours à partir de ton tout premier
-                paiement. Écris-nous (bouton ci-dessous), sans justification à donner — on te
-                rembourse intégralement sous 5 jours ouvrés et ça met fin à l'abonnement.
+                Non : la création de ton compte ouvre un essai gratuit de 7 jours avec toutes les
+                fonctionnalités débloquées, sans carte bancaire à renseigner. Utilise Fidions
+                normalement avec tes vrais clients pendant cette période. À l'issue des 7 jours,
+                il te suffit de choisir la formule adaptée à ton activité pour continuer, sans
+                engagement de durée.
               </p>
             </details>
           </div>
