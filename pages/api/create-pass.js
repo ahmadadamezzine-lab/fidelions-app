@@ -27,6 +27,8 @@ import {
   getSubscriptionAccess,
   checkRateLimit,
   getBranding,
+  ensureDefaultLocation,
+  getLocation,
 } from "../../lib/db";
 import { setLoyaltyPoints, sendWalletMessage } from "../../lib/walletObjects";
 import { getRoleAsync, getClientIp } from "../../lib/auth";
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { slug, prenom, email, telephone, ref } = req.body || {};
+    const { slug, prenom, email, telephone, ref, pos } = req.body || {};
 
     // La page publique /r/[slug] n'envoie aucun en-tête d'authentification
     // — getRoleAsync renvoie alors null et on retombe sur le slug, comme
@@ -78,6 +80,18 @@ export default async function handler(req, res) {
       });
     }
 
+    // Point de vente où la carte est créée : `pos` identifie un point de
+    // vente précis (lien /r/[slug]?pos=... d'un point de vente autre que
+    // le premier, ou choix explicite sur l'écran de scan employé/patron
+    // s'il y en a plusieurs) — sinon on retombe sur le point de vente par
+    // défaut du compte (le tout premier, toujours celui du lien
+    // /r/[slug] SANS paramètre, pour ne rien changer aux QR déjà
+    // imprimés). ensureDefaultLocation crée ce point de vente par défaut
+    // à la volée pour les comptes antérieurs à cette fonctionnalité.
+    const requestedLocation = pos ? await getLocation(merchant.id, pos) : null;
+    const resolvedLocationId =
+      requestedLocation?.id || (await ensureDefaultLocation(merchant.id, merchant.restaurantName))[0].id;
+
     const objectSuffix = `client_${uuidv4().replace(/-/g, "")}`;
     const accountName = (prenom || "").trim() || "Client Fidions";
     const { googleReviewUrl } = await getEstablishmentInfo(merchant.id);
@@ -96,6 +110,7 @@ export default async function handler(req, res) {
       email,
       telephone,
       referredByCode: ref,
+      locationId: resolvedLocationId,
     });
 
     // Si un point bonus de parrainage a été accordé au nouveau client,

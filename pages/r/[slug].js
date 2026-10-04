@@ -70,6 +70,12 @@ export default function RestaurantSignup({ initialMerchant }) {
   const [result, setResult] = useState(null); // { url, referralUrl, points }
   const [copied, setCopied] = useState(false);
   const [refCode, setRefCode] = useState("");
+  // Point de vente ciblé par ce lien précis (voir lib/db.js, section
+  // "Points de vente") — absent pour le lien du tout premier point de
+  // vente d'un compte (celui déjà imprimé avant cette fonctionnalité),
+  // présent uniquement sur les liens générés pour un point de vente
+  // supplémentaire (onglet "Points de vente" de /commercant).
+  const [posId, setPosId] = useState("");
   const [pushStatus, setPushStatus] = useState("idle"); // idle | loading | subscribed | denied | unsupported | error
 
   const memberSince = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date());
@@ -78,7 +84,10 @@ export default function RestaurantSignup({ initialMerchant }) {
     if (router.isReady && router.query.ref) {
       setRefCode(String(router.query.ref));
     }
-  }, [router.isReady, router.query.ref]);
+    if (router.isReady && router.query.pos) {
+      setPosId(String(router.query.pos));
+    }
+  }, [router.isReady, router.query.ref, router.query.pos]);
 
   const purple = merchant?.hexColor || DEFAULT_PURPLE;
   const logoSrc = merchant?.logoUrl || "/logo.png";
@@ -91,7 +100,7 @@ export default function RestaurantSignup({ initialMerchant }) {
       const res = await fetch("/api/create-pass", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, prenom, email, telephone, ref: refCode }),
+        body: JSON.stringify({ slug, prenom, email, telephone, ref: refCode, pos: posId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Une erreur est survenue");

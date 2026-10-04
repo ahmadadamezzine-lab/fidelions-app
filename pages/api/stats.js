@@ -33,12 +33,18 @@ export default async function handler(req, res) {
   // Période choisie pour la courbe "évolution des clients fidélisés" (voir
   // onglet Statistiques) — repli sur "mois" si absent ou invalide.
   const range = EVOLUTION_RANGES.includes(req.query.range) ? req.query.range : "mois";
+  // Filtre optionnel par point de vente (voir l'onglet "Points de vente"
+  // et lib/db.js) — "toutes les adresses" par défaut (pas de filtre), un
+  // compte à un seul point de vente n'est jamais concerné.
+  const locationFilter = typeof req.query.location === "string" && req.query.location ? req.query.location : null;
 
   try {
-    const [events, clients] = await Promise.all([
+    const [eventsAll, clientsAll] = await Promise.all([
       getRecentEvents(auth.merchantId),
       listClients(auth.merchantId),
     ]);
+    const events = locationFilter ? eventsAll.filter((e) => e.locationId === locationFilter) : eventsAll;
+    const clients = locationFilter ? clientsAll.filter((c) => c.locationId === locationFilter) : clientsAll;
 
     return res.status(200).json({
       tiles: statTiles(events, clients),

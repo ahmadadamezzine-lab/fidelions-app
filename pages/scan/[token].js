@@ -80,7 +80,7 @@ async function flushQueue(token, authHeadersFn) {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeadersFn({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId: item.objectId, amount: item.amount, reviewGiven: item.reviewGiven }),
+        body: JSON.stringify({ objectId: item.objectId, amount: item.amount, reviewGiven: item.reviewGiven, locationId: item.locationId }),
       });
       if (res.ok) {
         synced += 1;
@@ -124,6 +124,13 @@ export default function ScanPage() {
   const [section, setSection] = useState("scanner");
   const [message, setMessage] = useState(null);
 
+  // --- Point de vente actif (si le compte en a plusieurs — voir l'onglet
+  // "Points de vente" de /commercant) — mémorisé sur cet appareil, par
+  // lien employé (deux commerces différents sur le même appareil ne se
+  // mélangent jamais, même principe que QUEUE_KEY_PREFIX ci-dessus).
+  const [locations, setLocations] = useState([]);
+  const [currentLocationId, setCurrentLocationId] = useState("");
+
   // --- Mode sans connexion : service worker (cache la page pour qu'elle se
   // recharge même hors-ligne) + suivi de l'état réseau + file d'actions en
   // attente (voir flushQueue plus haut).
@@ -156,6 +163,33 @@ export default function ScanPage() {
   useEffect(() => {
     if (tokenRef.current) setQueueCount(getQueue(tokenRef.current).length);
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth || !tokenRef.current) return;
+    fetch("/api/locations", { headers: authHeaders() })
+      .then((res) => res.json())
+      .then((data) => {
+        const list = data.locations || [];
+        setLocations(list);
+        if (list.length === 0) return;
+        const key = "fidions_scan_location_" + tokenRef.current;
+        const saved = typeof window !== "undefined" ? localStorage.getItem(key) : null;
+        const valid = saved && list.some((l) => l.id === saved) ? saved : list[0].id;
+        setCurrentLocationId(valid);
+      })
+      .catch(() => {
+        // silencieux — sans point de vente connu, les scans restent
+        // simplement non répartis par adresse (comportement d'avant)
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
+
+  function changeCurrentLocation(id) {
+    setCurrentLocationId(id);
+    if (typeof window !== "undefined" && tokenRef.current) {
+      localStorage.setItem("fidions_scan_location_" + tokenRef.current, id);
+    }
+  }
 
   async function trySync() {
     if (!tokenRef.current || !pinRef.current || syncing) return;
@@ -293,6 +327,18 @@ export default function ScanPage() {
 
         {message && <div className={`banner ${message.type}`}>{message.text}</div>}
 
+        {locations.length > 1 && (
+          <select
+            value={currentLocationId}
+            onChange={(e) => changeCurrentLocation(e.target.value)}
+            style={{ marginBottom: 12 }}
+          >
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>{loc.name}</option>
+            ))}
+          </select>
+        )}
+
         {sections.length > 1 && (
           <div className="tabs">
             {sections.map((s) => (
@@ -315,10 +361,16 @@ export default function ScanPage() {
             token={token}
             loyaltyMode={auth.loyaltyMode}
             onQueueChange={onQueueChange}
+            locationId={currentLocationId}
           />
         )}
         {section === "clients" && auth.permissions?.clients && (
-          <ClientsSection authHeaders={authHeaders} setMessage={setMessage} loyaltyMode={auth.loyaltyMode} />
+          <ClientsSection
+            authHeaders={authHeaders}
+            setMessage={setMessage}
+            loyaltyMode={auth.loyaltyMode}
+            locationId={currentLocationId}
+          />
         )}
         {section === "stats" && auth.permissions?.stats && (
           <StatsSection authHeaders={authHeaders} />
@@ -335,7 +387,7 @@ export default function ScanPage() {
 }
 
 // --- Scanner (toujours disponible, y compris hors connexion) ---
-function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueChange }) {
+function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueChange, locationId }) {
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraStatus, setCameraStatus] = useState("");
   const [found, setFound] = useState(null);
@@ -513,7 +565,7 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId: found.objectId, amount, reviewGiven }),
+        body: JSON.stringify({ objectId: found.objectId, amount, reviewGiven, locationId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -530,7 +582,7 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
       // Hors connexion (ou réseau instable) : on met l'action de côté au
       // lieu de la perdre — elle sera rejouée automatiquement au retour du
       // réseau (voir flushQueue), sans bloquer le reste du service.
-      enqueueStamp(token, { objectId: found.objectId, amount, reviewGiven });
+      enqueueStamp(token, { objectId: found.objectId, amount, reviewGiven, locationId });
       if (onQueueChange) onQueueChange();
       setMessage({
         type: "success",
@@ -553,7 +605,7 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
       const res = await fetch("/api/create-pass", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ prenom: newPrenom, email: newEmail }),
+        body: JSON.stringify({ prenom: newPrenom, email: newEmail, pos: locationId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur lors de la création.");
@@ -693,7 +745,7 @@ function ScannerSection({ authHeaders, setMessage, token, loyaltyMode, onQueueCh
 }
 
 // --- Clients (si le patron a coché la permission) ---
-function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
+function ClientsSection({ authHeaders, setMessage, loyaltyMode, locationId }) {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -739,7 +791,7 @@ function ClientsSection({ authHeaders, setMessage, loyaltyMode }) {
       const res = await fetch("/api/add-stamp", {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ objectId, amount, reviewGiven }),
+        body: JSON.stringify({ objectId, amount, reviewGiven, locationId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
@@ -949,7 +1001,8 @@ const styles = `
   .found-card {
     text-align: center;
   }
-  input {
+  input,
+  select {
     width: 100%;
     padding: 12px 14px;
     border-radius: 10px;
@@ -957,8 +1010,12 @@ const styles = `
     font-size: 15px;
     margin-bottom: 12px;
     box-sizing: border-box;
+    font-family: inherit;
+    background: #fff;
+    color: #111114;
   }
-  input:focus {
+  input:focus,
+  select:focus {
     outline: none;
     border-color: ${PURPLE};
   }
