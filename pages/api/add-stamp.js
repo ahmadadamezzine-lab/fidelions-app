@@ -74,7 +74,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { objectId, amount, reviewGiven } = req.body || {};
+    const { objectId, amount, reviewGiven, locationId } = req.body || {};
     if (!objectId) {
       return res.status(400).json({ error: "Identifiant client manquant." });
     }
@@ -175,7 +175,7 @@ export default async function handler(req, res) {
     }
 
     await setLoyaltyPoints(objectId, updated.points, "Points");
-    await logStampEvent(merchantId, { objectId, delta, rewardReached });
+    await logStampEvent(merchantId, { objectId, delta, rewardReached, locationId });
 
     // Le point lui-même (solde + base de données) est déjà enregistré à ce
     // stade. La notification est un bonus : si Google refuse (ex : quota de

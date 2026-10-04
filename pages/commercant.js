@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import QRCode from "qrcode";
 import LegalFooter from "../components/LegalFooter";
-import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS } from "../lib/pricing";
+import { PRICING_TIERS, BILLING_CYCLES, getTierPrice, CARD_COLOR_PRESETS, getLocationLimit } from "../lib/pricing";
 import {
   Home,
   Share2,
@@ -855,6 +855,9 @@ export default function Commercant() {
   const [statsData, setStatsData] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [evolutionRange, setEvolutionRange] = useState("mois");
+  // "" = toutes les adresses confondues — filtre visible uniquement si le
+  // compte a plusieurs points de vente (voir l'onglet "Points de vente").
+  const [statsLocationId, setStatsLocationId] = useState("");
   const [loadingEvolution, setLoadingEvolution] = useState(false);
 
   // --- Personnalisation de la carte : couleur + logo + bannière ---
@@ -912,26 +915,151 @@ export default function Commercant() {
   const [pwNewPassword, setPwNewPassword] = useState("");
   const [pwSubmitting, setPwSubmitting] = useState(false);
 
-  // --- Partager : QR + lien d'inscription publics (onglet "Partager") ---
-  // Chaque restaurant a son propre lien /r/[slug] (multi-comptes) — on
-  // attend d'avoir récupéré le slug (voir tryAuth) avant de générer le QR.
-  const [signupQrUrl, setSignupQrUrl] = useState("");
+  // --- Points de vente + QR/liens d'inscription publics (onglet
+  // "Partager") — un compte peut gérer plusieurs adresses physiques (voir
+  // lib/db.js, section "Points de vente"). Le PREMIER point de vente
+  // garde toujours le lien `/r/[slug]` SANS paramètre (celui déjà
+  // imprimé par les commerçants existants avant cette fonctionnalité) ;
+  // les suivants ont un lien `?pos=<id>` dédié.
+  const [locations, setLocations] = useState([]);
+  const [locationQrUrls, setLocationQrUrls] = useState({});
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationAddress, setNewLocationAddress] = useState("");
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [locationActionError, setLocationActionError] = useState("");
+  const [editingLocationId, setEditingLocationId] = useState(null);
+  const [editLocationName, setEditLocationName] = useState("");
+  const [editLocationAddress, setEditLocationAddress] = useState("");
+
+  function locationLink(loc, index) {
+    if (typeof window === "undefined" || !merchantSlug) return "";
+    return index === 0
+      ? `${window.location.origin}/r/${merchantSlug}`
+      : `${window.location.origin}/r/${merchantSlug}?pos=${loc.id}`;
+  }
+
   useEffect(() => {
-    if (typeof window === "undefined" || !merchantSlug) return;
-    QRCode.toDataURL(`${window.location.origin}/r/${merchantSlug}`, {
-      width: 500,
-      margin: 2,
-      color: { dark: "#111114" },
-    })
-      .then(setSignupQrUrl)
-      .catch(() => setSignupQrUrl(""));
-  }, [merchantSlug]);
-  function copySignupLink() {
-    if (typeof window === "undefined" || !merchantSlug) return;
+    if (typeof window === "undefined" || !merchantSlug || locations.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        locations.map(async (loc, i) => {
+          try {
+            const dataUrl = await QRCode.toDataURL(locationLink(loc, i), {
+              width: 500,
+              margin: 2,
+              color: { dark: "#111114" },
+            });
+            return [loc.id, dataUrl];
+          } catch {
+            return [loc.id, ""];
+          }
+        })
+      );
+      if (!cancelled) setLocationQrUrls(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations, merchantSlug]);
+
+  async function loadLocations() {
+    try {
+      const res = await fetch("/api/locations", { headers: { "x-merchant-password": password } });
+      const data = await res.json();
+      if (res.ok) setLocations(data.locations || []);
+    } catch {
+      // silencieux
+    }
+  }
+
+  function copyLocationLink(loc, index) {
+    const link = locationLink(loc, index);
+    if (!link) return;
     navigator.clipboard
-      .writeText(`${window.location.origin}/r/${merchantSlug}`)
+      .writeText(link)
       .then(() => setMessage({ type: "success", text: "Lien copié !" }))
       .catch(() => setMessage({ type: "error", text: "Impossible de copier — copie-le à la main." }));
+  }
+
+  async function handleAddLocation(e) {
+    e.preventDefault();
+    setLocationActionError("");
+    setAddingLocation(true);
+    try {
+      const res = await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ name: newLocationName, address: newLocationAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setNewLocationName("");
+      setNewLocationAddress("");
+      await loadLocations();
+    } catch (err) {
+      setLocationActionError(err.message);
+    } finally {
+      setAddingLocation(false);
+    }
+  }
+
+  function startEditLocation(loc) {
+    setEditingLocationId(loc.id);
+    setEditLocationName(loc.name);
+    setEditLocationAddress(loc.address || "");
+  }
+
+  async function saveEditLocation(id) {
+    setLocationActionError("");
+    try {
+      const res = await fetch("/api/locations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ id, name: editLocationName, address: editLocationAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setEditingLocationId(null);
+      await loadLocations();
+    } catch (err) {
+      setLocationActionError(err.message);
+    }
+  }
+
+  async function handleRemoveLocation(id) {
+    if (typeof window !== "undefined" && !window.confirm("Supprimer ce point de vente ? Son lien cessera de fonctionner.")) {
+      return;
+    }
+    setLocationActionError("");
+    try {
+      const res = await fetch("/api/locations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "x-merchant-password": password },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      await loadLocations();
+    } catch (err) {
+      setLocationActionError(err.message);
+    }
+  }
+
+  // --- Point de vente actif pour le scan (si le compte en a plusieurs) —
+  // mémorisé sur cet appareil (localStorage) : la personne en caisse ne
+  // le re-choisit pas à chaque scan, juste quand elle change de poste.
+  const [currentLocationId, setCurrentLocationId] = useState("");
+  useEffect(() => {
+    if (typeof window === "undefined" || locations.length === 0) return;
+    const saved = localStorage.getItem("fidions_current_location");
+    const valid = saved && locations.some((l) => l.id === saved) ? saved : locations[0].id;
+    setCurrentLocationId(valid);
+  }, [locations]);
+  function changeCurrentLocation(id) {
+    setCurrentLocationId(id);
+    if (typeof window !== "undefined") localStorage.setItem("fidions_current_location", id);
   }
 
   // --- Relier une carte NFC/QR physique déjà reçue (onglet "Partager") ---
@@ -1163,6 +1291,13 @@ export default function Commercant() {
             setEmployeeLeaderboard(data6.leaderboard || []);
             setEmployeeLeaderboardMonth(data6.leaderboardMonth || "");
           }
+        } catch {
+          // silencieux
+        }
+        try {
+          const res7 = await fetch("/api/locations", { headers: { "x-merchant-password": pw } });
+          const data7 = await res7.json();
+          if (res7.ok) setLocations(data7.locations || []);
         } catch {
           // silencieux
         }
@@ -1466,7 +1601,7 @@ export default function Commercant() {
           "Content-Type": "application/json",
           "x-merchant-password": password,
         },
-        body: JSON.stringify({ objectId, amount: amountResult.amount, reviewGiven }),
+        body: JSON.stringify({ objectId, amount: amountResult.amount, reviewGiven, locationId: currentLocationId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur");
@@ -1913,7 +2048,8 @@ export default function Commercant() {
   async function loadStats() {
     setLoadingStats(true);
     try {
-      const res = await fetch(`/api/stats?range=${evolutionRange}`, {
+      const locQuery = statsLocationId ? `&location=${statsLocationId}` : "";
+      const res = await fetch(`/api/stats?range=${evolutionRange}${locQuery}`, {
         headers: { "x-merchant-password": password },
       });
       const data = await res.json();
@@ -1925,13 +2061,34 @@ export default function Commercant() {
     }
   }
 
+  // Change le point de vente filtré — recharge tout (tuiles + graphes),
+  // contrairement à changeEvolutionRange ci-dessous qui ne touche qu'à
+  // une seule courbe.
+  async function changeStatsLocation(locationId) {
+    setStatsLocationId(locationId);
+    setLoadingStats(true);
+    try {
+      const locQuery = locationId ? `&location=${locationId}` : "";
+      const res = await fetch(`/api/stats?range=${evolutionRange}${locQuery}`, {
+        headers: { "x-merchant-password": password },
+      });
+      const data = await res.json();
+      if (res.ok) setStatsData(data);
+    } catch {
+      // silencieux
+    } finally {
+      setLoadingStats(false);
+    }
+  }
+
   // Change uniquement la période de la courbe "évolution des clients
   // fidélisés" — pas besoin de recharger les tuiles/autres graphes.
   async function changeEvolutionRange(range) {
     setEvolutionRange(range);
     setLoadingEvolution(true);
     try {
-      const res = await fetch(`/api/stats?range=${range}`, {
+      const locQuery = statsLocationId ? `&location=${statsLocationId}` : "";
+      const res = await fetch(`/api/stats?range=${range}${locQuery}`, {
         headers: { "x-merchant-password": password },
       });
       const data = await res.json();
@@ -1953,7 +2110,7 @@ export default function Commercant() {
     if (tab === "etablissement" && !establishment && !loadingEstablishment) {
       loadEstablishment();
     }
-    if (tab === "abonnement" && !subscriptionInfo && !loadingSubscription) {
+    if ((tab === "abonnement" || tab === "partager") && !subscriptionInfo && !loadingSubscription) {
       loadSubscription();
     }
     if (tab === "campagnes" && !notifSettings && !loadingNotifSettings) {
@@ -3504,36 +3661,123 @@ export default function Commercant() {
         {role === "owner" && activeTab === "partager" && (
           <div className="card">
             <h2>Partager Fidions</h2>
-            <p className="subtitle" style={{ marginBottom: 12 }}>
-              Affiche-le en caisse : tes clients scannent pour créer leur carte, sans rien installer.
+            <p className="subtitle" style={{ marginBottom: 16 }}>
+              {locations.length > 1
+                ? "Un lien et un QR code par point de vente : tes clients scannent celui de l'adresse où ils se trouvent."
+                : "Affiche-le en caisse : tes clients scannent pour créer leur carte, sans rien installer."}
             </p>
-            {signupQrUrl ? (
-              <div style={{ textAlign: "center" }}>
-                <img
-                  src={signupQrUrl}
-                  alt="QR code d'inscription Fidions"
-                  style={{ width: 220, height: 220, borderRadius: 12, border: "1.5px solid #F1EFE8" }}
-                />
-                <p style={{ marginTop: 12 }}>
-                  <a href={signupQrUrl} download="qr-fidions.png" className="link-btn icon-heading">
-                    <Icon name="download" size={14} /> Télécharger l'image à imprimer
-                  </a>
-                </p>
+
+            {locationActionError && <p className="error">{locationActionError}</p>}
+
+            {locations.map((loc, i) => (
+              <div key={loc.id} className="location-block">
+                {editingLocationId === loc.id ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                    <input
+                      type="text"
+                      value={editLocationName}
+                      onChange={(e) => setEditLocationName(e.target.value)}
+                      placeholder="Nom du point de vente"
+                      maxLength={60}
+                      style={{ marginBottom: 0 }}
+                    />
+                    <input
+                      type="text"
+                      value={editLocationAddress}
+                      onChange={(e) => setEditLocationAddress(e.target.value)}
+                      placeholder="Adresse (optionnel)"
+                      maxLength={200}
+                      style={{ marginBottom: 0 }}
+                    />
+                    <div className="menu-actions">
+                      <button className="primary small" type="button" onClick={() => saveEditLocation(loc.id)}>
+                        Enregistrer
+                      </button>
+                      <button className="secondary small" type="button" onClick={() => setEditingLocationId(null)}>
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="location-header">
+                    <div>
+                      <strong>{loc.name}</strong>
+                      {loc.address && <div className="subtitle" style={{ fontSize: 12.5 }}>{loc.address}</div>}
+                    </div>
+                    <div className="location-header-actions">
+                      <button type="button" className="link-btn" onClick={() => startEditLocation(loc)}>
+                        Modifier
+                      </button>
+                      {locations.length > 1 && (
+                        <button type="button" className="link-btn" onClick={() => handleRemoveLocation(loc.id)}>
+                          Supprimer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {locationQrUrls[loc.id] ? (
+                  <div style={{ textAlign: "center" }}>
+                    <img
+                      src={locationQrUrls[loc.id]}
+                      alt={`QR code d'inscription — ${loc.name}`}
+                      style={{ width: 180, height: 180, borderRadius: 12, border: "1.5px solid #F1EFE8" }}
+                    />
+                    <p style={{ marginTop: 10 }}>
+                      <a
+                        href={locationQrUrls[loc.id]}
+                        download={`qr-fidions-${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`}
+                        className="link-btn icon-heading"
+                      >
+                        <Icon name="download" size={14} /> Télécharger l'image à imprimer
+                      </a>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="subtitle">Génération du QR code…</p>
+                )}
+                <div className="link-box">{locationLink(loc, i)}</div>
+                <button className="secondary icon-heading" type="button" onClick={() => copyLocationLink(loc, i)}>
+                  <Icon name="copy" size={15} /> Copier le lien
+                </button>
               </div>
-            ) : (
-              <p className="subtitle">Génération du QR code…</p>
-            )}
-            <p className="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
-              Ou partage directement le lien :
-            </p>
-            <div className="link-box">
-              {typeof window !== "undefined" && merchantSlug
-                ? `${window.location.origin}/r/${merchantSlug}`
-                : ""}
-            </div>
-            <button className="secondary icon-heading" type="button" onClick={copySignupLink}>
-              <Icon name="copy" size={15} /> Copier le lien
-            </button>
+            ))}
+
+            {(() => {
+              const limit = getLocationLimit(subscriptionInfo?.posCount || "1");
+              const reachedLimit = limit != null && locations.length >= limit;
+              return (
+                <form onSubmit={handleAddLocation} className="location-add-form">
+                  <p className="subtitle" style={{ marginBottom: 8 }}>
+                    {reachedLimit
+                      ? `Ta formule actuelle autorise ${limit} point${limit > 1 ? "s" : ""} de vente — passe à une formule supérieure (onglet Abonnement) pour en ajouter.`
+                      : "Ajouter un autre point de vente"}
+                  </p>
+                  {!reachedLimit && (
+                    <>
+                      <input
+                        type="text"
+                        value={newLocationName}
+                        onChange={(e) => setNewLocationName(e.target.value)}
+                        placeholder="Nom (ex : Boulangerie — Centre-ville)"
+                        maxLength={60}
+                      />
+                      <input
+                        type="text"
+                        value={newLocationAddress}
+                        onChange={(e) => setNewLocationAddress(e.target.value)}
+                        placeholder="Adresse (optionnel)"
+                        maxLength={200}
+                      />
+                      <button className="primary" type="submit" disabled={addingLocation || !newLocationName.trim()}>
+                        {addingLocation ? "…" : "+ Ajouter ce point de vente"}
+                      </button>
+                    </>
+                  )}
+                </form>
+              );
+            })()}
 
             <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #F1EFE8" }} />
 
@@ -3681,6 +3925,20 @@ export default function Commercant() {
         {role === "owner" && activeTab === "stats" && (
           <div className="card">
             <h2>Statistiques</h2>
+            {locations.length > 1 && (
+              <div style={{ marginBottom: 14 }}>
+                <select
+                  value={statsLocationId}
+                  onChange={(e) => changeStatsLocation(e.target.value)}
+                  style={{ marginBottom: 0, width: "auto" }}
+                >
+                  <option value="">Toutes les adresses</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {loadingStats && <p className="subtitle">Chargement…</p>}
             {!loadingStats && statsData && (
               <>
@@ -4474,6 +4732,24 @@ export default function Commercant() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {(role !== "owner" || activeTab === "clients") && locations.length > 1 && (
+          <div className="card">
+            <h2>Point de vente</h2>
+            <p className="subtitle" style={{ marginBottom: 12 }}>
+              Les points ajoutés seront comptés sur ce point de vente.
+            </p>
+            <select
+              value={currentLocationId}
+              onChange={(e) => changeCurrentLocation(e.target.value)}
+              style={{ marginBottom: 0 }}
+            >
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -5792,6 +6068,32 @@ const styles = `
     color: #333;
     word-break: break-all;
   }
+  .location-block {
+    border: 1.5px solid #F1EFE8;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .location-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .location-header-actions {
+    display: flex;
+    gap: 12px;
+    flex: none;
+  }
+  .location-add-form {
+    border: 1.5px dashed #CBEAE2;
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .location-add-form input {
+    margin-bottom: 10px;
+  }
   .faq-item {
     border-bottom: 1px solid #eee;
     padding: 10px 0;
@@ -6272,7 +6574,8 @@ const styles = `
     font-size: 14px;
     margin-bottom: 20px;
   }
-  input {
+  input,
+  select {
     width: 100%;
     padding: 12px 14px;
     border-radius: 10px;
@@ -6281,8 +6584,12 @@ const styles = `
     margin-bottom: 12px;
     box-sizing: border-box;
     transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+    background: #fff;
+    color: #111114;
   }
-  input:focus {
+  input:focus,
+  select:focus {
     outline: none;
     border-color: ${PURPLE};
     box-shadow: 0 0 0 4px rgba(22, 166, 156, 0.1);
