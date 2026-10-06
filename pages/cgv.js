@@ -45,6 +45,18 @@ export default function CGV() {
           <li>activer des notifications de proximité géolocalisées.</li>
         </ul>
         <p>La liste des fonctionnalités disponibles peut évoluer ; le Prestataire s'efforce d'informer le Client de toute modification substantielle.</p>
+        <p>
+          Les chiffres mentionnés sur le site public de Fidions sur les bénéfices de la
+          fidélisation client ne sont pas des statistiques propres à Fidions, mais des données
+          issues d'études tierces, citées à titre informatif et dont les sources sont les
+          suivantes :
+        </p>
+        <ul>
+          <li>il coûte de 5 à 25 fois plus cher d'acquérir un nouveau client que de fidéliser un client existant — source : Harvard Business Review ;</li>
+          <li>une augmentation de seulement 5% du taux de fidélisation peut générer de 25 à 95% de bénéfices supplémentaires — source : Bain & Company ;</li>
+          <li>près de 70% des clients reviennent plus souvent et dépensent plus que prévu grâce à un programme de fidélité — source : SumUp, étude France 2024 ;</li>
+          <li>principe de Pareto (80/20) : les 20% de clients les plus fidèles d'un commerce pèsent souvent 80% de son chiffre d'affaires.</li>
+        </ul>
 
         <h2>Article 3 — Accès au service et compte</h2>
         <p>

@@ -16,12 +16,11 @@
 // étant un service tout jeune, aucune fausse preuve sociale ("+10 000
 // clients") n'est affichée.
 //
-// La section "stats-proof" (juste avant les tarifs) est différente : ce
-// sont des chiffres sur la fidélisation client EN GÉNÉRAL, pas sur
-// Fidions, chacun sourcé (Harvard Business Review, Bain & Company,
-// étude SumUp France 2024) et vérifié avant publication — jamais les
-// chiffres exacts d'un concurrent, toujours reformulés avec leur propre
-// source citée.
+// Les statistiques générales sur la fidélisation client (Harvard Business
+// Review, Bain & Company, étude SumUp France 2024, principe de Pareto) ne
+// sont plus affichées directement sur cette page — déplacées dans les CGV
+// (pages/cgv.js, article 2) avec leurs sources, pour que le site public ne
+// mette en avant que des faits sur Fidions lui-même.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -274,38 +273,6 @@ const PRODUCT_FACTS = [
   { number: 2, suffix: " min", label: "pour créer ta carte de fidélité" },
   { number: 0, suffix: " appli", label: "à faire installer à tes clients" },
   { number: 49, suffix: " €", label: "par mois, sans engagement, dès 1 point de vente" },
-];
-
-// 4 statistiques vérifiées avant publication (voir le commentaire en tête
-// de fichier) — sur la fidélisation client en général, pas sur Fidions.
-// Les deux stats SumUp (67% reviennent dans la même enseigne / 68% dépensent
-// plus que prévu près d'une récompense) sont volontairement regroupées en
-// une seule ("près de 70%") plutôt que présentées comme deux chiffres à
-// part — elles viennent de la même étude et racontent la même idée. Le
-// principe de Pareto (4e carte) est un principe économique général du
-// domaine public (Vilfredo Pareto, 19e siècle), pas le chiffre propre
-// d'une étude ou d'un concurrent — safe à citer tel quel.
-const STATS_PROOF = [
-  {
-    value: "5 à 25x",
-    label: "plus cher d'acquérir un nouveau client que de fidéliser un client existant",
-    source: "Harvard Business Review",
-  },
-  {
-    value: "+25 à 95%",
-    label: "de bénéfices pour seulement 5% de clients fidélisés en plus",
-    source: "Bain & Company",
-  },
-  {
-    value: "Près de 70%",
-    label: "des clients reviennent plus souvent et dépensent plus que prévu grâce à un programme de fidélité",
-    source: "SumUp, étude France 2024",
-  },
-  {
-    value: "80/20",
-    label: "vos 20% de clients les plus fidèles pèsent souvent 80% de votre chiffre d'affaires",
-    source: "Principe de Pareto",
-  },
 ];
 
 export default function Home() {
@@ -662,25 +629,6 @@ export default function Home() {
                 </div>
                 <h3>{s.title}</h3>
                 <p>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="stats-proof">
-        <div className="section-inner">
-          <span className="stats-proof-eyebrow">Pas une intuition, des chiffres</span>
-          <h2 className="stats-proof-title">La fidélité fait toute la différence</h2>
-          <p className="stats-proof-sub">
-            Ce ne sont pas nos chiffres : ce sont ceux de la recherche sur la fidélisation client.
-          </p>
-          <div className="stats-proof-grid">
-            {STATS_PROOF.map((s) => (
-              <div className="stat-proof-card" key={s.label}>
-                <span className="stat-proof-value">{s.value}</span>
-                <p className="stat-proof-label">{s.label}</p>
-                <span className="stat-proof-source">{s.source}</span>
               </div>
             ))}
           </div>
@@ -1214,73 +1162,6 @@ const styles = `
   .fact-label {
     color: #8FD6CC;
     font-size: 12px;
-  }
-
-  .stats-proof {
-    background: #0A0A0C;
-    padding: 56px 0 72px;
-  }
-  .stats-proof-eyebrow {
-    display: block;
-    width: fit-content;
-    margin: 0 auto 16px;
-    color: ${PURPLE};
-    font-weight: 700;
-    font-style: italic;
-    font-size: 13.5px;
-  }
-  .stats-proof-title {
-    color: #fff;
-    font-size: 34px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    text-align: center;
-    margin: 0 0 12px;
-  }
-  .stats-proof-sub {
-    color: #8FD6CC;
-    text-align: center;
-    font-size: 14.5px;
-    margin: 0 auto 40px;
-    max-width: 540px;
-  }
-  .stats-proof-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 18px;
-  }
-  .stat-proof-card {
-    background: #1A1B1F;
-    border: 1px solid #2A2B30;
-    border-radius: 16px;
-    padding: 24px 18px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    transition: transform 0.15s ease, border-color 0.15s ease;
-  }
-  .stat-proof-card:hover {
-    transform: translateY(-4px);
-    border-color: #3A3B40;
-  }
-  .stat-proof-value {
-    color: ${PURPLE};
-    font-size: 34px;
-    font-weight: 800;
-  }
-  .stat-proof-label {
-    color: #B8BCB8;
-    font-size: 12.5px;
-    margin: 0;
-    line-height: 1.45;
-  }
-  .stat-proof-source {
-    color: #B8BCB8;
-    font-size: 11px;
-    margin-top: auto;
-    padding-top: 4px;
   }
 
   .compare {
@@ -2071,7 +1952,6 @@ const styles = `
     .features-grid { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .facts-grid { grid-template-columns: 1fr; }
-    .stats-proof-grid { grid-template-columns: 1fr; }
     /* Sur téléphone, le hero-visual devient trop étroit pour poser les deux
        "3D phones" côte à côte sans qu'ils se chevauchent et deviennent
        illisibles (voir capture Adam) — on garde seulement la carte du
