@@ -21,7 +21,7 @@ export default function CGV() {
       <div className="doc">
         <Link href="/" className="back">← Retour à l'accueil</Link>
         <h1>Conditions Générales de Vente</h1>
-        <p className="subtitle">Fidions — dernière mise à jour : 11 septembre 2026</p>
+        <p className="subtitle">Fidions — dernière mise à jour : 4 octobre 2026</p>
 
         <h2>Article 1 — Objet</h2>
         <p>
@@ -45,6 +45,18 @@ export default function CGV() {
           <li>activer des notifications de proximité géolocalisées.</li>
         </ul>
         <p>La liste des fonctionnalités disponibles peut évoluer ; le Prestataire s'efforce d'informer le Client de toute modification substantielle.</p>
+        <p>
+          Les chiffres mentionnés sur le site public de Fidions sur les bénéfices de la
+          fidélisation client ne sont pas des statistiques propres à Fidions, mais des données
+          issues d'études tierces, citées à titre informatif et dont les sources sont les
+          suivantes :
+        </p>
+        <ul>
+          <li>il coûte de 5 à 25 fois plus cher d'acquérir un nouveau client que de fidéliser un client existant — source : Harvard Business Review ;</li>
+          <li>une augmentation de seulement 5% du taux de fidélisation peut générer de 25 à 95% de bénéfices supplémentaires — source : Bain & Company ;</li>
+          <li>près de 70% des clients reviennent plus souvent et dépensent plus que prévu grâce à un programme de fidélité — source : SumUp, étude France 2024 ;</li>
+          <li>principe de Pareto (80/20) : les 20% de clients les plus fidèles d'un commerce pèsent souvent 80% de son chiffre d'affaires.</li>
+        </ul>
 
         <h2>Article 3 — Accès au service et compte</h2>
         <p>
@@ -79,6 +91,14 @@ export default function CGV() {
           d'engagement choisie.
         </p>
         <p>Toute modification tarifaire sera communiquée au Client au moins 30 jours avant son entrée en vigueur ; le Client pourra alors résilier son abonnement dans les conditions de l'article 6, sans pénalité.</p>
+        <p>
+          <strong>Essai gratuit de 7 jours :</strong> la création d'un compte ouvre un essai
+          gratuit de 7 jours, avec l'ensemble des fonctionnalités du Service débloquées, sans
+          aucune carte bancaire à renseigner. Aucun paiement n'est prélevé pendant cette période.
+          À l'issue des 7 jours, l'accès au Service est suspendu (les données du Client restent
+          conservées) tant qu'il n'a pas activé un abonnement payant en choisissant une formule
+          dans l'onglet Abonnement.
+        </p>
 
         <h2>Article 5 — Durée</h2>
         <p>Le contrat est conclu pour une durée d'un (1) mois, renouvelable par tacite reconduction pour des périodes successives d'un (1) mois, sauf résiliation dans les conditions de l'article 6.</p>

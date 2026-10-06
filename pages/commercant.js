@@ -5114,6 +5114,16 @@ export default function Commercant() {
                 accès, sans toucher à celui des autres.
               </p>
             </details>
+            <details className="faq-item">
+              <summary>Dois-je payer pour essayer Fidions ?</summary>
+              <p>
+                Non : la création de ton compte ouvre un essai gratuit de 7 jours avec toutes les
+                fonctionnalités débloquées, sans carte bancaire à renseigner. Utilise Fidions
+                normalement avec tes vrais clients pendant cette période. À l'issue des 7 jours,
+                il te suffit de choisir la formule adaptée à ton activité pour continuer, sans
+                engagement de durée.
+              </p>
+            </details>
           </div>
         )}
 

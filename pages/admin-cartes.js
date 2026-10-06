@@ -27,6 +27,9 @@ export default function AdminCartes() {
   const [listError, setListError] = useState("");
   const [orderActionError, setOrderActionError] = useState("");
 
+  const [atRiskMerchants, setAtRiskMerchants] = useState(null);
+  const [atRiskError, setAtRiskError] = useState("");
+
   const [quantity, setQuantity] = useState(20);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState("");
@@ -42,7 +45,10 @@ export default function AdminCartes() {
   }, []);
 
   useEffect(() => {
-    if (token) loadCards(token);
+    if (token) {
+      loadCards(token);
+      loadAtRiskMerchants(token);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -60,6 +66,18 @@ export default function AdminCartes() {
       } else {
         setListError(err.message);
       }
+    }
+  }
+
+  async function loadAtRiskMerchants(t) {
+    setAtRiskError("");
+    try {
+      const res = await fetch("/api/admin-merchants", { headers: { "x-admin-password": t } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setAtRiskMerchants(data.merchants || []);
+    } catch (err) {
+      setAtRiskError(err.message);
     }
   }
 
@@ -89,6 +107,7 @@ export default function AdminCartes() {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setCards(null);
+    setAtRiskMerchants(null);
   }
 
   async function handleGenerate(e) {
@@ -203,6 +222,51 @@ export default function AdminCartes() {
         <button type="button" className="link" onClick={logout}>
           Se déconnecter
         </button>
+      </div>
+
+      <div className="card">
+        <h2>Commerçants à risque</h2>
+        <p className="sub">
+          Abonnement suspendu, essai qui se termine sans avoir jamais servi, ou plus aucun point
+          ajouté depuis 14 jours — à recontacter avant un désabonnement silencieux.
+        </p>
+        {atRiskError && <p className="error">{atRiskError}</p>}
+        {!atRiskMerchants ? (
+          <p className="sub">Chargement…</p>
+        ) : atRiskMerchants.length === 0 ? (
+          <p className="sub">Aucun commerce à risque pour l'instant.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Commerce</th>
+                <th>Motif</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {atRiskMerchants.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    {m.restaurantName || "—"}
+                    <br />
+                    <span className="sub" style={{ fontSize: 12 }}>{m.email}</span>
+                  </td>
+                  <td>
+                    {m.reasons.map((r, i) => (
+                      <div key={i} className="sub" style={{ fontSize: 12.5 }}>{r}</div>
+                    ))}
+                  </td>
+                  <td>
+                    <span className={`tag ${m.subscriptionStatus === "suspendu" ? "tag-free" : "tag-assigned"}`}>
+                      {m.subscriptionStatus}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="card">
