@@ -1,0 +1,24 @@
+/* styles/globals.css
+ *
+ * Reset global minimal — absent jusqu'ici du projet (pages/_app.js
+ * n'importait aucun CSS), ce qui laissait le navigateur appliquer sa
+ * marge par défaut sur <body> (8px dans tous les navigateurs courants).
+ * Invisible tant que les sections étaient des aplats de couleur, ce
+ * défaut devenait une bande blanche très visible sur les bords dès
+ * qu'une section a une photo plein cadre (hero, CTA finale, etc.).
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

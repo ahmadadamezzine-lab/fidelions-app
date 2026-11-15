@@ -128,14 +128,18 @@ function Icon({ name, size = 20 }) {
   return null;
 }
 
-// Symbole de marque "See You Soon" : une forme organique (blob) en dégradé
-// bleu, dans l'esprit des pistes de symboles de la direction artistique
-// fournie (formes arrondies asymétriques plutôt qu'une icône générique) —
-// un rayon de bordure asymétrique sur un carré fait l'affaire sans avoir
-// besoin d'un fichier logo séparé, et reste trivial à remplacer par un
+// Symbole de marque "See You Soon" : deux cartes arrondies superposées
+// (écho direct au produit — une carte de fidélité) plutôt qu'une forme
+// de dégradé abstraite, qui tend à avoir l'air générique/généré. Pas
+// besoin de fichier logo séparé, et reste trivial à remplacer par un
 // vrai logo une fois le nom de marque définitif choisi.
 function BrandMark() {
-  return <span className="brandmark-symbol" aria-hidden="true" />;
+  return (
+    <span className="brandmark-symbol" aria-hidden="true">
+      <span className="brandmark-symbol-back" />
+      <span className="brandmark-symbol-front" />
+    </span>
+  );
 }
 
 // Déclenche une seule fois quand l'élément entre dans le viewport — sert au
@@ -977,12 +981,28 @@ const styles = `
     flex: none;
   }
   .brandmark-symbol {
+    position: relative;
     display: inline-block;
     width: 26px;
     height: 26px;
     flex: none;
-    border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%;
-    background: linear-gradient(135deg, ${PURPLE} 0%, ${NAVY} 130%);
+  }
+  .brandmark-symbol-back,
+  .brandmark-symbol-front {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+  }
+  .brandmark-symbol-back {
+    top: 0;
+    left: 0;
+    background: ${LIGHT_BLUE};
+  }
+  .brandmark-symbol-front {
+    bottom: 0;
+    right: 0;
+    background: ${PURPLE};
   }
   .nav-links {
     display: flex;
