@@ -393,13 +393,17 @@ export default function Home() {
       </nav>
 
       <header className="hero">
+        <div className="hero-photo" aria-hidden="true">
+          <img src="/images/brand/hero-cafe.jpg" alt="" />
+          <div className="hero-photo-fade" />
+        </div>
         <div className="hero-inner">
           <div className="hero-text">
             <span className="hero-eyebrow">Une relation qui fait revenir.</span>
             <h1>
               La carte de fidélité que vos clients gardent vraiment dans leur poche
             </h1>
-            <p className="hero-sub">
+            <p className="hero-sub hero-sub-left">
               {BRAND_NAME} transforme tes clients de passage en habitués : carte digitale, points ou tampons,
               notifications et statistiques, sans aucune application à faire installer.
             </p>
@@ -631,6 +635,10 @@ export default function Home() {
       </section>
 
       <section className="features" id="fonctionnalites">
+        <div className="features-photo" aria-hidden="true">
+          <img src="/images/brand/features-wallet.jpg" alt="" />
+          <div className="features-photo-fade" />
+        </div>
         <div className="section-inner">
           <h2 className="section-title">Tout ce qu'il faut pour fidéliser, dans un seul outil</h2>
           <div className="features-grid">
@@ -664,6 +672,10 @@ export default function Home() {
       </section>
 
       <section className="steps" id="comment-ca-marche">
+        <div className="steps-photo" aria-hidden="true">
+          <img src="/images/brand/steps-scan.jpg" alt="" />
+          <div className="steps-photo-fade" />
+        </div>
         <div className="section-inner">
           <h2 className="section-title">En 3 étapes, ton programme de fidélité est en ligne</h2>
           <div className="steps-grid">
@@ -765,6 +777,10 @@ export default function Home() {
       </section>
 
       <section className="cta-banner">
+        <div className="cta-banner-photo" aria-hidden="true">
+          <img src="/images/brand/cta-shop.jpg" alt="" />
+          <div className="cta-banner-photo-fade" />
+        </div>
         <div className="section-inner cta-banner-inner">
           <h2>Tes clients reviennent, automatiquement, sans que tu y penses.</h2>
           <p>Crée ton compte gratuitement et personnalise ta carte en quelques minutes.</p>
@@ -853,9 +869,10 @@ const styles = `
     padding: 0 24px;
   }
   .section-title {
-    font-size: 26px;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.15;
     text-align: center;
-    margin: 0 0 12px;
+    margin: 0 0 16px;
     color: #0B1220;
   }
   .hero-eyebrow {
@@ -864,14 +881,15 @@ const styles = `
     font-weight: 700;
     font-style: italic;
     color: ${PURPLE};
-    font-size: 14px;
-    margin-bottom: 10px;
+    font-size: 15px;
+    margin-bottom: 14px;
   }
   .section-sub {
     text-align: center;
-    color: #666;
-    font-size: 14.5px;
-    margin: 0 0 32px;
+    color: #525B70;
+    font-size: 16.5px;
+    line-height: 1.6;
+    margin: 0 0 48px;
   }
 
   .btn {
@@ -1000,14 +1018,38 @@ const styles = `
   }
 
   .hero {
-    background:
-      radial-gradient(900px 500px at 85% -10%, rgba(36, 73, 201, 0.22), transparent 60%),
-      radial-gradient(700px 400px at -5% 100%, rgba(21, 49, 122, 0.14), transparent 55%),
-      #0B1220;
-    padding: 88px 0 64px;
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    padding: 150px 0 120px;
+  }
+  .hero-photo {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .hero-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center right;
+  }
+  .hero-photo-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      #fff 0%,
+      #fff 38%,
+      rgba(255, 255, 255, 0.82) 52%,
+      rgba(255, 255, 255, 0.25) 72%,
+      rgba(255, 255, 255, 0) 88%
+    );
   }
   .hero-inner {
-    max-width: 1080px;
+    position: relative;
+    z-index: 1;
+    max-width: 1160px;
     margin: 0 auto;
     padding: 0 24px;
     display: flex;
@@ -1019,18 +1061,18 @@ const styles = `
     min-width: 0;
   }
   .hero h1 {
-    font-size: 40px;
-    line-height: 1.16;
-    letter-spacing: -0.01em;
-    margin: 0 0 18px;
-    color: #fff;
+    font-size: clamp(38px, 5.4vw, 68px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 22px;
+    color: #0B1220;
   }
   .hero-sub {
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1.6;
-    color: #CBD3DF;
-    margin: 0 0 28px;
-    max-width: 520px;
+    color: #525B70;
+    margin: 0 0 32px;
+    max-width: 480px;
   }
   .hero-cta {
     display: flex;
@@ -1229,7 +1271,7 @@ const styles = `
 
   .stats-proof {
     background: #0B1220;
-    padding: 56px 0 72px;
+    padding: 88px 0 110px;
   }
   .stats-proof-eyebrow {
     display: block;
@@ -1295,7 +1337,7 @@ const styles = `
   }
 
   .compare {
-    padding: 72px 0;
+    padding: 120px 0;
   }
   .pair-compare {
     display: grid;
@@ -1378,7 +1420,7 @@ const styles = `
 
   .calculator {
     background: #F7F8FB;
-    padding: 72px 0;
+    padding: 120px 0;
   }
   .calc-box {
     display: grid;
@@ -1621,7 +1663,31 @@ const styles = `
   }
 
   .features {
-    padding: 72px 0;
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    padding: 0 0 120px;
+  }
+  .features-photo {
+    position: relative;
+    height: 320px;
+    overflow: hidden;
+    margin-bottom: -90px;
+  }
+  .features-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .features-photo-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.7) 65%, #fff 100%);
+  }
+  .features .section-inner {
+    position: relative;
+    z-index: 1;
+    padding-top: 56px;
   }
   .features-grid {
     display: grid;
@@ -1721,11 +1787,34 @@ const styles = `
   }
 
   .steps {
-    background: #0B1220;
-    padding: 72px 0;
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    padding: 0 0 130px;
+  }
+  .steps-photo {
+    position: relative;
+    height: 360px;
+    overflow: hidden;
+    margin-bottom: -110px;
+  }
+  .steps-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .steps-photo-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.7) 65%, #fff 100%);
+  }
+  .steps .section-inner {
+    position: relative;
+    z-index: 1;
+    padding-top: 56px;
   }
   .steps .section-title {
-    color: #fff;
+    color: #0B1220;
   }
   .steps-grid {
     display: grid;
@@ -1734,14 +1823,16 @@ const styles = `
     margin-top: 32px;
   }
   .step-card {
-    background: rgba(255,255,255,0.06);
+    background: #fff;
+    border: 1.5px solid #EEF1F7;
+    box-shadow: 0 16px 36px rgba(11, 18, 32, 0.07);
     border-radius: 16px;
-    padding: 24px;
-    transition: transform 0.15s ease, background 0.15s ease;
+    padding: 28px 24px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .step-card:hover {
     transform: translateY(-4px);
-    background: rgba(255,255,255,0.1);
+    box-shadow: 0 22px 46px rgba(11, 18, 32, 0.12);
   }
   .step-head {
     display: flex;
@@ -1767,23 +1858,23 @@ const styles = `
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    background: rgba(255,255,255,0.08);
-    color: #DDE5FF;
+    background: #EEF2FF;
+    color: ${PURPLE};
   }
   .step-card h3 {
-    color: #fff;
-    font-size: 15px;
+    color: #0B1220;
+    font-size: 16px;
     margin: 0 0 8px;
   }
   .step-card p {
-    color: #DDE5FF;
-    font-size: 13px;
-    line-height: 1.5;
+    color: #525B70;
+    font-size: 13.5px;
+    line-height: 1.55;
     margin: 0;
   }
 
   .pricing {
-    padding: 72px 0;
+    padding: 120px 0;
   }
   .billing-toggle {
     display: flex;
@@ -1871,29 +1962,52 @@ const styles = `
   }
 
   .cta-banner {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #15317A 100%);
-    padding: 64px 0;
+    position: relative;
+    overflow: hidden;
+    background: #F7F8FB;
+    padding: 150px 0;
     text-align: center;
   }
+  .cta-banner-photo {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .cta-banner-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .cta-banner-photo-fade {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      60% 75% at 50% 50%,
+      #fff 0%,
+      rgba(255, 255, 255, 0.82) 45%,
+      rgba(255, 255, 255, 0.4) 72%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+  }
   .cta-banner-inner {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
   }
   .cta-banner h2 {
-    color: #fff;
-    font-size: 26px;
+    color: #0B1220;
+    font-size: clamp(26px, 3.6vw, 40px);
+    line-height: 1.15;
     margin: 0;
+    max-width: 680px;
   }
   .cta-banner p {
-    color: #DDE5FF;
-    font-size: 14.5px;
-    margin: 0 0 8px;
-  }
-  .cta-banner .btn-primary {
-    background: #fff;
-    color: ${PURPLE};
+    color: #525B70;
+    font-size: 16px;
+    margin: 0 0 10px;
   }
 
   .footer {
@@ -2012,8 +2126,12 @@ const styles = `
 
   @media (max-width: 900px) {
     .nav-links { display: none; }
+    .hero { padding: 64px 0 48px; }
     .hero-inner { flex-direction: column; }
-    .hero h1 { font-size: 28px; }
+    .hero h1 { font-size: 32px; }
+    .hero-photo-fade {
+      background: linear-gradient(180deg, #fff 0%, #fff 48%, rgba(255, 255, 255, 0.85) 70%, rgba(255, 255, 255, 0.4) 100%);
+    }
     .hero-visual { margin-top: 32px; min-height: 260px; }
     .facts-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .pair-compare { grid-template-columns: 1fr; }
