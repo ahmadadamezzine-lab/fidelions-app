@@ -1,24 +1,26 @@
 // pages/index.js
 //
-// Page d'accueil MARKETING de Fidions — remplace l'ancienne redirection
-// directe vers /commercant (gardée en mémoire ci-dessous). Adam a demandé
-// une page dans la dynamique du concurrent "Fidelix" (fidelix.ma, captures
-// fournies) : hero animé, bénéfices, calculateur de retour sur
-// investissement, grille de fonctionnalités, étapes, tarifs, pied de page —
-// avec des boutons qui bougent légèrement au survol. Les CTA renvoient vers
-// /commercant (création de compte / connexion), qui reste le véritable
-// point d'entrée applicatif — voir le useEffect sur router.query.mode dans
-// pages/commercant.js.
+// Page d'accueil MARKETING — rebrand "See You Soon" (nom de travail,
+// provisoire : voir BRAND_NAME ci-dessous, centralisé pour rester facile à
+// remplacer partout une fois le nom définitif choisi). Nouvelle direction
+// artistique : palette bleu nuit/bleu primaire/bleu clair (voir PURPLE,
+// NAVY, LIGHT_BLUE, GREY_BLUE, OFFWHITE), typographies Inter Display
+// Black (titres) / Manrope (navigation, boutons, sous-titres) / Inter
+// (texte courant). Remplace l'ancien habillage turquoise "Fidions".
+// Structure et fonctionnalités conservées à l'identique (hero, bénéfices,
+// calculateur de retour sur investissement, grille de fonctionnalités,
+// étapes, tarifs, pied de page) — seul l'habillage visuel et le nom
+// affiché changent à cette étape.
 //
-// Les chiffres affichés (section "Pourquoi Fidions") sont des faits sur
-// le produit lui-même (délai de mise en place, absence d'application à
-// installer, etc.), pas des statistiques clients inventées — Fidions
-// étant un service tout jeune, aucune fausse preuve sociale ("+10 000
-// clients") n'est affichée.
+// Les chiffres affichés (section "Pourquoi See You Soon") sont des faits
+// sur le produit lui-même (délai de mise en place, absence d'application
+// à installer, etc.), pas des statistiques clients inventées — le service
+// étant tout jeune, aucune fausse preuve sociale ("+10 000 clients")
+// n'est affichée.
 //
 // La section "stats-proof" (juste avant les tarifs) est différente : ce
-// sont des chiffres sur la fidélisation client EN GÉNÉRAL, pas sur
-// Fidions, chacun sourcé (Harvard Business Review, Bain & Company,
+// sont des chiffres sur la fidélisation client EN GÉNÉRAL, pas sur ce
+// service, chacun sourcé (Harvard Business Review, Bain & Company,
 // étude SumUp France 2024) et vérifié avant publication — jamais les
 // chiffres exacts d'un concurrent, toujours reformulés avec leur propre
 // source citée.
@@ -47,16 +49,31 @@ import {
   Nfc,
 } from "lucide-react";
 
+// Nom de marque provisoire (voir le commentaire en tête de fichier) —
+// centralisé ici plutôt que répété en dur, pour rester facile à remplacer
+// partout d'un coup une fois le nom définitif tranché.
+const BRAND_NAME = "See You Soon";
+
 // Titre/description/image affichés dans les résultats Google et les
 // aperçus de lien partagé (WhatsApp, réseaux sociaux) — sans ça, un lien
-// Fidions partagé n'affiche que l'URL nue, ce qui inspire moins
-// confiance qu'une carte avec titre + accroche + logo.
-const SEO_TITLE = "Fidions — Programme de fidélité sur Google & Apple Wallet";
+// partagé n'affiche que l'URL nue, ce qui inspire moins confiance qu'une
+// carte avec titre + accroche + logo.
+const SEO_TITLE = `${BRAND_NAME} — Programme de fidélité sur Google & Apple Wallet`;
 const SEO_DESCRIPTION =
   "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
 const SEO_IMAGE = "/logo.png";
 
-const PURPLE = "#16A69C";
+// Palette "See You Soon" (voir la direction artistique fournie) : bleu
+// primaire en couleur de marque, bleu nuit pour les fonds/titres sombres,
+// bleu clair et gris pour les tons de support — remplace l'ancien
+// turquoise Fidions. PURPLE est gardé comme nom de variable (historique,
+// trop de références dans ce fichier pour tout renommer sans risque) mais
+// contient maintenant le bleu primaire.
+const PURPLE = "#2449C9";
+const NAVY = "#0B1220";
+const LIGHT_BLUE = "#DDE5FF";
+const GREY_BLUE = "#CBD3DF";
+const OFFWHITE = "#F7F8FB";
 const CONTACT_EMAIL = "ahmadadamezzine@gmail.com";
 const CONTACT_WHATSAPP = "33637177314";
 
@@ -111,6 +128,16 @@ function Icon({ name, size = 20 }) {
   return null;
 }
 
+// Symbole de marque "See You Soon" : une forme organique (blob) en dégradé
+// bleu, dans l'esprit des pistes de symboles de la direction artistique
+// fournie (formes arrondies asymétriques plutôt qu'une icône générique) —
+// un rayon de bordure asymétrique sur un carré fait l'affaire sans avoir
+// besoin d'un fichier logo séparé, et reste trivial à remplacer par un
+// vrai logo une fois le nom de marque définitif choisi.
+function BrandMark() {
+  return <span className="brandmark-symbol" aria-hidden="true" />;
+}
+
 // Déclenche une seule fois quand l'élément entre dans le viewport — sert au
 // compteur animé (facts, stats) et aux apparitions au scroll, sans dépendance
 // externe. Respecte prefers-reduced-motion : un utilisateur qui l'a activé
@@ -151,7 +178,7 @@ function PairedCompare({ pairs }) {
   return (
     <div className="pair-compare">
       <div className="pair-col pair-col-before">
-        <h3>Sans Fidions</h3>
+        <h3>Sans {BRAND_NAME}</h3>
         <ul>
           {pairs.map((p, i) => (
             <li
@@ -169,7 +196,7 @@ function PairedCompare({ pairs }) {
         </ul>
       </div>
       <div className="pair-col pair-col-after">
-        <h3>Avec Fidions</h3>
+        <h3>Avec {BRAND_NAME}</h3>
         <ul>
           {pairs.map((p, i) => (
             <li
@@ -264,7 +291,7 @@ const PRODUCT_FACTS = [
 ];
 
 // 4 statistiques vérifiées avant publication (voir le commentaire en tête
-// de fichier) — sur la fidélisation client en général, pas sur Fidions.
+// de fichier) — sur la fidélisation client en général, pas sur ce service.
 // Les deux stats SumUp (67% reviennent dans la même enseigne / 68% dépensent
 // plus que prévu près d'une récompense) sont volontairement regroupées en
 // une seule ("près de 70%") plutôt que présentées comme deux chiffres à
@@ -312,7 +339,7 @@ export default function Home() {
     // Estimation indicative, entièrement pilotée par les curseurs : le
     // curseur « gain de fréquentation » est l'hypothèse — prudente par
     // défaut (10%) — plutôt qu'un pourcentage caché dans le calcul (ce
-    // n'est pas une donnée mesurée sur de vrais clients Fidions, le
+    // n'est pas une donnée mesurée sur de vrais clients, le service
     // service étant récent).
     const caSupp = clients * jours * panier * gain;
     // Coût pris en compte : le tarif annuel engagé (le moins cher), pour donner
@@ -340,12 +367,18 @@ export default function Home() {
         <meta property="og:image" content={SEO_IMAGE} />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Display:wght@800;900&family=Manrope:wght@500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
       </Head>
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/" className="nav-brand">
-            <img src="/logo.png" alt="Fidions" />
-            <span>Fidions</span>
+            <BrandMark />
+            <span>{BRAND_NAME}</span>
           </Link>
           <div className="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
@@ -362,16 +395,17 @@ export default function Home() {
       <header className="hero">
         <div className="hero-inner">
           <div className="hero-text">
+            <span className="hero-eyebrow">Une relation qui fait revenir.</span>
             <h1>
               La carte de fidélité que vos clients gardent vraiment dans leur poche
             </h1>
             <p className="hero-sub">
-              Fidions transforme tes clients de passage en habitués : carte digitale, points ou tampons,
+              {BRAND_NAME} transforme tes clients de passage en habitués : carte digitale, points ou tampons,
               notifications et statistiques, sans aucune application à faire installer.
             </p>
             <div className="hero-cta">
               <Link href="/commercant?mode=signup" className="btn btn-primary btn-lg">
-                Créer mon compte gratuitement
+                Créer mon compte gratuitement <Icon name="arrow" size={16} />
               </Link>
               <a href="#comment-ca-marche" className="btn btn-ghost btn-lg">
                 Voir comment ça marche
@@ -386,7 +420,7 @@ export default function Home() {
                 <div className="mock-pass">
                   <div className="mock-pass-top">
                     <div className="mock-pass-logo" />
-                    <span>Fidions</span>
+                    <span>{BRAND_NAME}</span>
                   </div>
                   <div className="mock-pass-banner" />
                   <div className="mock-pass-body">
@@ -448,7 +482,7 @@ export default function Home() {
 
       <section className="calculator">
         <div className="section-inner">
-          <h2 className="section-title">Combien Fidions peut vous rapporter</h2>
+          <h2 className="section-title">Combien {BRAND_NAME} peut vous rapporter</h2>
           <p className="section-sub">
             Une estimation à partir de vos propres chiffres. Ajustez, comparez, décidez.
           </p>
@@ -566,7 +600,7 @@ export default function Home() {
               </div>
               <div className="calc-result-rows">
                 <div className="calc-result-row">
-                  <span>Coût Fidions</span>
+                  <span>Coût {BRAND_NAME}</span>
                   <strong>{roi.cout} € / mois</strong>
                 </div>
                 <div className="calc-result-row">
@@ -735,7 +769,7 @@ export default function Home() {
           <h2>Tes clients reviennent, automatiquement, sans que tu y penses.</h2>
           <p>Crée ton compte gratuitement et personnalise ta carte en quelques minutes.</p>
           <Link href="/commercant?mode=signup" className="btn btn-primary btn-lg">
-            Créer mon compte
+            Créer mon compte <Icon name="arrow" size={16} />
           </Link>
         </div>
       </section>
@@ -744,8 +778,8 @@ export default function Home() {
         <div className="section-inner footer-top">
           <div className="footer-brand-col">
             <div className="footer-brand">
-              <img src="/logo.png" alt="Fidions" />
-              <span>Fidions</span>
+              <BrandMark />
+              <span>{BRAND_NAME}</span>
             </div>
             <p className="footer-tagline">
               Le système de fidélisation clé en main pour les commerces qui veulent que leurs
@@ -788,7 +822,7 @@ export default function Home() {
             </div>
           </div>
           <div className="footer-bottom-row">
-            <p className="footer-copyright">© {new Date().getFullYear()} Fidions. Tous droits réservés.</p>
+            <p className="footer-copyright">© {new Date().getFullYear()} {BRAND_NAME}. Tous droits réservés.</p>
             <span className="footer-madein">Fait en France avec passion</span>
           </div>
         </div>
@@ -801,10 +835,17 @@ export default function Home() {
 
 const styles = `
   .home {
-    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #111114;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #0B1220;
     background: #fff;
     overflow-x: hidden;
+  }
+  .home h1,
+  .home h2,
+  .home h3 {
+    font-family: "Inter Display", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.01em;
   }
   .section-inner {
     max-width: 1080px;
@@ -815,7 +856,16 @@ const styles = `
     font-size: 26px;
     text-align: center;
     margin: 0 0 12px;
-    color: #111114;
+    color: #0B1220;
+  }
+  .hero-eyebrow {
+    display: inline-block;
+    font-family: "Manrope", sans-serif;
+    font-weight: 700;
+    font-style: italic;
+    color: ${PURPLE};
+    font-size: 14px;
+    margin-bottom: 10px;
   }
   .section-sub {
     text-align: center;
@@ -829,7 +879,8 @@ const styles = `
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border-radius: 12px;
+    border-radius: 999px;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
@@ -844,15 +895,15 @@ const styles = `
     transform: translateY(0);
   }
   .btn-primary {
-    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #15317A 100%);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(22, 166, 156, 0.3);
+    box-shadow: 0 4px 14px rgba(36, 73, 201, 0.3);
   }
   .btn-primary:hover {
-    box-shadow: 0 8px 22px rgba(22, 166, 156, 0.4);
+    box-shadow: 0 8px 22px rgba(36, 73, 201, 0.4);
   }
   .btn-secondary {
-    background: #E8F5F3;
+    background: #EEF2FF;
     color: ${PURPLE};
     padding: 12px 30px;
     border-radius: 999px;
@@ -863,7 +914,7 @@ const styles = `
   }
   .btn-ghost {
     background: #fff;
-    color: #111114;
+    color: #0B1220;
     border: 1.5px solid #e0e0e0;
   }
   .btn-ghost:hover {
@@ -902,14 +953,18 @@ const styles = `
     gap: 8px;
     text-decoration: none;
     color: ${PURPLE};
+    font-family: "Manrope", sans-serif;
     font-weight: 800;
     font-size: 16px;
     flex: none;
   }
-  .nav-brand img {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+  .brandmark-symbol {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%;
+    background: linear-gradient(135deg, ${PURPLE} 0%, ${NAVY} 130%);
   }
   .nav-links {
     display: flex;
@@ -920,6 +975,7 @@ const styles = `
   .nav-links a {
     color: #444;
     text-decoration: none;
+    font-family: "Manrope", sans-serif;
     font-size: 13.5px;
     font-weight: 600;
     transition: color 0.15s ease;
@@ -945,9 +1001,9 @@ const styles = `
 
   .hero {
     background:
-      radial-gradient(900px 500px at 85% -10%, rgba(22, 166, 156, 0.22), transparent 60%),
-      radial-gradient(700px 400px at -5% 100%, rgba(15, 140, 130, 0.14), transparent 55%),
-      #111114;
+      radial-gradient(900px 500px at 85% -10%, rgba(36, 73, 201, 0.22), transparent 60%),
+      radial-gradient(700px 400px at -5% 100%, rgba(21, 49, 122, 0.14), transparent 55%),
+      #0B1220;
     padding: 88px 0 64px;
   }
   .hero-inner {
@@ -972,7 +1028,7 @@ const styles = `
   .hero-sub {
     font-size: 16px;
     line-height: 1.6;
-    color: #B8BCB8;
+    color: #CBD3DF;
     margin: 0 0 28px;
     max-width: 520px;
   }
@@ -1016,15 +1072,15 @@ const styles = `
     50% { transform: rotate(9deg) translateY(8px); }
   }
   .mock-phone-shell {
-    background: #111114;
+    background: #0B1220;
     border-radius: 26px;
     padding: 8px;
-    box-shadow: 0 25px 55px rgba(10, 10, 12, 0.3);
+    box-shadow: 0 25px 55px rgba(11, 18, 32, 0.3);
   }
   .mock-phone-notch {
     width: 46px;
     height: 12px;
-    background: #111114;
+    background: #0B1220;
     border-radius: 0 0 8px 8px;
     margin: 0 auto;
   }
@@ -1034,7 +1090,7 @@ const styles = `
     overflow: hidden;
   }
   .mock-pass-top {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #15317A 100%);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1051,7 +1107,7 @@ const styles = `
   }
   .mock-pass-banner {
     height: 54px;
-    background: linear-gradient(135deg, #E8F5F3, #CBEAE2);
+    background: linear-gradient(135deg, #EEF2FF, #DDE5FF);
   }
   .mock-pass-body {
     padding: 10px 12px 14px;
@@ -1067,7 +1123,7 @@ const styles = `
   .mock-pass-row-strong {
     font-size: 11px;
     font-weight: 800;
-    color: #111114;
+    color: #0B1220;
     text-transform: none;
     letter-spacing: 0;
     margin: 4px 0 10px;
@@ -1076,7 +1132,7 @@ const styles = `
     display: flex;
     justify-content: center;
     color: ${PURPLE};
-    background: #F1EFE8;
+    background: #F7F8FB;
     border-radius: 8px;
     padding: 8px 0 4px;
   }
@@ -1088,11 +1144,11 @@ const styles = `
     font-weight: 700;
   }
   .mock-card {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #15317A 100%);
     border-radius: 20px;
     padding: 22px;
     color: #fff;
-    box-shadow: 0 20px 50px rgba(22, 166, 156, 0.35);
+    box-shadow: 0 20px 50px rgba(36, 73, 201, 0.35);
   }
   .mock-card-top {
     display: flex;
@@ -1132,7 +1188,7 @@ const styles = `
     bottom: -18px;
     right: -18px;
     background: #fff;
-    color: #111114;
+    color: #0B1220;
     border-radius: 12px;
     padding: 10px 14px;
     font-size: 12px;
@@ -1147,7 +1203,7 @@ const styles = `
   }
 
   .facts {
-    background: #0A0A0C;
+    background: #0B1220;
     padding: 32px 0;
   }
   .facts-grid {
@@ -1167,12 +1223,12 @@ const styles = `
     font-weight: 800;
   }
   .fact-label {
-    color: #8FD6CC;
+    color: #9FB8F5;
     font-size: 12px;
   }
 
   .stats-proof {
-    background: #0A0A0C;
+    background: #0B1220;
     padding: 56px 0 72px;
   }
   .stats-proof-eyebrow {
@@ -1194,7 +1250,7 @@ const styles = `
     margin: 0 0 12px;
   }
   .stats-proof-sub {
-    color: #8FD6CC;
+    color: #9FB8F5;
     text-align: center;
     font-size: 14.5px;
     margin: 0 auto 40px;
@@ -1206,8 +1262,8 @@ const styles = `
     gap: 18px;
   }
   .stat-proof-card {
-    background: #1A1B1F;
-    border: 1px solid #2A2B30;
+    background: #121A2E;
+    border: 1px solid #1B2440;
     border-radius: 16px;
     padding: 24px 18px;
     text-align: center;
@@ -1218,7 +1274,7 @@ const styles = `
   }
   .stat-proof-card:hover {
     transform: translateY(-4px);
-    border-color: #3A3B40;
+    border-color: #27314F;
   }
   .stat-proof-value {
     color: ${PURPLE};
@@ -1226,13 +1282,13 @@ const styles = `
     font-weight: 800;
   }
   .stat-proof-label {
-    color: #B8BCB8;
+    color: #CBD3DF;
     font-size: 12.5px;
     margin: 0;
     line-height: 1.45;
   }
   .stat-proof-source {
-    color: #B8BCB8;
+    color: #CBD3DF;
     font-size: 11px;
     margin-top: auto;
     padding-top: 4px;
@@ -1257,10 +1313,10 @@ const styles = `
     justify-content: center;
   }
   .pair-col-before {
-    background: #2A2B30;
+    background: #1B2440;
   }
   .pair-col-after {
-    background: linear-gradient(160deg, #111114 0%, #0F8C82 130%);
+    background: linear-gradient(160deg, #0B1220 0%, #15317A 130%);
   }
   .pair-col h3 {
     margin: 0 0 16px;
@@ -1285,7 +1341,7 @@ const styles = `
   }
   .pair-col-before li {
     font-size: 14px;
-    color: #B8BCB8;
+    color: #CBD3DF;
     padding-left: 30px;
     position: relative;
   }
@@ -1303,7 +1359,7 @@ const styles = `
     gap: 8px;
   }
   .pair-col-after li svg {
-    color: #8FD6CC;
+    color: #9FB8F5;
     flex: none;
   }
   .pair-col li.pair-active {
@@ -1314,14 +1370,14 @@ const styles = `
     color: #fff;
   }
   .pair-col-before li.pair-active::before {
-    color: #8FD6CC;
+    color: #9FB8F5;
   }
   .pair-col li.pair-dim {
     opacity: 0.4;
   }
 
   .calculator {
-    background: #F1EFE8;
+    background: #F7F8FB;
     padding: 72px 0;
   }
   .calc-box {
@@ -1367,8 +1423,8 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    background: #F1EFE8;
-    border: 1px solid #F1EFE8;
+    background: #F7F8FB;
+    border: 1px solid #F7F8FB;
     border-radius: 8px;
     padding: 2px 6px;
   }
@@ -1402,7 +1458,7 @@ const styles = `
     appearance: none;
     height: 5px;
     border-radius: 999px;
-    background: #F1EFE8;
+    background: #F7F8FB;
     outline: none;
   }
   .calc-slider-row input[type="range"]::-webkit-slider-thumb {
@@ -1411,7 +1467,7 @@ const styles = `
     height: 18px;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(22, 166, 156, 0.4);
+    box-shadow: 0 2px 6px rgba(36, 73, 201, 0.4);
     cursor: pointer;
   }
   .calc-slider-row input[type="range"]::-moz-range-thumb {
@@ -1420,7 +1476,7 @@ const styles = `
     border: none;
     border-radius: 50%;
     background: ${PURPLE};
-    box-shadow: 0 2px 6px rgba(22, 166, 156, 0.4);
+    box-shadow: 0 2px 6px rgba(36, 73, 201, 0.4);
     cursor: pointer;
   }
   .calc-hint {
@@ -1430,7 +1486,7 @@ const styles = `
     margin: 4px 0 0;
   }
   .calc-card-result {
-    background: #0A0A0C;
+    background: #0B1220;
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -1438,7 +1494,7 @@ const styles = `
   .calc-result-tag {
     align-self: flex-start;
     background: rgba(255,255,255,0.12);
-    color: #CBEAE2;
+    color: #DDE5FF;
     font-size: 10.5px;
     font-weight: 800;
     letter-spacing: 0.03em;
@@ -1450,7 +1506,7 @@ const styles = `
   .calc-result-heading {
     margin: 0 0 4px;
     font-size: 12.5px;
-    color: #8FD6CC;
+    color: #9FB8F5;
   }
   .calc-result-big {
     font-size: 32px;
@@ -1460,7 +1516,7 @@ const styles = `
   .calc-result-big span {
     font-size: 14px;
     font-weight: 600;
-    color: #8FD6CC;
+    color: #9FB8F5;
   }
   .calc-result-rows {
     display: flex;
@@ -1474,7 +1530,7 @@ const styles = `
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #CBEAE2;
+    color: #DDE5FF;
   }
   .calc-result-row strong {
     color: #fff;
@@ -1484,17 +1540,17 @@ const styles = `
   }
   .calc-result-fine {
     font-size: 10.5px;
-    color: #B8BCB8;
+    color: #CBD3DF;
     line-height: 1.5;
     margin: -8px 0 14px;
   }
   .calc-result-annual {
     margin-top: auto;
-    background: linear-gradient(135deg, ${PURPLE} 0%, #0F8C82 100%);
+    background: linear-gradient(135deg, ${PURPLE} 0%, #15317A 100%);
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 12.5px;
-    color: #F1EFE8;
+    color: #F7F8FB;
     line-height: 1.5;
   }
   .calc-result-annual strong {
@@ -1505,8 +1561,8 @@ const styles = `
   }
   .pricing-addon {
     margin-top: 32px;
-    background: #F1EFE8;
-    border: 1.5px solid #CBEAE2;
+    background: #F7F8FB;
+    border: 1.5px solid #DDE5FF;
     border-radius: 16px;
     padding: 22px 24px;
     display: flex;
@@ -1518,7 +1574,7 @@ const styles = `
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: #E8F5F3;
+    background: #EEF2FF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1531,7 +1587,7 @@ const styles = `
   .pricing-addon-text h3 {
     font-size: 14.5px;
     margin: 0 0 4px;
-    color: #111114;
+    color: #0B1220;
   }
   .pricing-addon-text p {
     font-size: 12.5px;
@@ -1549,7 +1605,7 @@ const styles = `
   .pricing-addon-price {
     font-size: 20px;
     font-weight: 800;
-    color: #111114;
+    color: #0B1220;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1575,8 +1631,8 @@ const styles = `
   }
   .feature-card {
     position: relative;
-    background: #F1EFE8;
-    border: 1.5px solid #F1EFE8;
+    background: #F7F8FB;
+    border: 1.5px solid #F7F8FB;
     border-radius: 16px;
     padding: 22px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -1584,37 +1640,37 @@ const styles = `
   .feature-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #CBEAE2;
+    border-color: #DDE5FF;
   }
   .feature-card-lead {
     grid-column: span 2;
-    background: #111114;
-    border-color: #111114;
+    background: #0B1220;
+    border-color: #0B1220;
   }
   .feature-card-lead:hover {
-    border-color: #2A2B30;
+    border-color: #1B2440;
   }
   .feature-card-lead .feature-icon {
     background: rgba(255,255,255,0.1);
-    color: #16A69C;
+    color: #4C7CF0;
   }
   .feature-card-lead h3,
   .feature-card-lead p {
     color: #fff;
   }
   .feature-card-lead p {
-    color: #B8BCB8;
+    color: #CBD3DF;
   }
   .feature-card-new {
-    background: #E8F5F3;
-    border-color: #E8F5F3;
+    background: #EEF2FF;
+    border-color: #EEF2FF;
   }
   .feature-card-new:hover {
-    border-color: #CBEAE2;
+    border-color: #DDE5FF;
   }
   .feature-tag {
     display: inline-block;
-    color: #0F8C82;
+    color: #15317A;
     font-size: 10.5px;
     font-weight: 800;
     text-transform: uppercase;
@@ -1625,7 +1681,7 @@ const styles = `
     width: 42px;
     height: 42px;
     border-radius: 12px;
-    background: #E8F5F3;
+    background: #EEF2FF;
     color: ${PURPLE};
     display: flex;
     align-items: center;
@@ -1660,12 +1716,12 @@ const styles = `
   }
   .wallet-tag-soon {
     color: ${PURPLE};
-    background: #E8F5F3;
-    border-color: #CBEAE2;
+    background: #EEF2FF;
+    border-color: #DDE5FF;
   }
 
   .steps {
-    background: #0A0A0C;
+    background: #0B1220;
     padding: 72px 0;
   }
   .steps .section-title {
@@ -1712,7 +1768,7 @@ const styles = `
     height: 34px;
     border-radius: 10px;
     background: rgba(255,255,255,0.08);
-    color: #CBEAE2;
+    color: #DDE5FF;
   }
   .step-card h3 {
     color: #fff;
@@ -1720,7 +1776,7 @@ const styles = `
     margin: 0 0 8px;
   }
   .step-card p {
-    color: #CBEAE2;
+    color: #DDE5FF;
     font-size: 13px;
     line-height: 1.5;
     margin: 0;
@@ -1733,7 +1789,7 @@ const styles = `
     display: flex;
     justify-content: center;
     gap: 6px;
-    background: #F1EFE8;
+    background: #F7F8FB;
     border-radius: 10px;
     padding: 4px;
     max-width: 360px;
@@ -1775,7 +1831,7 @@ const styles = `
   .price-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-    border-color: #CBEAE2;
+    border-color: #DDE5FF;
   }
   .price-card h3 {
     font-size: 14.5px;
@@ -1795,7 +1851,7 @@ const styles = `
   .price-number {
     font-size: 26px;
     font-weight: 800;
-    color: #111114;
+    color: #0B1220;
   }
   .price-devis {
     font-size: 18px;
@@ -1815,7 +1871,7 @@ const styles = `
   }
 
   .cta-banner {
-    background: linear-gradient(160deg, ${PURPLE} 0%, #0F8C82 100%);
+    background: linear-gradient(160deg, ${PURPLE} 0%, #15317A 100%);
     padding: 64px 0;
     text-align: center;
   }
@@ -1831,7 +1887,7 @@ const styles = `
     margin: 0;
   }
   .cta-banner p {
-    color: #CBEAE2;
+    color: #DDE5FF;
     font-size: 14.5px;
     margin: 0 0 8px;
   }
@@ -1841,7 +1897,7 @@ const styles = `
   }
 
   .footer {
-    background: #0A0A0C;
+    background: #0B1220;
     padding: 56px 0 0;
   }
   .footer-top {
@@ -1863,13 +1919,8 @@ const styles = `
     font-size: 15px;
     margin-bottom: 12px;
   }
-  .footer-brand img {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-  }
   .footer-tagline {
-    color: #B8BCB8;
+    color: #CBD3DF;
     font-size: 13px;
     line-height: 1.6;
     margin: 0 0 12px;
@@ -1879,7 +1930,7 @@ const styles = `
     font-size: 12.5px;
   }
   .footer-contact a {
-    color: #CBEAE2;
+    color: #DDE5FF;
     text-decoration: none;
     font-weight: 600;
   }
@@ -1894,11 +1945,11 @@ const styles = `
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #8FD6CC;
+    color: #9FB8F5;
     margin-bottom: 4px;
   }
   .footer-nav-col a {
-    color: #8FD6CC;
+    color: #9FB8F5;
     text-decoration: none;
     font-size: 13.5px;
   }
@@ -1925,7 +1976,7 @@ const styles = `
   }
   .footer-payments-label {
     font-size: 11.5px;
-    color: #B8BCB8;
+    color: #CBD3DF;
   }
   .payment-badges {
     display: flex;
@@ -1936,7 +1987,7 @@ const styles = `
   .payment-badge {
     font-size: 11.5px;
     font-weight: 700;
-    color: #CBEAE2;
+    color: #DDE5FF;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.14);
     padding: 5px 12px;
@@ -1951,12 +2002,12 @@ const styles = `
   }
   .footer-copyright {
     font-size: 11.5px;
-    color: #B8BCB8;
+    color: #CBD3DF;
     margin: 0;
   }
   .footer-madein {
     font-size: 11.5px;
-    color: #B8BCB8;
+    color: #CBD3DF;
   }
 
   @media (max-width: 900px) {
