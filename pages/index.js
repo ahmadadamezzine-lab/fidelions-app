@@ -1,9 +1,10 @@
 // pages/index.js
 //
-// Page d'accueil MARKETING — rebrand "See You Soon" (nom de travail,
-// provisoire : voir BRAND_NAME ci-dessous, centralisé pour rester facile à
-// remplacer partout une fois le nom définitif choisi). Nouvelle direction
-// artistique : palette bleu nuit/bleu primaire/bleu clair (voir PURPLE,
+// Page d'accueil MARKETING — rebrand "the rebelote." (nom et logo
+// définitifs fournis par Adam : symbole en deux drapeaux/parallélogrammes
+// bleus superposés + wordmark "the" petit au-dessus de "rebelote." en
+// gras, point final bleu — voir BRAND_NAME/Wordmark/BrandMark
+// ci-dessous). Palette bleu nuit/bleu primaire/bleu clair (voir PURPLE,
 // NAVY, LIGHT_BLUE, GREY_BLUE, OFFWHITE), typographies Inter Display
 // Black (titres) / Manrope (navigation, boutons, sous-titres) / Inter
 // (texte courant). Remplace l'ancien habillage turquoise "Fidions".
@@ -12,7 +13,7 @@
 // étapes, tarifs, pied de page) — seul l'habillage visuel et le nom
 // affiché changent à cette étape.
 //
-// Les chiffres affichés (section "Pourquoi See You Soon") sont des faits
+// Les chiffres affichés (section "Pourquoi the rebelote") sont des faits
 // sur le produit lui-même (délai de mise en place, absence d'application
 // à installer, etc.), pas des statistiques clients inventées — le service
 // étant tout jeune, aucune fausse preuve sociale ("+10 000 clients")
@@ -49,10 +50,11 @@ import {
   Nfc,
 } from "lucide-react";
 
-// Nom de marque provisoire (voir le commentaire en tête de fichier) —
-// centralisé ici plutôt que répété en dur, pour rester facile à remplacer
-// partout d'un coup une fois le nom définitif tranché.
-const BRAND_NAME = "See You Soon";
+// Nom de marque définitif : "the rebelote." — centralisé ici plutôt que
+// répété en dur. Le point final fait partie du logo (voir Wordmark
+// ci-dessous) mais pas du nom utilisé dans les phrases, pour éviter un
+// double point ou une lecture bizarre en milieu de texte.
+const BRAND_NAME = "the rebelote";
 
 // Titre/description/image affichés dans les résultats Google et les
 // aperçus de lien partagé (WhatsApp, réseaux sociaux) — sans ça, un lien
@@ -63,12 +65,12 @@ const SEO_DESCRIPTION =
   "Carte de fidélité directement dans le portefeuille du téléphone de tes clients, sans application à installer. Mise en place en 2 minutes, dès 49€/mois.";
 const SEO_IMAGE = "/logo.png";
 
-// Palette "See You Soon" (voir la direction artistique fournie) : bleu
-// primaire en couleur de marque, bleu nuit pour les fonds/titres sombres,
-// bleu clair et gris pour les tons de support — remplace l'ancien
-// turquoise Fidions. PURPLE est gardé comme nom de variable (historique,
-// trop de références dans ce fichier pour tout renommer sans risque) mais
-// contient maintenant le bleu primaire.
+// Palette "the rebelote." (couleurs du logo fourni) : bleu primaire en
+// couleur de marque, bleu nuit pour les fonds/titres sombres, bleu clair
+// et gris pour les tons de support — remplace l'ancien turquoise
+// Fidions. PURPLE est gardé comme nom de variable (historique, trop de
+// références dans ce fichier pour tout renommer sans risque) mais
+// contient maintenant le bleu primaire de la nouvelle identité.
 const PURPLE = "#2449C9";
 const NAVY = "#0B1220";
 const LIGHT_BLUE = "#DDE5FF";
@@ -128,16 +130,30 @@ function Icon({ name, size = 20 }) {
   return null;
 }
 
-// Symbole de marque "See You Soon" : deux cartes arrondies superposées
-// (écho direct au produit — une carte de fidélité) plutôt qu'une forme
-// de dégradé abstraite, qui tend à avoir l'air générique/généré. Pas
-// besoin de fichier logo séparé, et reste trivial à remplacer par un
-// vrai logo une fois le nom de marque définitif choisi.
-function BrandMark() {
+// Symbole "the rebelote." : deux drapeaux/parallélogrammes bleus
+// superposés (logo fourni par Adam) — reconstruit en SVG pour ne pas
+// dépendre d'un fichier image séparé pour une forme aussi simple.
+function BrandMark({ size = 28 }) {
   return (
-    <span className="brandmark-symbol" aria-hidden="true">
-      <span className="brandmark-symbol-back" />
-      <span className="brandmark-symbol-front" />
+    <svg className="brandmark-symbol" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+      <polygon points="14,2 30,2 24,16 8,16" fill={PURPLE} />
+      <polygon points="6,16 22,16 16,30 0,30" fill="#9DB4F2" />
+    </svg>
+  );
+}
+
+// Wordmark "the rebelote." : "the" petit au-dessus de "rebelote." en
+// gras, avec le point final en bleu de marque — lockup fidèle au logo
+// fourni. `tone` bascule la couleur du texte ("dark" sur fond clair,
+// "light" sur fond sombre comme le pied de page) ; le point reste bleu
+// dans les deux cas (lisible sur blanc comme sur bleu nuit).
+function Wordmark({ tone = "dark" }) {
+  return (
+    <span className={`wordmark wordmark-${tone}`}>
+      <span className="wordmark-the">the</span>
+      <span className="wordmark-main">
+        rebelote<span className="wordmark-dot">.</span>
+      </span>
     </span>
   );
 }
@@ -381,8 +397,8 @@ export default function Home() {
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/" className="nav-brand">
-            <BrandMark />
-            <span>{BRAND_NAME}</span>
+            <BrandMark size={26} />
+            <Wordmark tone="dark" />
           </Link>
           <div className="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
@@ -798,8 +814,8 @@ export default function Home() {
         <div className="section-inner footer-top">
           <div className="footer-brand-col">
             <div className="footer-brand">
-              <BrandMark />
-              <span>{BRAND_NAME}</span>
+              <BrandMark size={26} />
+              <Wordmark tone="light" />
             </div>
             <p className="footer-tagline">
               Le système de fidélisation clé en main pour les commerces qui veulent que leurs
@@ -972,37 +988,39 @@ const styles = `
   .nav-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     text-decoration: none;
-    color: ${PURPLE};
-    font-family: "Manrope", sans-serif;
-    font-weight: 800;
-    font-size: 16px;
     flex: none;
   }
   .brandmark-symbol {
-    position: relative;
-    display: inline-block;
-    width: 26px;
-    height: 26px;
     flex: none;
   }
-  .brandmark-symbol-back,
-  .brandmark-symbol-front {
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    border-radius: 6px;
+  .wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    font-family: "Manrope", sans-serif;
   }
-  .brandmark-symbol-back {
-    top: 0;
-    left: 0;
-    background: ${LIGHT_BLUE};
+  .wordmark-the {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 1px;
   }
-  .brandmark-symbol-front {
-    bottom: 0;
-    right: 0;
-    background: ${PURPLE};
+  .wordmark-main {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .wordmark-dot {
+    color: ${PURPLE};
+  }
+  .wordmark-dark .wordmark-the,
+  .wordmark-dark .wordmark-main {
+    color: #0B1220;
+  }
+  .wordmark-light .wordmark-the,
+  .wordmark-light .wordmark-main {
+    color: #fff;
   }
   .nav-links {
     display: flex;
@@ -2047,10 +2065,7 @@ const styles = `
   .footer-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 800;
-    color: #fff;
-    font-size: 15px;
+    gap: 10px;
     margin-bottom: 12px;
   }
   .footer-tagline {
